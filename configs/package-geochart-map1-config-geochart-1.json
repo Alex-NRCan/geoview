@@ -1,0 +1,108 @@
+{
+  "suportedLanguages": ["en", "fr"],
+  "charts": [{
+      "layers": ["airborne_radioactivity/1"],
+      "chart": "line",
+      "featuresUsePalette": true,
+      "layerOptions": {
+        "query": ""
+      }
+    },
+    {
+      "layers": ["geojsonLYR5/polygons.json"],
+      "chart": "line",
+      "propData": "data",
+      "propLabel": "label",
+      "featuresUsePalette": true,
+      "labelsAreColors": true,
+      "data": {
+        "type": "FeatureCollection",
+        "features": [
+          {
+            "type": "Feature",
+            "properties": {
+              "data": "92;43.54;12.3;66;75",
+              "label": "Red;Green;Blue;Yellow;Orange"
+            },
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -110,
+                55
+              ]
+            }
+          },
+          {
+            "type": "Feature",
+            "properties": {
+              "data": "553;54;32.553;5.43;55",
+              "label": "Red;Green;Blue;Yellow;Orange"
+            },
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -100,
+                55
+              ]
+            }
+          },
+          {
+            "type": "Feature",
+            "properties": {
+              "data": "155;55;255",
+              "label": "Red;Green;Blue"
+            },
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -90,
+                55
+              ]
+            }
+          }
+        ]
+      }
+    }, 
+    {
+      "layers": ["geojsonLYR5/point-feature-group/points.json"],
+      "chart": "bar",
+      "propData": "data",
+      "propLabel": "label",
+      "featuresUsePalette": true,
+      "labelsAreColors": true,
+      "data": {
+        "type": "FeatureCollection",
+        "features": [
+          {
+            "type": "Feature",
+            "properties": {
+              "data": "92;43.54;12.3;66;75",
+              "label": "Red;Green;Blue;Yellow;Orange"
+            },
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -110,
+                55
+              ]
+            }
+          },
+          {
+            "type": "Feature",
+            "properties": {
+              "data": "553;54;32.553;5.43;55",
+              "label": "Red;Green;Blue;Yellow;Orange"
+            },
+            "geometry": {
+              "type": "Point",
+              "coordinates": [
+                -100,
+                55
+              ]
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
