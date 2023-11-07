@@ -7,13 +7,19 @@
       "propertyValue": "OBJECTID",
       "propertyDisplay": "Location_Emplacement",
       "query": {
-        "url": "https://maps-cartes.services.geo.ca/server_serveur/rest/services/HC/airborne_radioactivity_en/MapServer/1/queryRelatedRecords?outFields=*&returnGeometry=false&maxAllowableOffset=&geometryPrecision=&outSR=&returnZ=false&returnM=false&gdbVersion=&datumTransformation=&f=json&relationshipId=0&definitionExpression=&objectIds=${id}"
+        "type": "esriRelatedRecords",
+        "lazyLoading": false,
+        "url": "https://maps-cartes.services.geo.ca/server_serveur/rest/services/HC/airborne_radioactivity_en/MapServer/1/queryRelatedRecords?outFields=*&returnGeometry=false&maxAllowableOffset=&geometryPrecision=&outSR=&returnZ=false&returnM=false&gdbVersion=&datumTransformation=&f=json&relationshipId=0&definitionExpression=&objectIds=${0}",
+        "url_attributes": ["OBJECTID"]
       }
     }],
     "chart": "line",
-    "category": "Radionuclide_Radionucleide",
+    "category": {
+      "property": "Radionuclide_Radionucleide",
+      "usePalette": false
+    },
     "geochart": {
-      "featuresUsePalette": true,
+      "borderWidth": 1,
       "xAxis": {
         "type": "time",
         "property": "CollectionStart_DebutPrelevement"
@@ -22,7 +28,39 @@
         "property": "Activity_Activite_mBqm3"
       },
       "xSlider": {
-      "display": true
+        "display": true
+      },
+      "ySlider": {
+        "display": true
+      }
+    }
+  },
+  {
+    "layers": [{
+      "layerId": "shellfish_sites/1",
+      "propertyValue": "OBJECTID",
+      "propertyDisplay": "Site",
+      "query": {
+        "type": "esriRegular",
+        "lazyLoading": true,
+        "url": "https://maps-cartes.ec.gc.ca/arcgis/rest/services/Shellfish_Sites_Samples_Mollusques_Echantillons/MapServer/9/query?outFields=*&orderByFields=Date&f=json&where=Site=%27${0}%27",
+        "url_attributes": ["Site"]
+      }
+    }],
+    "chart": "line",
+    "geochart": {
+      "borderWidth": 1,
+      "useSteps": false,
+      "tension": 0.3,
+      "xAxis": {
+        "type": "time",
+        "property": "Date"
+      },
+      "yAxis": {
+        "property": "FC_MPN_CF_NPP_100_mL"
+      },
+      "xSlider": {
+        "display": true
       },
       "ySlider": {
         "display": true
@@ -33,10 +71,8 @@
     "layers": [{
       "layerId": "geojsonLYR5/polygons.json"
     }],
-    "chart": "line",
+    "chart": "pie",
     "geochart": {
-      "featuresUsePalette": true,
-      "labelsAreColors": true,
       "xAxis": {
         "property": "label"
       },
@@ -44,20 +80,64 @@
         "property": "data"
       }
     },
+    "category": {
+      "property": "location",
+      "usePalette": false
+    },
     "datasources": [{
       "display": "Feature",
-      "format": "compressed",
       "items": [{
-        "data": "92;43.54;12.3;66;75",
-        "label": "Red;Green;Blue;Yellow;Orange"
-      },
-      {
-        "data": "553;54;32.553;5.43;55",
-        "label": "Red;Green;Blue;Yellow;Orange"
-      },
-      {
-        "data": "155;55;255",
-        "label": "Red;Green;Blue"
+        "data": 92,
+        "label": "Hockey",
+        "location": "Victoria"
+      },{
+        "data": 43.54,
+        "label": "Baseball",
+        "location": "Victoria"
+      },{
+        "data": 12.3,
+        "label": "Basketball",
+        "location": "Victoria"
+      },{
+        "data": 66,
+        "label": "Football",
+        "location": "Victoria"
+      },{
+        "data": 75,
+        "label": "Soccer",
+        "location": "Victoria"
+      },{
+        "data": 553,
+        "label": "Hockey",
+        "location": "Toronto"
+      },{
+        "data": 54,
+        "label": "Baseball",
+        "location": "Toronto"
+      },{
+        "data": 32.553,
+        "label": "Basketball",
+        "location": "Toronto"
+      },{
+        "data": 5.43,
+        "label": "Football",
+        "location": "Toronto"
+      },{
+        "data": 55,
+        "label": "Soccer",
+        "location": "Toronto"
+      },{
+        "data": 155,
+        "label": "Hockey",
+        "location": "Montreal"
+      },{
+        "data": 55,
+        "label": "Baseball",
+        "location": "Montreal"
+      },{
+        "data": 255,
+        "label": "Basketball",
+        "location": "Montreal"
       }]
     }]
   }, 
@@ -67,8 +147,6 @@
     }],
     "chart": "bar",
     "geochart": {
-      "featuresUsePalette": true,
-      "labelsAreColors": true,
       "xAxis": {
         "property": "label"
       },
@@ -76,20 +154,64 @@
         "property": "data"
       }
     },
+    "category": {
+      "property": "location",
+      "usePalette": false
+    },
     "datasources": [{
       "display": "Feature",
-      "format": "compressed",
       "items": [{
-        "data": "92;43.54;12.3;66;75",
-        "label": "Red;Green;Blue;Yellow;Orange"
-      },
-      {
-        "data": "553;54;32.553;5.43;55",
-        "label": "Red;Green;Blue;Yellow;Orange"
-      },
-      {
-        "data": "155;55;255",
-        "label": "Red;Green;Blue"
+        "data": 92,
+        "label": "Hockey",
+        "location": "Victoria"
+      },{
+        "data": 43.54,
+        "label": "Baseball",
+        "location": "Victoria"
+      },{
+        "data": 12.3,
+        "label": "Basketball",
+        "location": "Victoria"
+      },{
+        "data": 66,
+        "label": "Football",
+        "location": "Victoria"
+      },{
+        "data": 75,
+        "label": "Soccer",
+        "location": "Victoria"
+      },{
+        "data": 553,
+        "label": "Hockey",
+        "location": "Toronto"
+      },{
+        "data": 54,
+        "label": "Baseball",
+        "location": "Toronto"
+      },{
+        "data": 32.553,
+        "label": "Basketball",
+        "location": "Toronto"
+      },{
+        "data": 5.43,
+        "label": "Football",
+        "location": "Toronto"
+      },{
+        "data": 55,
+        "label": "Soccer",
+        "location": "Toronto"
+      },{
+        "data": 155,
+        "label": "Hockey",
+        "location": "Montreal"
+      },{
+        "data": 55,
+        "label": "Baseball",
+        "location": "Montreal"
+      },{
+        "data": 255,
+        "label": "Basketball",
+        "location": "Montreal"
       }]
     }]
   }]

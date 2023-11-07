@@ -13,6 +13,52 @@
     },
     "listOfGeoviewLayerConfig": [
       {
+        "geoviewLayerId": "airborne_radioactivity",
+        "geoviewLayerName": {
+          "en": "Airborne Radioactivity"
+        },
+        "metadataAccessPath": {
+          "en": "https://maps-cartes.services.geo.ca/server_serveur/rest/services/HC/airborne_radioactivity_en/MapServer"
+        },
+        "geoviewLayerType": "esriDynamic",
+        "listOfLayerEntryConfig": [
+          {
+            "layerId": "1"
+          }
+        ]
+      },
+      {
+        "geoviewLayerId": "shellfish_sites",
+        "geoviewLayerName": {
+          "en": "Shellfish Sites"
+        },
+        "metadataAccessPath": {
+          "en": "https://maps-cartes.ec.gc.ca/arcgis/rest/services/Shellfish_Sites_Samples_Mollusques_Echantillons/MapServer"
+        },
+        "geoviewLayerType": "esriFeature",
+        "listOfLayerEntryConfig": [
+          {
+            "layerId": "1"
+          }
+        ]
+      },
+      {
+        "geoviewLayerId": "cesi",
+        "geoviewLayerName": {
+          "en": "CESI"
+        },
+        "metadataAccessPath": {
+          "en": "https://maps-cartes.ec.gc.ca/arcgis/rest/services/CESI/MapServer"
+        },
+        "geoviewLayerType": "esriFeature",
+        "listOfLayerEntryConfig": [
+          {
+            "layerId": "1",
+            "layerFilter": "E_Province = 'Alberta' or E_Province = 'Manitoba'"
+          }
+        ]
+      },
+      {
         "geoviewLayerId": "geojsonLYR5",
         "geoviewLayerName": { "en": "GeoJSON Sample" },
         "metadataAccessPath": { "en": "./geojson/metadata.json" },

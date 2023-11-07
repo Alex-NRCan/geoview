@@ -2,7 +2,10 @@
   "general": {
     "close": "Fermer",
     "open": "Ouvrir",
-    "layers": "Couches"
+    "layers": "Couches",
+    "add": "Ajouter",
+    "remove": "Retirer",
+    "name": "Nom"
   },
   "mapnav": {
     "arianavbar": "groupe de buttons vertical pour navigation sur la carte",
@@ -68,7 +71,7 @@
     "external_link": "Lien externe",
     "detailsView": "Vue détaillée",
     "selectVisbleLayer": "Sélectionnez n'importe quelle couche visible sur la carte pour commencer",
-    "availableLayers": "Couche disponibles",
+    "availableLayers": "Couche",
     "feature": "item",
     "clickOnMap": "Cliquer sur la carte",
     "nextFeatureBtn": "Item suivant",
@@ -133,6 +136,7 @@
     "enlargeBtn": "Agrandir",
     "reduceBtn": "Réduire",
     "features": "Item(s)",
-    "featureFiltered": "Item filtrée(s)"
+    "featureFiltered": "Item filtrée(s)",
+    "images": "Images"
   }
 }

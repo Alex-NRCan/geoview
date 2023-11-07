@@ -28,6 +28,21 @@
         ]
       },
       {
+        "geoviewLayerId": "shellfish_sites",
+        "geoviewLayerName": {
+          "en": "Shellfish Sites"
+        },
+        "metadataAccessPath": {
+          "en": "https://maps-cartes.ec.gc.ca/arcgis/rest/services/Shellfish_Sites_Samples_Mollusques_Echantillons/MapServer"
+        },
+        "geoviewLayerType": "esriFeature",
+        "listOfLayerEntryConfig": [
+          {
+            "layerId": "1"
+          }
+        ]
+      },
+      {
         "geoviewLayerId": "cesi",
         "geoviewLayerName": {
           "en": "CESI"
