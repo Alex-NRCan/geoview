@@ -9,14 +9,20 @@
       "query": {
         "type": "esriRelatedRecords",
         "lazyLoading": false,
-        "url": "https://maps-cartes.services.geo.ca/server_serveur/rest/services/HC/airborne_radioactivity_en/MapServer/1/queryRelatedRecords?outFields=*&returnGeometry=false&maxAllowableOffset=&geometryPrecision=&outSR=&returnZ=false&returnM=false&gdbVersion=&datumTransformation=&f=json&relationshipId=0&definitionExpression=&objectIds=${0}",
-        "url_attributes": ["OBJECTID"]
+        "url": "https://maps-cartes.services.geo.ca/server_serveur/rest/services/HC/airborne_radioactivity_en/MapServer/1",
+        "urlOptions": {
+          "relationshipId": 0,
+          "objectIdField": "OBJECTID"
+        }
       }
     }],
     "chart": "line",
     "category": {
       "property": "Radionuclide_Radionucleide",
       "usePalette": false
+    },
+    "ui": {
+      "stepsSwitcher": true
     },
     "geochart": {
       "borderWidth": 1,
@@ -25,6 +31,7 @@
         "property": "CollectionStart_DebutPrelevement"
       },
       "yAxis": {
+        "type": "linear",
         "property": "Activity_Activite_mBqm3"
       },
       "xSlider": {
@@ -43,20 +50,33 @@
       "query": {
         "type": "esriRegular",
         "lazyLoading": true,
-        "url": "https://maps-cartes.ec.gc.ca/arcgis/rest/services/Shellfish_Sites_Samples_Mollusques_Echantillons/MapServer/9/query?outFields=*&orderByFields=Date&f=json&where=Site=%27${0}%27",
-        "url_attributes": ["Site"]
+        "url": "https://maps-cartes.ec.gc.ca/arcgis/rest/services/Shellfish_Sites_Samples_Mollusques_Echantillons/MapServer/9",
+        "urlOptions": {
+          "whereClauses": [
+          {
+            "field": "Site",
+            "prefix": "'",
+            "valueFrom": "Site",
+            "suffix": "'"
+          }],
+          "orderByField": "Date"
+        }
       }
     }],
     "chart": "line",
+    "ui": {
+      "stepsSwitcher": true
+    },
     "geochart": {
       "borderWidth": 1,
       "useSteps": false,
-      "tension": 0.3,
+      "tension": 0.2,
       "xAxis": {
         "type": "time",
         "property": "Date"
       },
       "yAxis": {
+        "type": "logarithmic",
         "property": "FC_MPN_CF_NPP_100_mL"
       },
       "xSlider": {
@@ -140,7 +160,7 @@
         "location": "Montreal"
       }]
     }]
-  }, 
+  },
   {
     "layers": [{
       "layerId": "geojsonLYR5/point-feature-group/points.json"

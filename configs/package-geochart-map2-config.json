@@ -15,10 +15,12 @@
       {
         "geoviewLayerId": "airborne_radioactivity",
         "geoviewLayerName": {
-          "en": "Airborne Radioactivity"
+          "en": "Airborne Radioactivity",
+          "fr": "Radioactivité aérienne"
         },
         "metadataAccessPath": {
-          "en": "https://maps-cartes.services.geo.ca/server_serveur/rest/services/HC/airborne_radioactivity_en/MapServer"
+          "en": "https://maps-cartes.services.geo.ca/server_serveur/rest/services/HC/airborne_radioactivity_en/MapServer",
+          "fr": "https://maps-cartes.services.geo.ca/server_serveur/rest/services/HC/airborne_radioactivity_en/MapServer"
         },
         "geoviewLayerType": "esriDynamic",
         "listOfLayerEntryConfig": [
@@ -30,10 +32,12 @@
       {
         "geoviewLayerId": "shellfish_sites",
         "geoviewLayerName": {
-          "en": "Shellfish Sites"
+          "en": "Shellfish Sites",
+          "fr": "Sites de Mollusques"
         },
         "metadataAccessPath": {
-          "en": "https://maps-cartes.ec.gc.ca/arcgis/rest/services/Shellfish_Sites_Samples_Mollusques_Echantillons/MapServer"
+          "en": "https://maps-cartes.ec.gc.ca/arcgis/rest/services/Shellfish_Sites_Samples_Mollusques_Echantillons/MapServer",
+          "fr": "https://maps-cartes.ec.gc.ca/arcgis/rest/services/Shellfish_Sites_Samples_Mollusques_Echantillons/MapServer"
         },
         "geoviewLayerType": "esriFeature",
         "listOfLayerEntryConfig": [
@@ -45,10 +49,12 @@
       {
         "geoviewLayerId": "cesi",
         "geoviewLayerName": {
-          "en": "CESI"
+          "en": "CESI",
+          "fr": "CESI"
         },
         "metadataAccessPath": {
-          "en": "https://maps-cartes.ec.gc.ca/arcgis/rest/services/CESI/MapServer"
+          "en": "https://maps-cartes.ec.gc.ca/arcgis/rest/services/CESI/MapServer",
+          "fr": "https://maps-cartes.ec.gc.ca/arcgis/rest/services/CESI/MapServer"
         },
         "geoviewLayerType": "esriFeature",
         "listOfLayerEntryConfig": [
@@ -60,25 +66,25 @@
       },
       {
         "geoviewLayerId": "geojsonLYR5",
-        "geoviewLayerName": { "en": "GeoJSON Sample" },
-        "metadataAccessPath": { "en": "./geojson/metadata.json" },
+        "geoviewLayerName": { "en": "GeoJSON Sample", "fr": "Échantillon GeoJSON" },
+        "metadataAccessPath": { "en": "./geojson/metadata.json", "fr": "./geojson/metadata.json" },
         "geoviewLayerType": "GeoJSON",
         "listOfLayerEntryConfig": [
           {
             "layerId": "polygons.json",
-            "layerName": { "en": "Polygons" }
+            "layerName": { "en": "Polygons", "fr": "Polygones" }
           },
           {
             "layerId": "lines.json",
-            "layerName": { "en": "Lines" }
+            "layerName": { "en": "Lines", "fr": "Lignes" }
           },
           {
             "entryType": "group",
             "layerId": "point-feature-group",
-            "layerName": { "en": "point-feature-group" },
+            "layerName": { "en": "Points", "fr": "Points" },
             "listOfLayerEntryConfig": [
-              { "layerId": "icon_points.json", "layerName": { "en": "Icons" } },
-              { "layerId": "points.json", "layerName": { "en": "Points" } }
+              { "layerId": "icon_points.json", "layerName": { "en": "Icons", "fr": "Icones" } },
+              { "layerId": "points.json", "layerName": { "en": "Points", "fr": "Points" } }
             ]
           }
         ]
@@ -87,5 +93,5 @@
   },
   "theme": "light",
   "corePackages": ["geochart"],
-  "suportedLanguages": ["en"]
+  "suportedLanguages": ["en", "fr"]
 }
