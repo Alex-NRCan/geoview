@@ -1,11 +1,12 @@
 {
   "general": {
-    "close": "Close",
-    "open": "Open",
-    "layers": "Layers",
     "add": "Add",
-    "remove": "Remove",
-    "name": "Name"
+    "close": "Close",
+    "exit": "Exit",
+    "layers": "Layers",
+    "name": "Name",
+    "open": "Open",
+    "remove": "Remove"
   },
   "mapnav": {
     "arianavbar": "vertical button group for map navigation",
@@ -65,7 +66,9 @@
     "selected_Layers": "An overview of currrently selected layers",
     "re-arrange": "re-arrange",
     "categories_title": "Categories",
-    "items_available": "items available"
+    "items_available": "items available",
+    "layer_has_error": "Layer has an error...",
+    "layer_is_loading": "Layer is loading..."
   },
   "details": {
     "zoom_to": "Zoom to feature",
@@ -73,14 +76,13 @@
     "external_link": "External Link",
     "detailsView": "Details View",
     "selectVisbleLayer": "Select any visible layer on the map to get started",
-    "availableLayers": "Layers",
     "feature": "feature",
     "clickOnMap": "Click on map",
     "nextFeatureBtn": "Next feature",
     "previousFeatureBtn": "Previous feature",
     "clearAllfeatures": "Clear all feature highlights",
     "highlightFeaturesOnMap": "Highlight features on map",
-    "keepFeatureSelected": "Keep feature selected"
+    "keepFeatureSelected": "Keep feature highlighted"
   },
   "lightbox": {
     "next": "Next",
@@ -132,7 +134,6 @@
     "downloadAsCSV": "Download as CSV",
     "filterMap": "Filter Map",
     "stopFilterMap": "Stop Filter Map",
-    "leftPanelHeading": "Layers",
     "rowsSelected": "{rowsSelected} of {totalRows} row(s) selected",
     "rowsFiltered": "{rowsFiltered} of {totalRows} row(s) filtered",
     "enlargeBtn": "Enlarge",
