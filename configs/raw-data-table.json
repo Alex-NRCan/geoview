@@ -116,14 +116,13 @@
       }
     ]
   },
-  "theme": "royal",
+  "theme": "geo.ca",
   "navBar": [
     "zoom",
     "fullscreen",
     "home",
     "location",
-    "export",
-    "focus"
+    "export"
   ],
   "components": [
     "north-arrow",
