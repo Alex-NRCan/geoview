@@ -25,11 +25,6 @@
   },
   "theme": "light",
   "components": ["north-arrow", "overview-map"],
-  "appBarTabs": {
-    "tabs": {
-      "core": ["basemap-panel"]
-    }
-  },
   "corePackages": ["swiper"],
   "externalPackages": [],
   "suportedLanguages": ["en"]

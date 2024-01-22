@@ -14,10 +14,6 @@
   },
   "theme": "dark",
   "components": ["north-arrow", "overview-map"],
-  "appBarTabs": {
-    "tabs": {
-      "core": ["basemap-panel"]
-    }
-  },
+  "corePackages": ["basemap-panel"],
   "suportedLanguages": ["en"]
 }

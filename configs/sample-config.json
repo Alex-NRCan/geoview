@@ -117,11 +117,7 @@
   },
   "theme": "dark",
   "components": ["north-arrow", "overview-map"],
-  "appBarTabs": {
-    "tabs": {
-      "core": ["basemap-panel"]
-    }
-  },
+  "corePackages": ["basemap-panel"],
   "externalPackages": [],
   "serviceUrls": {
     "keys": "https://geocore.api.geo.ca"

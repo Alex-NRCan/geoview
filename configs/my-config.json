@@ -68,5 +68,6 @@
   },
   "theme": "dark",
   "components": [],
+  "corePackages": [],
   "suportedLanguages": ["en"]
 }

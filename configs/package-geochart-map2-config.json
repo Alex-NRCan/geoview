@@ -110,10 +110,6 @@
     ]
   },
   "theme": "light",
-  "footerTabs": {
-    "tabs": {
-      "core": ["geochart"]
-    }
-  },
+  "corePackages": ["geochart"],
   "suportedLanguages": ["en", "fr"]
 }

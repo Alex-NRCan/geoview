@@ -126,6 +126,7 @@
       "core": ["legend", "layers", "details"]
     }
   },
+  "corePackages": [],
   "externalPackages": [],
   "suportedLanguages": ["en"]
 }
