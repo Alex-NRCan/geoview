@@ -36,7 +36,6 @@
       "core": ["legend", "layers"]
     }
   },
-  "corePackages": [],
   "externalPackages": [],
   "suportedLanguages": ["en"]
 }

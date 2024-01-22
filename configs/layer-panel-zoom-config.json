@@ -99,7 +99,6 @@
       "core": ["legend", "layers", "details"]
     }
   },
-  "corePackages": [],
   "suportedLanguages": [
     "en"
   ]

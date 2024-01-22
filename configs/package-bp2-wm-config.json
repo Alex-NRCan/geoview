@@ -12,7 +12,11 @@
       "labeled": true
     }
   },
-  "corePackages": ["basemap-panel"],
+  "appBarTabs": {
+    "tabs": {
+      "core": ["basemap-panel"]
+    }
+  },
   "components": ["north-arrow", "overview-map"],
   "theme": "dark",
   "suportedLanguages": ["en", "fr"]
