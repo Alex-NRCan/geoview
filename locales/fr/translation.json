@@ -170,8 +170,7 @@
     "errorMessage": "Aucun résultat correspondant à",
     "province": "Province",
     "category": "Catégorie",
-    "clearFilters": "Effacer les filtres",
-    "noFilter": "Aucun Filtre"
+    "clearFilters": "Effacer les filtres"
   },
   "hovertooltip": {
     "alticon": "Symbol de l'élément sélectionné"
@@ -193,6 +192,9 @@
     "featureFiltered": "Item filtrée(s)",
     "images": "Images",
     "close": "Fermer"
+  },
+  "geochart": {
+    "noChartAvailable": "Cliquez sur la couche de carte avec le graphique"
   },
   "footerTabsContainer": {
     "focusToMap": "Aller à la carte",

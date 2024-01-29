@@ -170,8 +170,7 @@
     "errorMessage": "No matches found for",
     "province": "Province",
     "category": "Category",
-    "clearFilters": "Clear Filters",
-    "noFilter": "No Filter"
+    "clearFilters": "Clear Filters"
   },
   "hovertooltip": {
     "alticon": "Selected feature icon"
@@ -193,6 +192,9 @@
     "featureFiltered": "features filtered",
     "images": "Images",
     "close": "Close"
+  },
+  "geoChart": {
+    "noChartAvailable": "Click on the map layer with chart"
   },
   "footerTabsContainer": {
     "focusToMap": "Focus to map",
