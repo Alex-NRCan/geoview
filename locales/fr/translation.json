@@ -109,7 +109,9 @@
     "visibilityIsAlways": "La visibilité est toujours activée",
     "toggleVisibility": "Basculer la visibilité",
     "toggleCollapse": "Basculer la fermeture",
-    "querying": "Requête en cours"
+    "querying": "Requête en cours",
+    "instructionsNoLayersTitle": "Aucune couche visible",
+    "instructionsNoLayersBody": "Aucune couche visible. Ajoutez des couches visibles sur la carte."
   },
   "details": {
     "title": "Détails",

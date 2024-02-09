@@ -109,7 +109,9 @@
     "visibilityIsAlways": "Visibility is always enabled",
     "toggleVisibility": "Toggle visibility",
     "toggleCollapse": "Toggle collapse",
-    "querying": "Querying"
+    "querying": "Querying",
+    "instructionsNoLayersTitle": "No layers visible",
+    "instructionsNoLayersBody": "No layers visible. Add visible layers on the map."
   },
   "details": {
     "title": "Details",
