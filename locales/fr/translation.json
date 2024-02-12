@@ -67,7 +67,8 @@
     "refreshLayer": "Rafraîchir la couche",
     "highlightLayer": "Couche de mise en évidence",
     "subLayersCount": "{count} sous-couches",
-    "itemsCount": "{count} sur {totalCount} éléments"
+    "itemsCount": "{count} sur {totalCount} éléments",
+    "legendInstructions": "Legend Instructions"
   },
   "layers": {
     "title": "Couche",
@@ -111,7 +112,7 @@
     "toggleCollapse": "Basculer la fermeture",
     "querying": "Requête en cours",
     "instructionsNoLayersTitle": "Aucune couche visible",
-    "instructionsNoLayersBody": "Aucune couche visible. Ajoutez des couches visibles sur la carte."
+    "instructionsNoLayersBody": "Ajoutez des couches visibles sur la carte."
   },
   "details": {
     "title": "Détails",
@@ -129,6 +130,9 @@
     "keepFeatureSelected": "Garder l'élément sélectionné",
     "detailsInstructions": "Instructions détaillées",
     "loadingUI": "Chargement de l'interface utilisateur"
+  },
+  "timeSlider": {
+    "detailsInstructions": "Details Instructions"
   },
   "lightbox": {
     "next": "Prochaine",
@@ -197,6 +201,13 @@
     "featureFiltered": "Item filtrée(s)",
     "images": "Images",
     "close": "Fermer"
+  },
+  "geochart": {
+    "noChartAvailable": "Cliquez sur la couche de carte avec le graphique"
+  },
+  "guide": {
+    "title": "Guide",
+    "errorMessage": "Désolé, impossible de trouver le document d'aide !"
   },
   "footerBar": {
     "focusToMap": "Aller à la carte",

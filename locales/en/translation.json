@@ -67,7 +67,8 @@
     "refreshLayer": "Refresh layer",
     "highlightLayer": "Highlight layer",
     "subLayersCount": "{count} sub-layers",
-    "itemsCount": "{count} of {totalCount} items"
+    "itemsCount": "{count} of {totalCount} items",
+    "legendInstructions": "Legend Instructions"
   },
   "layers": {
     "title": "Layers",
@@ -111,7 +112,7 @@
     "toggleCollapse": "Toggle collapse",
     "querying": "Querying",
     "instructionsNoLayersTitle": "No layers visible",
-    "instructionsNoLayersBody": "No layers visible. Add visible layers on the map."
+    "instructionsNoLayersBody": "Add visible layers on the map."
   },
   "details": {
     "title": "Details",
@@ -129,6 +130,9 @@
     "keepFeatureSelected": "Keep feature highlighted",
     "detailsInstructions": "Details Instructions",
     "loadingUI": "Loading user interface"
+  },
+  "timeSlider": {
+    "detailsInstructions": "Details Instructions"
   },
   "lightbox": {
     "next": "Next",
@@ -197,6 +201,13 @@
     "featureFiltered": "features filtered",
     "images": "Images",
     "close": "Close"
+  },
+  "geoChart": {
+    "noChartAvailable": "Click on the map layer with chart"
+  },
+  "guide": {
+    "title": "Guide",
+    "errorMessage": "Sorry, unable to find the help document!"
   },
   "footerBar": {
     "focusToMap": "Focus to map",
