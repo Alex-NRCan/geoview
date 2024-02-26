@@ -142,6 +142,6 @@
       "core": ["legend", "layers", "details", "geochart"]
     }
   },
-  "corePackages": [],
+  "corePackages": ["swiper"],
   "suportedLanguages": ["en", "fr"]
 }
