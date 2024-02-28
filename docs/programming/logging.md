@@ -53,7 +53,12 @@ Typically, to debug an application, the developer should use `logger.logDebug()`
 
 A neat feature of the `logger` is the possibility to log using timing markers. Call `logMarkerStart` to start a timer using a key and then call `logMarkerCheck` and provide the same key to log the time span between 'now' and the 'start' time.
 
-Another neat feature of the `logger` is the possibility to track objects and log when they changed. Call `logTrackerStart` to start an interval timer which constantly tracks object value. Remember to call `logTrackerStop` to stop tracking.
+Another neat feature of the `logger` is the possibility to track an object and log when they changed or whenever we want. Call `logTrackerStart` to start an interval timer which constantly checks object value. Below is an example of how to call it.:
+```ts
+  let toto = 1;
+  logger.logTrackerStart('test', () => toto);
+```
+Remember to call `logTrackerStop` to stop tracking.
 
 ## Characteristics to know when using `useWhatChanged` ##
 
