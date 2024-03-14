@@ -52,7 +52,7 @@
 
         // add event handler to the load basemap panel button
         loadBasemapPanelBtn.addEventListener('click', function (e) {
-          cgpv.api.addPlugin('basemap-panel', 'mapWM', window.geoviewPlugins['basemap-panel'], {
+          cgpv.api.plugin.addPlugin('basemap-panel', 'mapWM', window.geoviewPlugins['basemap-panel'], {
             mapId: 'mapWM',
           });
         });
@@ -62,6 +62,6 @@
 
         // add event handler to the unload basemap panel button
         unloadBasemapPanelBtn.addEventListener('click', function (e) {
-          cgpv.api.removePlugin('basemap-panel', 'mapWM');
+          cgpv.api.plugin.removePlugin('basemap-panel', 'mapWM');
         });
       });</script></body></html>
