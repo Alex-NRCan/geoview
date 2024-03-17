@@ -209,6 +209,22 @@
         console.log(`api is ready for ${mapId}`);
 
         if (mapId === 'allMaps') {
+          // Wire a handle when all queries done after a map click
+          cgpv.api.maps['LYR1'].layer.featureInfoLayerSet.onQueryEnded((sender, payload) => {
+            const { coordinate, resultSet, eventType } = payload;
+            createInfoTable('LYR1', 'ResultSetId1', resultSet, eventType);
+          });
+          // Wire a handle when all queries done after a map click
+          cgpv.api.maps['LYR2'].layer.featureInfoLayerSet.onQueryEnded((sender, payload) => {
+            const { coordinate, resultSet, eventType } = payload;
+            createInfoTable('LYR2', 'ResultSetId2', resultSet, eventType);
+          });
+          // Wire a handle when all queries done after a map click
+          cgpv.api.maps['LYR3'].layer.featureInfoLayerSet.onQueryEnded((sender, payload) => {
+            const { coordinate, resultSet, eventType } = payload;
+            createInfoTable('LYR3', 'ResultSetId3', resultSet, eventType);
+          });
+
           createTableOfFilter('LYR1');
           createTableOfFilter('LYR2');
           createTableOfFilter('LYR3');
@@ -293,22 +309,13 @@
           dropDownContent.addEventListener('click', (e) => {
             cgpv.api.maps['LYR1'].layer.allFeatureInfoLayerSet.triggerGetAllFeatureInfo(e.currentTarget.value, 'all');
           });
-
-          cgpv.api.event.on(
-            cgpv.api.eventNames.GET_FEATURE_INFO.ALL_QUERIES_DONE,
-            (payload) => {
-              const { layerSetId, resultSet, eventType } = payload;
-              createInfoTable('LYR1', 'ResultSetId1', resultSet, eventType);
-            },
-            'LYR1/all/FeatureInfoLayerSet'
-          );
         },
         'LYR1'
       );
 
 
       cgpv.api.event.on(
-        cgpv.api.eventNames.GET_LEGENDS.LEGEND_LAYERSET_UPDATED,
+        cgpv.api.eventNames.LAYER_SET.UPDATED,
         (payload) => {
           const { resultSet } = payload;
           displayLegend('LegendsId1', resultSet);
@@ -326,16 +333,7 @@
       });
 
       cgpv.api.event.on(
-        cgpv.api.eventNames.GET_FEATURE_INFO.ALL_QUERIES_DONE,
-        (payload) => {
-          const { layerSetId, resultSet, eventType } = payload;
-          createInfoTable('LYR2', 'ResultSetId2', resultSet, eventType);
-        },
-        'LYR2/click/FeatureInfoLayerSet'
-      );
-
-      cgpv.api.event.on(
-        cgpv.api.eventNames.GET_LEGENDS.LEGEND_LAYERSET_UPDATED,
+        cgpv.api.eventNames.LAYER_SET.UPDATED,
         (payload) => {
           const { resultSet } = payload;
           displayLegend('LegendsId2', resultSet);
@@ -352,16 +350,7 @@
           });
 
       cgpv.api.event.on(
-        cgpv.api.eventNames.GET_FEATURE_INFO.ALL_QUERIES_DONE,
-        (payload) => {
-          const { layerSetId, resultSet, eventType } = payload;
-          createInfoTable('LYR3', 'ResultSetId3', resultSet, eventType);
-        },
-        'LYR3/click/FeatureInfoLayerSet'
-      );
-
-      cgpv.api.event.on(
-        cgpv.api.eventNames.GET_LEGENDS.LEGEND_LAYERSET_UPDATED,
+        cgpv.api.eventNames.LAYER_SET.UPDATED,
         (payload) => {
           const { resultSet } = payload;
           displayLegend('LegendsId3', resultSet);

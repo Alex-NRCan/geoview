@@ -136,6 +136,12 @@
         console.log(`api is ready for ${mapId}`);
 
         if (mapId === 'allMaps') {
+          // Wire a handle when all queries done after a map click
+          cgpv.api.maps['LYR1'].layer.featureInfoLayerSet.onQueryEnded((sender, payload) => {
+            const { coordinate, resultSet, eventType } = payload;
+            createInfoTable('LYR1', 'ResultSetId1', resultSet, eventType);
+          });
+
           createTableOfFilter('LYR1');
         }
       });
@@ -147,16 +153,7 @@
           });
 
       cgpv.api.event.on(
-        cgpv.api.eventNames.GET_FEATURE_INFO.ALL_QUERIES_DONE,
-        (payload) => {
-          const { layerSetId, resultSet, eventType } = payload;
-          createInfoTable('LYR1', 'ResultSetId1', resultSet, eventType);
-        },
-        'LYR1/click/FeatureInfoLayerSet'
-      );
-
-      cgpv.api.event.on(
-        cgpv.api.eventNames.GET_LEGENDS.LEGEND_LAYERSET_UPDATED,
+        cgpv.api.eventNames.LAYER_SET.UPDATED,
         (payload) => {
           const { resultSet } = payload;
           displayLegend('LegendsId1', resultSet);
