@@ -43,9 +43,9 @@
         const compSlider = cgpv.react.createElement(cgpv.ui.elements.Slider, propsSlider);
 
         // Update the component
-        // GV Ideally, we'd like to reuse the root and just do root.render(), but it is unstable, because react doesn't know if you want to actually change the state inside the Swiper component or not.
+        // GV Ideally, we'd like to reuse the root and just do root.render(), but it is unstable, because react doesn't know if you want to actually change the state inside the Sliper component or not.
         // It'll even try to guess based on the props you've sent it originally. This can be proven with the Math.random() below.
-        // This can lead to unexpected results. So, I've ended up just unmounting and recreating from scratch to make sure all state is reset inside Swiper.
+        // This can lead to unexpected results. So, I've ended up just unmounting and recreating from scratch to make sure all state is reset inside Sliper.
         // In any case, jumping into react behavior from pure JavaScript calls seems counter-pattern and will need careful design and consideration on how to
         // bridge the gap between React's declarative model and imperative JavaScript code. This pattern might lead to more issues like this down the road.
         // If we really want to do that, I'm afraid we'll need explicit callbacks provided back via props - to pretend we're in React when we're not.
