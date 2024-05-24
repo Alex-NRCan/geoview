@@ -72,7 +72,7 @@
           {
             "entryType": "group",
             "layerId": "point-feature-group",
-            "layerName": { "en": "point-feature-group" },
+            "layerName": { "en": "Points & Icons" },
             "listOfLayerEntryConfig": [
               {
                 "layerId": "icon_points.json",
