@@ -526,7 +526,6 @@
         window.setInterval(() => {
           const input = document.getElementById('filter-input-LYR1-esriFeatureLYR1');
           if (input) {
-            const layerConfig = cgpv.api.maps.LYR1.layer.getLayerEntryConfig('esriFeatureLYR1/0');
             const checkbox = document.getElementById('checkbox-LYR1-esriFeatureLYR1');
             const temporalData = cgpv.api.maps.LYR1.layer.getGeoviewLayerHybrid('esriFeatureLYR1/0').getTemporalDimension('esriFeatureLYR1/0');
             cgpv.api.maps.LYR1.layer.getGeoviewLayerHybrid('esriFeatureLYR1/0').applyViewFilter('esriFeatureLYR1/0',
@@ -556,7 +555,6 @@
           const input = document.getElementById('filter-input-LYR2-historical-flood');
           if (input) {
             input.value = LYR2_FILTERS[i];
-            const layerConfig = cgpv.api.maps.LYR2.layer.getLayerEntryConfig('historical-flood/0');
             const checkbox = document.getElementById('checkbox-LYR2-historical-flood');
             cgpv.api.maps.LYR2.layer.getGeoviewLayerHybrid('historical-flood/0').applyViewFilter('historical-flood/0',
               LYR2_FILTERS[i],
@@ -584,7 +582,6 @@
           const input = document.getElementById('filter-input-LYR3-historical-flood');
           if (input) {
             input.value = LYR3_FILTERS[j];
-            const layerConfig = cgpv.api.maps.LYR3.layer.getLayerEntryConfig('historical-flood/0');
             const checkbox = document.getElementById('checkbox-LYR3-historical-flood');
             cgpv.api.maps.LYR3.layer.getGeoviewLayerHybrid('historical-flood/0').applyViewFilter('historical-flood/0',
               LYR3_FILTERS[j],

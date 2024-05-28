@@ -358,7 +358,6 @@
             // Cycle through the temporal data
             let i = 0;
             window.setInterval(() => {
-              const layerConfig = cgpv.api.maps.LYR1.layer.getLayerEntryConfig('wmsLYR1-spatiotemporel/RADAR_1KM_RSNO');
               const temporalData = cgpv.api.maps.LYR1.layer
                 .getGeoviewLayerHybrid('wmsLYR1-spatiotemporel/RADAR_1KM_RSNO')
                 .getTemporalDimension('wmsLYR1-spatiotemporel/RADAR_1KM_RSNO');
@@ -372,7 +371,6 @@
 
             let j = 0;
             window.setInterval(() => {
-              const layerConfig = cgpv.api.maps.LYR1.layer.getLayerEntryConfig('wmsLYR1-msi/msi-94-or-more');
               const temporalData = cgpv.api.maps.LYR1.layer
                 .getGeoviewLayerHybrid('wmsLYR1-msi/msi-94-or-more')
                 .getTemporalDimension('wmsLYR1-msi/msi-94-or-more');
@@ -387,16 +385,17 @@
             createTableOfFilter('LYR2');
           } else if (mapId === 'LYR33') {
             const intervalId = window.setInterval(() => {
-              const lyr3LayerConfig = cgpv.api.maps.LYR3.layer.getLayerEntryConfig('wmsLYR3-Root/landcover_2015_19classes');
-              if (Array.isArray(lyr3LayerConfig?.source?.style)) {
+              const layerConfig = cgpv.api.maps.LYR3.layer.getLayerEntryConfig('wmsLYR3-Root/landcover_2015_19classes');
+              if (Array.isArray(layerConfig?.source?.style)) {
                 const dropDownContent = document.getElementById('style');
-                lyr3LayerConfig.source.style.forEach((style) => {
+                layerConfig.source.style.forEach((style) => {
                   element = document.createElement('option');
                   element.value = style;
                   element.innerText = style;
                   dropDownContent.appendChild(element);
                 });
                 dropDownContent.addEventListener('click', (e) => {
+                  // TODO: Refactor - Layers refactoring. There needs to be a setStyle somewhere (new layers, new config?) to complete the full layers migration.
                   cgpv.api.maps.LYR3.layer.getGeoviewLayer('wmsLYR3-Root').setStyle(
                     dropDownContent.value,
                     'wmsLYR3-Root/landcover_2015_19classes'
