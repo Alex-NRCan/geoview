@@ -32,7 +32,8 @@
         "geoviewLayerType": "esriFeature",
         "listOfLayerEntryConfig": [
           {
-            "layerId": "1"
+            "layerId": "1",
+            "layerFilter": "E_Province = 'Alberta' or E_Province = 'Manitoba'"
           }
         ]
       },
