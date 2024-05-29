@@ -38,6 +38,21 @@
         ]
       },
       {
+        "geoviewLayerId": "fail_bad_url",
+        "geoviewLayerName": {
+          "en": "Test fail bad url"
+        },
+        "metadataAccessPath": {
+          "en": "https://maps-cartes.services.geo.caaaaaa/server_serveur/rest/services/HC/airborne_radioactivity_en/MapServer"
+        },
+        "geoviewLayerType": "esriDynamic",
+        "listOfLayerEntryConfig": [
+          {
+            "layerId": "1"
+          }
+        ]
+      },
+      {
         "geoviewLayerId": "esriFeatureLYR5",
         "geoviewLayerName": {
           "en": "Top Projects"
