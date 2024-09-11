@@ -16,7 +16,6 @@
   },
   "mapnav": {
     "arianavbar": "Vertical button group for map navigation",
-    "basemap": "Change basemap",
     "fullscreen": "Full screen",
     "home": "Reset to initial view",
     "zoomIn": "Zoom in",
@@ -24,14 +23,6 @@
     "coordinates": "Toggle coordinates format",
     "scale": "Toggle between scale and resolution",
     "location": "Zoom to my location"
-  },
-  "basemaps": {
-    "select": "Select a basemap",
-    "default": "Default",
-    "transport": "Transport",
-    "imagery": "Imagery",
-    "simple": "Simple",
-    "nogeom": "None"
   },
   "mapctrl": {
     "rotation": {
