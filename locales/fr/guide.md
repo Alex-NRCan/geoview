@@ -91,7 +91,7 @@ _N.B.&nbsp;: Certains outils dans la barre latérale se trouvent aussi sous form
 | <img src="{{assetsURL}}/img/guide/sidebar/legend.svg" width="30"/>| Légende| Légende des icônes de la carte (_voir la section sur le pied de page pour en savoir plus_).|
 | <img src="{{assetsURL}}/img/guide/sidebar/details.svg" width="30"/>| Détails| Information détaillée des éléments sélectionnés (_voir la section sur le pied de page pour en savoir plus_).|
 | <img src="{{assetsURL}}/img/guide/sidebar/guide.svg" width="30"/>| Guide| Guide d’aide|
-| <img src="{{assetsURL}}/img/guide/sidebar/export.svg" width="30"/>| Exporter| Pour télécharger la carte en fichier PNG.|
+| <img src="{{assetsURL}}/img/guide/sidebar/export.svg" width="30"/>| Télécharger| Pour télécharger la carte en fichier PNG.|
 | <img src="{{assetsURL}}/img/guide/sidebar/notifications.svg" width="30"/>| Notification| Présente les messages et les notifications pour la carte.|
 | <img src="{{assetsURL}}/img/guide/sidebar/about.svg" width="30"/>| À propos de GéoView| Affiche les renseignements sur le visualiseur GéoView.|
 
@@ -146,28 +146,28 @@ Le sélecteur permet de modifier la carte de base pour obtenir différents conte
 
 <br>
 =2!export=
-### ![]({{assetsURL}}/img/guide/sidebar/export_30.svg) Exporter
+### ![]({{assetsURL}}/img/guide/sidebar/export_30.svg) Télécharger
 
-Vous pouvez exporter une image de la carte avec ses couches visibles, la légende, le titre, la flèche du nord, la barre d’échelle et un horodatage.
+Vous pouvez télécharger une image de la carte avec ses couches visibles, la légende, le titre, la flèche du nord, la barre d’échelle et un horodatage.
 
-Lorsque vous cliquez sur le bouton **Exporter**, une fenêtre de dialogue s’ouvre contenant l’image de la carte et un champ où vous pouvez entrer un titre.
+Lorsque vous cliquez sur le bouton **Télécharger**, une fenêtre de dialogue s’ouvre contenant l’image de la carte et un champ où vous pouvez entrer un titre.
 
-Cliquez sur le bouton **Exporter** au bas de la fenêtre pour générer l’image finale de la carte.
+Cliquez sur le bouton **Télécharger** au bas de la fenêtre pour générer l’image finale de la carte.
 
 =1!footerPanel=
 
 # Pied de page
-
+<a id="footerSection"></a>
 Le _pied de page_ se trouve sous la carte. Vous pouvez le développer en cliquant sur un des onglets de son menu. Pour le réduire, vous n’avez qu’à recliquer sur l’onglet actif.
 
 Le menu du _pied de page_ se compose des onglets suivants&nbsp;:
 
-- Légende
-- Couches
-- Détails
-- Données
-- Curseur temporel
-- Graphique
+- [Légende](#legendSection)
+- [Couches](#layersSection)
+- [Détails](#detailsSection)
+- [Données](#dataTableSection)
+- [Curseur temporel](#timeSliderSection)
+- [Graphique](#chartSection)
 - Guide
 
 _Selon la configuration du visualiseur, il se pourrait que certains onglets ne s’affichent pas._
@@ -176,7 +176,8 @@ _N.B.&nbsp;: Certains onglets du pied de page sont aussi accessibles comme outil
 
 <br>
 =2!legend=
-### ![]({{assetsURL}}/img/guide/sidebar/legend_25.svg) Légende
+<a id="legendSection"></a>
+### ![]({{assetsURL}}/img/guide/sidebar/legend_25.svg) Légende [Haut de page](#footerSection)
 
 L’onglet **Légende** présente les symboles des couches affichées sur la carte.
 
@@ -188,7 +189,8 @@ Vous pouvez développer ou réduire la liste des symboles d’une couche sous so
 
 <br>
 =2!layers=
-### ![]({{assetsURL}}/img/guide/footer/layers_30.svg) Couches
+<a id="layersSection"></a>
+### ![]({{assetsURL}}/img/guide/footer/layers_30.svg) Couches [Haut de page](#footerSection)
 
 L’onglet **Couches** comprend les sous-menus suivants&nbsp;:
 
@@ -286,7 +288,8 @@ Pour retirer une couche, cliquez sur l’icône de suppression ![]({{assetsURL}}
 
 <br>
 =2!details=
-### ![]({{assetsURL}}/img/guide/sidebar/details_30.svg) Détails
+<a id="detailsSection"></a>
+### ![]({{assetsURL}}/img/guide/sidebar/details_30.svg) Détails [Haut de page](#footerSection)
 
 L’onglet **Détails** se divise en deux sections. La section de gauche dresse la liste des couches accessibles, tandis que celle de droite affiche le détail des éléments pour chaque couche.
 
@@ -304,7 +307,8 @@ Cochez la case ![]({{assetsURL}}/img/guide/layers/check.png) pour garder l’él
 
 <br>
 =2!dataTable=
-### ![]({{assetsURL}}/img/guide/footer/data_table.svg) Données
+<a id="dataTableSection"></a>
+### ![]({{assetsURL}}/img/guide/footer/data_table.svg) Données [Haut de page](#footerSection)
 
 L’onglet **Données** se divise en deux sections. La liste des couches se trouve à gauche, et les données des couches, à droite. Cliquez sur une couche pour en voir les données dans le tableau de droite.
 
@@ -316,11 +320,12 @@ _N.B.&nbsp;: Selon différents facteurs, certaines options sont désactivées ou
 
 | Symbole| Nom| Description|
 |----------|----------|----------|
+| <img src="{{assetsURL}}/img/guide/datatable/filters_clear.svg" width="30"/> | Effacer les filters | Effacer tout les filtres de la table.|
 | <img src="{{assetsURL}}/img/guide/datatable/filter_toggle.svg" width="30"/>| Afficher/masquer les filtres| Basculer entre l’affichage et le masquage des filtres.|
 | <img src="{{assetsURL}}/img/guide/datatable/filter.png" width="30"/>| Interrupteur de filtres| Appliquer les filtres à la carte.|
 | <img src="{{assetsURL}}/img/guide/datatable/column_show.svg" width="30"/>| Afficher/masquer les colonnes| Choisir les colonnes visibles et épingler des colonnes à gauche ou à droite du tableau.|
 | <img src="{{assetsURL}}/img/guide/datatable/density.svg" width="30"/>| Densité| Modifier la hauteur des lignes du tableau de données.|
-| <img src="{{assetsURL}}/img/guide/datatable/export.svg" width="30"/>| Exporter| Exporter le tableau en format CSV ou GeoJSON. Pourrait échouer sur un appareil mobile en raison des restrictions de téléchargement de fichiers.|
+| <img src="{{assetsURL}}/img/guide/datatable/export.svg" width="30"/>| Télécharger| Télécharger le tableau en format CSV ou GeoJSON. Pourrait échouer sur un appareil mobile en raison des restrictions de téléchargement de fichiers.|
 
 Les trois premières colonnes du tableau de données sont **Icône**, **Zoom** et **Détails**. Les autres colonnes varient selon la couche sélectionnée.
 
@@ -384,7 +389,8 @@ Pour accéder aux boutons ou aux champs de saisie d’une cellule, assurez-vous 
 
 <br>
 =2!timeSlider=
-### ![]({{assetsURL}}/img/guide/footer/time_slider_30.svg) Curseur temporel
+<a id="timeSliderSection"></a>
+### ![]({{assetsURL}}/img/guide/footer/time_slider_30.svg) Curseur temporel [Haut de page](#footerSection)
 
 L’onglet **Curseur temporel** dans le pied de page se divise en deux sections. La liste des couches ayant un facteur temporel se trouve dans la section de gauche. Cliquez sur une couche pour afficher son curseur temporel dans la section de droite&nbsp;:
 
@@ -404,7 +410,8 @@ Le champ visé par le filtre s’affiche en bas à gauche de la section du curse
 
 <br>
 =2!chart=
-### ![]({{assetsURL}}/img/guide/footer/chart_30.svg) Graphique
+<a id="chartSection"></a>
+### ![]({{assetsURL}}/img/guide/footer/chart_30.svg) Graphique [Haut de page](#footerSection)
 
 L’onglet **Graphique** dans le pied de page se divise en deux sections. La liste des couches comportant un graphique se trouve dans la section de gauche. Sélectionnez un élément sur la carte pour en voir le graphique dans la section de droite.
 
