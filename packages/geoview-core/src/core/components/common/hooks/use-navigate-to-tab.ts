@@ -1,13 +1,14 @@
 import { useCallback } from 'react';
 import {
   useUIStoreActions,
-  useUIFooterBarIsCollapsed,
+  useUIActiveFooterBarTab,
   useUIFooterBarComponents,
   useUIAppbarComponents,
 } from '@/core/stores/store-interface-and-intial-values/ui-state';
 import { scrollIfNotVisible } from '@/core/utils/utilities';
 import { logger } from '@/core/utils/logger';
 import type { TypeValidAppBarCoreProps, TypeValidFooterBarTabsCoreProps } from '@/api/types/map-schema-types';
+import { TIMEOUT } from '@/core/utils/constant';
 
 /**
  * Options for navigating to a tab
@@ -48,8 +49,8 @@ interface NavigateToTabOptions {
  */
 export function useNavigateToTab(tabId: string, onNavigate?: (layerPath: string) => void): (options?: NavigateToTabOptions) => void {
   // Store
-  const { setActiveFooterBarTab, setActiveAppBarTab, setFooterBarIsCollapsed } = useUIStoreActions();
-  const isFooterCollapsed = useUIFooterBarIsCollapsed();
+  const { setActiveFooterBarTab, setActiveAppBarTab, setFooterBarIsOpen } = useUIStoreActions();
+  const { isOpen: isFooterOpen } = useUIActiveFooterBarTab();
   const footerBarComponents = useUIFooterBarComponents();
   const appBarComponents = useUIAppbarComponents();
 
@@ -63,7 +64,8 @@ export function useNavigateToTab(tabId: string, onNavigate?: (layerPath: string)
       // Log
       logger.logTraceUseCallback('USE-NAVIGATE-TO-TAB', tabId, options);
 
-      const { layerPath, delay = 350 } = options;
+      // TODO: seems the option for time out is never used different than default, consider removing it
+      const { layerPath, delay = TIMEOUT.shortcutToTab } = options;
 
       if (!hasTab) {
         logger.logWarning(`Tab "${tabId}" not found in footer or appbar components`);
@@ -74,7 +76,7 @@ export function useNavigateToTab(tabId: string, onNavigate?: (layerPath: string)
       if (hasFooterTab) {
         // Open footer tab
         setActiveFooterBarTab(tabId as TypeValidFooterBarTabsCoreProps);
-        if (isFooterCollapsed) setFooterBarIsCollapsed(false);
+        if (!isFooterOpen) setFooterBarIsOpen(true);
 
         setTimeout(() => {
           // Execute callback if provided
@@ -104,12 +106,12 @@ export function useNavigateToTab(tabId: string, onNavigate?: (layerPath: string)
       hasTab,
       hasFooterTab,
       hasAppBarTab,
-      isFooterCollapsed,
+      isFooterOpen,
       tabId,
       onNavigate,
       setActiveFooterBarTab,
       setActiveAppBarTab,
-      setFooterBarIsCollapsed,
+      setFooterBarIsOpen,
     ]
   );
 }
