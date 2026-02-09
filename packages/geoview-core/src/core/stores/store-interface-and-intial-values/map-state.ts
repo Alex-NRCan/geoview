@@ -51,7 +51,7 @@ export interface IMapState {
   currentProjection: TypeValidMapProjectionCodes;
   featureHighlightColor: TypeHighlightColors;
   fixNorth: boolean;
-  hideCoordinateInfoSwitch: boolean;
+  geolocatorSearchArea: { coords: Coordinate; bbox?: Extent } | undefined;
   highlightedFeatures: TypeFeatureInfoEntry[];
   homeView: TypeMapViewSettings | undefined;
   hoverFeatureInfo: TypeHoverFeatureInfo | undefined | null;
@@ -132,6 +132,7 @@ export interface IMapState {
     setAttribution: (attribution: string[]) => void;
     setInitialFilters: (filters: Record<string, string>) => void;
     setInitialView: (view: TypeZoomAndCenter | Extent) => void;
+    setGeolocatorSearchArea: (area: { coords: Coordinate; bbox?: Extent } | undefined) => void;
     setHomeView: (view: TypeMapViewSettings) => void;
     setInteraction: (interaction: TypeInteraction) => void;
     setIsMouseInsideMap: (isMouseInsideMap: boolean) => void;
@@ -183,8 +184,8 @@ export function initializeMapState(set: TypeSetStore, get: TypeGetStore): IMapSt
     currentBasemapOptions: { basemapId: 'transport', shaded: true, labeled: true },
     currentProjection: DEFAULT_PROJECTION,
     featureHighlightColor: DEFAULT_HIGHLIGHT_COLOR,
+    geolocatorSearchArea: undefined,
     fixNorth: false,
-    hideCoordinateInfoSwitch: false,
     highlightedFeatures: [],
     homeView: undefined,
     hoverFeatureInfo: undefined,
@@ -232,7 +233,7 @@ export function initializeMapState(set: TypeSetStore, get: TypeGetStore): IMapSt
           currentProjection: geoviewConfig.map.viewSettings.projection,
           currentBasemapOptions: geoviewConfig.map.basemapOptions,
           featureHighlightColor: geoviewConfig.map.highlightColor || DEFAULT_HIGHLIGHT_COLOR,
-          hideCoordinateInfoSwitch: geoviewConfig.globalSettings?.hideCoordinateInfoSwitch || false,
+          geolocatorSearchArea: undefined,
           homeView: geoviewConfig.map.viewSettings.homeView ||
             geoviewConfig.map.viewSettings.initialView || { zoomAndCenter: [MAP_ZOOM_LEVEL[3857], MAP_CENTER[3857]] },
           initialView: geoviewConfig.map.viewSettings.initialView || { zoomAndCenter: [MAP_ZOOM_LEVEL[3857], MAP_CENTER[3857]] },
@@ -767,6 +768,21 @@ export function initializeMapState(set: TypeSetStore, get: TypeGetStore): IMapSt
       },
 
       /**
+       * Sets the geolocator search area with coordinates and optional bounding box.
+       * @param {Object | undefined} area - The search area object containing coordinates and optional bounding box, or undefined to clear.
+       * @param {Coordinate} area.coords - The coordinates of the search location.
+       * @param {Extent} [area.bbox] - Optional bounding box extent for the search area.
+       */
+      setGeolocatorSearchArea: (area: { coords: Coordinate; bbox?: Extent } | undefined): void => {
+        set({
+          mapState: {
+            ...get().mapState,
+            geolocatorSearchArea: area,
+          },
+        });
+      },
+
+      /**
        * Sets the view of the home button.
        * @param {TypeMapViewSettings} view - The view to use.
        */
@@ -1170,8 +1186,6 @@ export const useMapInitialFilters = (): Record<string, string> => useStore(useGe
 export const useMapInitialView = (): TypeMapViewSettings => useStore(useGeoViewStore(), (state) => state.mapState.initialView);
 export const useMapInteraction = (): TypeInteraction => useStore(useGeoViewStore(), (state) => state.mapState.interaction);
 export const useMapIsMouseInsideMap = (): boolean => useStore(useGeoViewStore(), (state) => state.mapState.isMouseInsideMap);
-export const useMapHideCoordinateInfoSwitch = (): boolean =>
-  useStore(useGeoViewStore(), (state) => state.mapState.hideCoordinateInfoSwitch);
 export const useMapHoverFeatureInfo = (): TypeHoverFeatureInfo => useStore(useGeoViewStore(), (state) => state.mapState.hoverFeatureInfo);
 export const useMapLoaded = (): boolean => useStore(useGeoViewStore(), (state) => state.mapState.mapLoaded);
 export const useMapDisplayed = (): boolean => useStore(useGeoViewStore(), (state) => state.mapState.mapDisplayed);

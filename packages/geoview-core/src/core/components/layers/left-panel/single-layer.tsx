@@ -21,7 +21,6 @@ import {
   useLayerStoreActions,
   useLayerDisplayState,
   useLayerSelectedLayerPath,
-  useLayerSelectedLayerSortingArrowId,
   useLayerSelectorName,
   useLayerSelectorId,
   useLayerSelectorStatus,
@@ -84,20 +83,12 @@ export function SingleLayer({
   const layerItemRef = useRef<HTMLLIElement>(null);
 
   // Get store states
-  const {
-    deleteLayer,
-    reloadLayer,
-    setSelectedLayerPath,
-    setSelectedLayerSortingArrowId,
-    zoomToLayerVisibleScale,
-    getLayerDeleteInProgress,
-  } = useLayerStoreActions();
+  const { deleteLayer, reloadLayer, setSelectedLayerPath, zoomToLayerVisibleScale, getLayerDeleteInProgress } = useLayerStoreActions();
   const { setOrToggleLayerVisibility, toggleLegendCollapsed, reorderLayer } = useMapStoreActions();
   const mapId = useGeoViewMapId();
   const selectedLayerPath = useLayerSelectedLayerPath();
   const displayState = useLayerDisplayState();
   const layerIsSelected = layerPath === selectedLayerPath && displayState === 'view';
-  const selectedLayerSortingArrowId = useLayerSelectedLayerSortingArrowId();
 
   useDataTableStoreActions();
 
@@ -125,7 +116,7 @@ export function SingleLayer({
 
   // Timer to show delete button after a delay for loading/processing layers so user can remove them to enable collapse/show all
   useEffect(() => {
-    if (layerStatus === 'processing' || layerStatus === 'loading') {
+    if (layerStatus && ['newInstance', 'registered', 'processing', 'loading'].includes(layerStatus)) {
       const timer = setTimeout(() => {
         setShowDeleteOnLoading(true);
       }, TIMEOUT.deleteLayerLoading);
@@ -258,12 +249,9 @@ export function SingleLayer({
 
       // Prevent triggering parent onClick
       event.stopPropagation();
-
-      const arrowId = direction === -1 ? 'up-order' : 'down-order';
-      setSelectedLayerSortingArrowId(`${mapId}-${layerPath}-${arrowId}`);
       reorderLayer(layerPath, direction);
     },
-    [layerPath, mapId, reorderLayer, setSelectedLayerSortingArrowId]
+    [layerPath, reorderLayer]
   );
 
   const handleArrowKeyDown = useCallback(
@@ -272,13 +260,11 @@ export function SingleLayer({
       logger.logTraceUseCallback('SINGLE-LAYER - handleArrowKeyDown');
 
       if (event.key === 'Enter') {
-        const arrowId = direction === -1 ? 'up-order' : 'down-order';
-        setSelectedLayerSortingArrowId(`${mapId}-${layerPath}-${arrowId}`);
         reorderLayer(layerPath, direction);
         event.preventDefault();
       }
     },
-    [layerPath, mapId, reorderLayer, setSelectedLayerSortingArrowId]
+    [layerPath, reorderLayer]
   );
 
   const handleArrowKeyDownWrapper = useCallback(
@@ -350,6 +336,10 @@ export function SingleLayer({
 
     if (layerStatus === 'error') {
       return t('legend.layerError');
+    }
+
+    if (layerStatus === 'registered') {
+      return t('legend.layerRegister');
     }
 
     if (parentHidden) return t('layers.parentHidden');
@@ -437,13 +427,12 @@ export function SingleLayer({
     // Log
     logger.logTraceUseMemo('SINGLE-LAYER - memoMoreLayerButtons', layerPath);
 
-    if ((layerStatus === 'processing' || layerStatus === 'loading') && displayState === 'view') {
+    if (showDeleteOnLoading && displayState === 'view') {
       // Show delete button after 5 seconds for loading layers
       if (showDeleteOnLoading) {
         return (
           <DeleteUndoButton
             layerPath={layerPath}
-            layerId={layerId!}
             layerRemovable={layerControls?.remove !== false}
             focusTargetIdAfterDelete={`${mapId}-${containerType}-${TABS.LAYERS}-panel-close-btn`}
           />
@@ -468,7 +457,6 @@ export function SingleLayer({
           </IconButton>
           <DeleteUndoButton
             layerPath={layerPath}
-            layerId={layerId!}
             layerRemovable={layerControls?.remove !== false}
             focusTargetIdAfterDelete={`${mapId}-${containerType}-${TABS.LAYERS}-panel-close-btn`}
           />
@@ -527,7 +515,6 @@ export function SingleLayer({
     layerStatus,
     displayState,
     showDeleteOnLoading,
-    layerId,
     layerControls?.remove,
     isLayerAlwaysVisible,
     layerType,
@@ -611,25 +598,6 @@ export function SingleLayer({
 
     return result.join(' ');
   }, [depth, layerStatus, layerChildIsSelected, layerIsSelected, legendExpanded]);
-
-  useEffect(() => {
-    // Log
-    logger.logTraceUseEffect('SINGLE-LAYER - selectedLayerSortingArrowId');
-
-    // Manually set the focus after sorting is done.
-    if (selectedLayerSortingArrowId.length) {
-      const elem = document.getElementById(selectedLayerSortingArrowId) as HTMLButtonElement;
-      if (elem?.disabled) {
-        if (selectedLayerSortingArrowId.split('-').includes('up')) {
-          (elem?.nextSibling as HTMLButtonElement)?.focus();
-        } else {
-          (elem?.previousSibling as HTMLButtonElement)?.focus();
-        }
-      } else {
-        elem?.focus();
-      }
-    }
-  }, [selectedLayerSortingArrowId]);
 
   useEffect(() => {
     // Log

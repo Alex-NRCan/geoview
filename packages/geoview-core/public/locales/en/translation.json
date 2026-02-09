@@ -3,6 +3,7 @@
     "add": "Add",
     "close": "Close",
     "closeSelection": "Close selection",
+    "cancel": "Cancel",
     "exit": "Exit",
     "layers": "Layers",
     "name": "Name",
@@ -105,6 +106,7 @@
     "zoomTo": "Zoom to layer",
     "addLayer": "Add a layer",
     "layerError": "Layer has an error...",
+    "layerRegister": "Layer is accessing metadata...",
     "layerLoading": "Layer is loading...",
     "tableDetails": "Table details",
     "refreshLayer": "Reset layer",
@@ -321,7 +323,6 @@
   },
   "exportModal": {
     "title": "Map preview",
-    "cancelBtn": "Cancel",
     "exportBtn": "Download",
     "formatBtn": "Format",
     "dpiBtn": "DPI",
