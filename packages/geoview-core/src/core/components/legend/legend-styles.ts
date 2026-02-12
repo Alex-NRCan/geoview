@@ -54,6 +54,13 @@ export const getSxClasses = (theme: Theme): SxClasses => ({
   legendList: {
     paddingRight: '0.65rem',
   },
+  loading: {
+    display: 'block !important',
+    bottom: '0',
+    width: '100%',
+    height: 'auto !important',
+    span: { height: '2px' },
+  },
   legendListItem: {
     padding: '6px 4px',
     flexDirection: 'column',
@@ -145,6 +152,10 @@ export const getSxClasses = (theme: Theme): SxClasses => ({
     '&.checked.Mui-focusVisible': {
       borderLeft: `5px solid ${theme.palette.geoViewColor.bgColor.dark[600]} !important`,
     },
+    '&.Mui-disabled': {
+      borderLeft: '5px solid transparent',
+      opacity: 1,
+    },
   },
 
   collapsibleContainer: {
@@ -175,6 +186,9 @@ export const getSxClasses = (theme: Theme): SxClasses => ({
     borderBottom: `1px solid ${theme.palette.geoViewColor.bgColor.dark[100]}`,
     paddingTop: '8px',
     paddingLeft: '8px',
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   buttonDivider: {
     display: 'flex',
@@ -191,5 +205,13 @@ export const getSxClasses = (theme: Theme): SxClasses => ({
       width: '1px',
       backgroundColor: theme.palette.geoViewColor.bgColor.dark[300],
     },
+  },
+  fullscreenContainer: {
+    background: 'transparent',
+    pointerEvents: 'none',
+    userSelect: 'none',
+    display: 'flex',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
   },
 });

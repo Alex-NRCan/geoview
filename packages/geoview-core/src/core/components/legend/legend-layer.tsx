@@ -27,6 +27,7 @@ import { logger } from '@/core/utils/logger';
 
 interface LegendLayerProps {
   layerPath: string;
+  showControls: boolean;
 }
 
 interface LegendLayerHeaderProps {
@@ -34,13 +35,14 @@ interface LegendLayerHeaderProps {
   tooltip: string;
   onExpandClick: (event: React.MouseEvent) => void;
   sxClasses: ReturnType<typeof getSxClasses>;
+  showControls: boolean;
 }
 
 // Length at which the tooltip should be shown
 const CONST_NAME_LENGTH_TOOLTIP = 50;
 
 // Extracted Header Component
-const LegendLayerHeader = memo(({ layerPath, tooltip, onExpandClick, sxClasses }: LegendLayerHeaderProps): JSX.Element => {
+const LegendLayerHeader = memo(({ layerPath, tooltip, onExpandClick, sxClasses, showControls }: LegendLayerHeaderProps): JSX.Element => {
   // Log
   logger.logTraceUseMemo('components/legend/legend-layer - LegendLayerHeader', layerPath);
 
@@ -73,26 +75,12 @@ const LegendLayerHeader = memo(({ layerPath, tooltip, onExpandClick, sxClasses }
         sx={sxClasses.legendTitle}
         className="legendTitle"
         disableTypography
-        secondary={<SecondaryControls layerPath={layerPath} />}
+        secondary={showControls ? <SecondaryControls layerPath={layerPath} /> : undefined}
       />
       {((layerChildren && layerChildren.length > 0) || (layerItems && layerItems.length > 1) || layerType === CONST_LAYER_TYPES.WMS) && (
         <IconButton className="buttonOutline" onClick={onExpandClick} edge="end" size="small" aria-label={tooltip}>
           {!isCollapsed ? <KeyboardArrowUpIcon /> : <KeyboardArrowDownIcon />}
         </IconButton>
-      )}
-      {layerStatus === 'loading' && (
-        <Box
-          sx={{
-            position: 'absolute !important',
-            display: 'block !important',
-            bottom: '0',
-            width: '100%',
-            height: 'auto !important',
-            span: { height: '2px' },
-          }}
-        >
-          <ProgressBar />
-        </Box>
       )}
     </Box>
   );
@@ -101,7 +89,7 @@ const LegendLayerHeader = memo(({ layerPath, tooltip, onExpandClick, sxClasses }
 LegendLayerHeader.displayName = 'LegendLayerHeader';
 
 // Main LegendLayer component
-export function LegendLayer({ layerPath }: LegendLayerProps): JSX.Element {
+export function LegendLayer({ layerPath, showControls }: LegendLayerProps): JSX.Element {
   // Log
   logger.logTraceRender('components/legend/legend-layer', layerPath);
 
@@ -111,6 +99,7 @@ export function LegendLayer({ layerPath }: LegendLayerProps): JSX.Element {
   const sxClasses = useMemo(() => getSxClasses(theme), [theme]);
 
   // Stores
+  const layerStatus = useLayerSelectorStatus(layerPath);
   const { initLightBox, LightBoxComponent } = useLightBox();
   const { toggleLegendCollapsed } = useMapStoreActions();
 
@@ -132,8 +121,19 @@ export function LegendLayer({ layerPath }: LegendLayerProps): JSX.Element {
         tooltip={t('layers.toggleCollapse')}
         onExpandClick={handleExpandGroupClick}
         sxClasses={sxClasses}
+        showControls={showControls}
       />
-      <CollapsibleContent layerPath={layerPath} initLightBox={initLightBox} LegendLayerComponent={LegendLayer} />
+      {layerStatus === 'loading' && (
+        <Box sx={sxClasses.loading}>
+          <ProgressBar />
+        </Box>
+      )}
+      <CollapsibleContent
+        layerPath={layerPath}
+        initLightBox={initLightBox}
+        LegendLayerComponent={LegendLayer}
+        showControls={showControls}
+      />
       <LightBoxComponent />
     </ListItem>
   );
