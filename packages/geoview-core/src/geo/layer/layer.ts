@@ -10,6 +10,7 @@ import { MapEventProcessor } from '@/api/event-processors/event-processor-childr
 
 import { ConfigValidation } from '@/api/config/config-validation';
 import { generateId, isValidUUID, whenThisThen } from '@/core/utils/utilities';
+import type { TemporalMode, TypeDisplayDateFormat } from '@/core/utils/date-mgt';
 import type {
   LayerStatusChangedDelegate as ConfigLayerStatusChangedDelegate,
   LayerStatusChangedEvent as ConfigLayerStatusChangedEvent,
@@ -102,12 +103,13 @@ import type { TypeOrderedLayerInfo } from '@/core/stores/store-interface-and-int
 import { MapViewer } from '@/geo/map/map-viewer';
 import { AbstractBaseLayerEntryConfig } from '@/api/config/validation-classes/abstract-base-layer-entry-config';
 import { GroupLayerEntryConfig } from '@/api/config/validation-classes/group-layer-entry-config';
+import type { TypeLegendItem } from '@/core/components/layers/types';
+import { AppEventProcessor } from '@/api/event-processors/event-processor-children/app-event-processor';
 import { TimeSliderEventProcessor } from '@/api/event-processors/event-processor-children/time-slider-event-processor';
 import { GeochartEventProcessor } from '@/api/event-processors/event-processor-children/geochart-event-processor';
 import { SwiperEventProcessor } from '@/api/event-processors/event-processor-children/swiper-event-processor';
 import { DataTableEventProcessor } from '@/api/event-processors/event-processor-children/data-table-event-processor';
 import { FeatureInfoEventProcessor } from '@/api/event-processors/event-processor-children/feature-info-event-processor';
-import type { TypeLegendItem } from '@/core/components/layers/types';
 import { LegendEventProcessor } from '@/api/event-processors/event-processor-children/legend-event-processor';
 import { GeoViewError, LayerConfigNotFoundError } from '@/core/exceptions/geoview-exceptions';
 import { LayerGeoCoreError } from '@/core/exceptions/geocore-exceptions';
@@ -758,7 +760,7 @@ export class LayerApi {
     const promiseLayer = new Promise<void>((resolve, reject) => {
       // Continue the addition process
       layerBeingAdded
-        .createGeoViewLayers(this.mapViewer.getProjection(), abortSignal)
+        .createGeoViewLayers(AppEventProcessor.getDisplayDateMode(this.getMapId()), this.mapViewer.getProjection(), abortSignal)
         .then(() => {
           // Add the layer on the map
           this.#addToMap(layerBeingAdded, geoviewLayerConfig);
@@ -1385,6 +1387,57 @@ export class LayerApi {
   }
 
   /**
+   * Sets the date display format for a specific layer.
+   * This updates the layer-level configuration used to control how date values
+   * are formatted when displayed (e.g., in legends, tooltips, or UI components).
+   * The value is stored in the application state via the LegendEventProcessor.
+   * @param {string} layerPath - The unique path identifying the layer.
+   * @param {TypeDisplayDateFormat} displayDateFormat - The date format to apply
+   * for displaying date values associated with this layer.
+   */
+  setLayerDisplayDateFormat(layerPath: string, displayDateFormat: TypeDisplayDateFormat | string): void {
+    // Make sure of the input format
+    let displayDateFormatToSet: TypeDisplayDateFormat = displayDateFormat as TypeDisplayDateFormat;
+    if (typeof displayDateFormat === 'string') displayDateFormatToSet = { en: displayDateFormat, fr: displayDateFormat };
+
+    // Redirect
+    LegendEventProcessor.setLayerDisplayDateFormatInStore(this.getMapId(), layerPath, displayDateFormatToSet);
+  }
+
+  /**
+   * Sets the date display format (short) for a specific layer.
+   * Short means the date should be displayed in a more compact format.
+   * This updates the layer-level configuration used to control how date values
+   * are formatted when displayed (e.g., in legends, tooltips, or UI components).
+   * The value is stored in the application state via the LegendEventProcessor.
+   * @param {string} layerPath - The unique path identifying the layer.
+   * @param {TypeDisplayDateFormat} displayDateFormat - The date format to apply
+   * for displaying date values associated with this layer.
+   */
+  setLayerDisplayDateFormatShort(layerPath: string, displayDateFormat: TypeDisplayDateFormat | string): void {
+    // Make sure of the input format
+    let displayDateFormatToSet: TypeDisplayDateFormat = displayDateFormat as TypeDisplayDateFormat;
+    if (typeof displayDateFormat === 'string') displayDateFormatToSet = { en: displayDateFormat, fr: displayDateFormat };
+
+    // Redirect
+    LegendEventProcessor.setLayerDisplayDateFormatShortInStore(this.getMapId(), layerPath, displayDateFormatToSet);
+  }
+
+  /**
+   * Sets the date temporal mode for the specific layer.
+   * This updates the layer-level configuration used to control how date values
+   * are interpreted.
+   * The value is stored in the application state via the LegendEventProcessor.
+   * @param {string} layerPath - The unique path identifying the layer.
+   * @param {TemporalMode} temporalMode - The date format to apply
+   * for displaying date values associated with this layer.
+   */
+  setLayerDateTemporalMode(layerPath: string, temporalMode: TemporalMode): void {
+    // Redirect
+    LegendEventProcessor.setLayerDateTemporalInStore(this.getMapId(), layerPath, temporalMode);
+  }
+
+  /**
    * Changes a GeoJson Source of a GeoJSON layer at the given layer path.
    *
    * @param {string} layerPath - The path of the layer.
@@ -1784,7 +1837,7 @@ export class LayerApi {
    *     indexed by their `layerPath`.
    *  2. Registers internal event handlers for the new layer.
    *  3. Emits a "layer created" event so external code can bind to it immediately.
-   *  4. Calls the layer’s `init()` method to finalize initialization.
+   *  4. Calls the layer's `init()` method to finalize initialization.
    * @param {AbstractGeoViewLayer} geoviewLayer - The parent or context
    *   GeoView layer associated with this creation event.
    * @param {LayerGVCreatedEvent} event - The event containing the newly
@@ -2261,6 +2314,7 @@ export class LayerApi {
       const timeSliderConfigs = MapEventProcessor.getGeoViewMapConfig(this.getMapId())?.corePackagesConfig?.find((config) =>
         Object.keys(config).includes('time-slider')
       )?.['time-slider'] as Record<'sliders', TypeTimeSliderProps[]>;
+
       const layerSliderConfig = timeSliderConfigs?.sliders?.find((slider: TypeTimeSliderProps) =>
         slider.layerPaths.includes(layer.getLayerPath())
       );

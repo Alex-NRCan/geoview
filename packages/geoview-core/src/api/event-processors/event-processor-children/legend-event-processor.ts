@@ -1,5 +1,5 @@
 import type { Extent, TypeStyleGeometry } from '@/api/types/map-schema-types';
-import type { TimeDimension } from '@/core/utils/date-mgt';
+import type { TemporalMode, TimeDimension, TypeDisplayDateFormat } from '@/core/utils/date-mgt';
 import type { TypeGeoviewLayerType, TypeLayerControls } from '@/api/types/layer-schema-types';
 import { CONST_LAYER_TYPES } from '@/api/types/layer-schema-types';
 import type { TypeLegendLayer, TypeLegendLayerItem, TypeLegendItem } from '@/core/components/layers/types';
@@ -10,6 +10,7 @@ import { AbstractEventProcessor } from '@/api/event-processors/abstract-event-pr
 import { MapEventProcessor } from '@/api/event-processors/event-processor-children/map-event-processor';
 import { LayerWrongTypeError } from '@/core/exceptions/layer-exceptions';
 import { AbstractGVLayer } from '@/geo/layer/gv-layers/abstract-gv-layer';
+import type { AbstractBaseLayerEntryConfig } from '@/api/config/validation-classes/abstract-base-layer-entry-config';
 
 // GV Important: See notes in header of MapEventProcessor file for information on the paradigm to apply when working with UIEventProcessor vs UIState
 
@@ -242,6 +243,103 @@ export class LegendEventProcessor extends AbstractEventProcessor {
   }
 
   /**
+   * Retrieves the display date format configured for a specific layer.
+   * @param {string} mapId - The unique identifier of the map.
+   * @param {string} layerPath - The unique path identifying the layer.
+   * @returns {TypeDisplayDateFormat | undefined} The configured display date format
+   * for the layer, or `undefined` if the layer is not found or no format is set.
+   */
+  static getLayerDisplayDateFormat(mapId: string, layerPath: string): TypeDisplayDateFormat | undefined {
+    // Find the layer for the given layer path
+    const layers = LegendEventProcessor.getLayerState(mapId).legendLayers;
+    return this.findLayerByPath(layers, layerPath)?.displayDateFormat;
+  }
+
+  /**
+   * Applies a display date format to a layer through the map viewer layer API.
+   * This method forwards the request to the map viewer, allowing the layer
+   * implementation to react to the new display date format (e.g. for rendering
+   * or querying purposes).
+   * @param {string} mapId - The unique identifier of the map.
+   * @param {string} layerPath - The unique path identifying the layer.
+   * @param {TypeDisplayDateFormat} displayDateFormat - The date format to apply
+   * when displaying date values for the layer.
+   */
+  static setLayerDisplayDateFormat(mapId: string, layerPath: string, displayDateFormat: TypeDisplayDateFormat): void {
+    MapEventProcessor.getMapViewerLayerAPI(mapId).setLayerDisplayDateFormat(layerPath, displayDateFormat);
+  }
+
+  /**
+   * Persists the display date format for a specific layer in the application store.
+   * This updates the legend layer state so that the selected display date format
+   * is retained and can be reused by UI components (e.g. legends, tooltips)
+   * without directly interacting with the map viewer.
+   * @param {string} mapId - The unique identifier of the map.
+   * @param {string} layerPath - The unique path identifying the layer.
+   * @param {TypeDisplayDateFormat} displayDateFormat - The date format to store
+   * for displaying date values associated with the layer.
+   */
+  static setLayerDisplayDateFormatInStore(mapId: string, layerPath: string, displayDateFormat: TypeDisplayDateFormat): void {
+    // Find the layer for the given layer path
+    const layers = LegendEventProcessor.getLayerState(mapId).legendLayers;
+    const layer = this.findLayerByPath(layers, layerPath);
+
+    if (layer) {
+      // Set layer display date format
+      layer.displayDateFormat = displayDateFormat;
+      // Set updated legend layers
+      this.getLayerState(mapId).setterActions.setLegendLayers(layers);
+    }
+  }
+
+  /**
+   * Persists the display date format (short) for a specific layer in the application store.
+   * Short means the date should be displayed in a more compact format.
+   * This updates the legend layer state so that the selected display date format
+   * is retained and can be reused by UI components (e.g. legends, tooltips)
+   * without directly interacting with the map viewer.
+   * @param {string} mapId - The unique identifier of the map.
+   * @param {string} layerPath - The unique path identifying the layer.
+   * @param {TypeDisplayDateFormat} displayDateFormat - The date format to store
+   * for displaying date values associated with the layer.
+   */
+  static setLayerDisplayDateFormatShortInStore(mapId: string, layerPath: string, displayDateFormat: TypeDisplayDateFormat): void {
+    // Find the layer for the given layer path
+    const layers = LegendEventProcessor.getLayerState(mapId).legendLayers;
+    const layer = this.findLayerByPath(layers, layerPath);
+
+    if (layer) {
+      // Set layer display date format short
+      layer.displayDateFormatShort = displayDateFormat;
+      // Set updated legend layers
+      this.getLayerState(mapId).setterActions.setLegendLayers(layers);
+    }
+  }
+
+  /**
+   * Persists the date temporal mode for a specific layer in the application store.
+   * This updates the legend layer state so that the selected temporal mode
+   * is retained and can be reused by UI components (e.g. legends, tooltips)
+   * without directly interacting with the map viewer.
+   * @param {string} mapId - The unique identifier of the map.
+   * @param {string} layerPath - The unique path identifying the layer.
+   * @param {TemporalMode} temporalMode - The date format to store
+   * for displaying date values associated with the layer.
+   */
+  static setLayerDateTemporalInStore(mapId: string, layerPath: string, temporalMode: TemporalMode): void {
+    // Find the layer for the given layer path
+    const layers = LegendEventProcessor.getLayerState(mapId).legendLayers;
+    const layer = this.findLayerByPath(layers, layerPath);
+
+    if (layer) {
+      // Set layer queryable
+      layer.dateTemporalMode = temporalMode;
+      // Set updated legend layers
+      this.getLayerState(mapId).setterActions.setLegendLayers(layers);
+    }
+  }
+
+  /**
    * Sets the layersAreLoading flag in the store
    * @param {string} mapId - The map id
    * @param {boolean} areLoading - Indicator if any layer is currently loading
@@ -284,6 +382,8 @@ export class LegendEventProcessor extends AbstractEventProcessor {
    * This method fetches the Geoview layer for the specified layer path (if it exists) and checks if it has a `getTimeDimension` method.
    * If the method exists, it retrieves the temporal dimension information for the layer.
    * If the layer doesn't support temporal dimensions, the method returns `undefined`.
+   * @remarks This function returns the layer time dimension unrelated to the processing in the time-slider
+   * (see TimeSliderEventProcessor.getInitialTimeSliderValues).
    */
   static getLayerTimeDimension(mapId: string, layerPath: string): TimeDimension | undefined {
     // Get the layer api
@@ -467,6 +567,9 @@ export class LegendEventProcessor extends AbstractEventProcessor {
         // Continue recursively
         createNewLegendEntries(currentLevel + 1, existingEntries[entryIndex].children);
       } else {
+        // Not a group
+        const layerConfigCasted = layerConfig as AbstractBaseLayerEntryConfig;
+
         // If loaded
         let bounds;
         if (layerConfig.layerStatus === 'loaded') {
@@ -504,6 +607,10 @@ export class LegendEventProcessor extends AbstractEventProcessor {
           // Store the layer filter
           legendLayerEntry.layerFilter = layer.getLayerFilters().getInitialFilter();
           legendLayerEntry.layerFilterClass = layer.getLayerFilters().getClassFilter();
+          legendLayerEntry.dateTemporalMode = layerConfigCasted.getServiceDateTemporalMode();
+          legendLayerEntry.displayDateFormat = layerConfigCasted.getDisplayDateFormat();
+          legendLayerEntry.displayDateFormatShort = layerConfigCasted.getDisplayDateFormatShort();
+          legendLayerEntry.displayDateTimezone = layerConfigCasted.getDisplayDateTimezone();
         }
 
         // Add the icons as items on the layer entry
@@ -607,6 +714,53 @@ export class LegendEventProcessor extends AbstractEventProcessor {
     });
 
     return foundLayer;
+  }
+
+  /**
+   * Recursively traverses a hierarchy of legend layers and returns a flat lookup
+   * object indexed by `layerPath`.
+   * All layers that contain a defined `layerPath` will be included in the result,
+   * including nested children at any depth.
+   * If duplicate `layerPath` values exist (shouldn't happen by design), later occurrences will overwrite earlier ones.
+   * @param {TypeLegendLayer[]} layers - The top-level legend layers to traverse.
+   * @returns {Record<string, TypeLegendLayer>} A record keyed by `layerPath`, where each value is the corresponding `TypeLegendLayer`.
+   * @static
+   */
+  static findAllLayers(layers: TypeLegendLayer[]): Record<string, TypeLegendLayer> {
+    // The complete object that will be returned
+    const total: Record<string, TypeLegendLayer> = {};
+
+    // Collect the layers recursively
+    this.#findAllLayersRec(total, layers);
+
+    // Return the total
+    return total;
+  }
+
+  /**
+   * Internal recursive helper used by {@link findAllLayers} to flatten
+   * a tree of legend layers into a lookup object.
+   * This method mutates the provided `total` accumulator by adding entries
+   * for each layer that has a defined `layerPath`.
+   * @param {Record<string, TypeLegendLayer>} total - The accumulator object being populated with flattened layers.
+   * @param {TypeLegendLayer[]} layers - The current collection of layers to process.
+   * @returns {void}
+   * @private
+   * @static
+   */
+  static #findAllLayersRec(total: Record<string, TypeLegendLayer>, layers: TypeLegendLayer[]): void {
+    // For each layer at the current level
+    layers.forEach((layer) => {
+      if (layer.layerPath) {
+        // eslint-disable-next-line no-param-reassign
+        total[layer.layerPath] = layer;
+      }
+
+      // If any children
+      if (layer.children?.length) {
+        this.#findAllLayersRec(total, layer.children);
+      }
+    });
   }
 
   /**

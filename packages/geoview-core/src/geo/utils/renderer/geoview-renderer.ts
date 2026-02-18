@@ -562,10 +562,10 @@ export abstract class GeoviewRenderer {
             if (operand.nodeValue === null) dataStack.push(operand);
             else if (typeof operand.nodeValue !== 'string') throw new Error(`DATE operator error`);
             else {
-              operand.nodeValue = DateMgt.applyInputDateFormat(operand.nodeValue);
+              operand.nodeValue = DateMgt.convertToMilliseconds(operand.nodeValue);
               dataStack.push({
                 nodeType: NodeType.variable,
-                nodeValue: DateMgt.convertToMilliseconds(DateMgt.convertToUTC(operand.nodeValue)),
+                nodeValue: operand.nodeValue,
               });
             }
             break;
@@ -3006,6 +3006,10 @@ export abstract class GeoviewRenderer {
       // If format is specified, try to format as date
       if (format) {
         try {
+          // TODO: CHECK DATETIME - Here, it's assuming 2 things to check:
+          // TO.DOCONT: (1) that when a 'format' is specified it's always a date format, okay?
+          // TO.DOCONT: (2) the fieldValue, when it's a date, will always be a UTC date. Is this okay or should the function
+          // TO.DOCONT: be made aware that the layer config might have defined another timezone for its data via serviceDateTimezone ?
           return DateMgt.formatDate(fieldValue, format);
         } catch (e) {
           // Fall back to string conversion if date parsing fails

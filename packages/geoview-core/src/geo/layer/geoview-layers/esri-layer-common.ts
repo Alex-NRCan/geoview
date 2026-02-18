@@ -16,6 +16,7 @@ import type {
   TypeOutfields,
   TypeOutfieldsType,
   TypeFieldEntry,
+  DisplayDateMode,
 } from '@/api/types/map-schema-types';
 import type { TypeLayerMetadataEsri } from '@/api/types/layer-schema-types';
 import { CONST_LAYER_TYPES } from '@/api/types/layer-schema-types';
@@ -226,7 +227,7 @@ export class EsriUtilities {
   static async commonProcessLayerMetadata<
     T extends EsriDynamic | EsriFeature | EsriImage,
     U extends EsriDynamicLayerEntryConfig | EsriFeatureLayerEntryConfig | EsriImageLayerEntryConfig,
-  >(layer: T, layerConfig: U, abortSignal?: AbortSignal): Promise<U> {
+  >(layer: T, layerConfig: U, displayDateMode?: DisplayDateMode, abortSignal?: AbortSignal): Promise<U> {
     // User-defined groups do not have metadata provided by the service endpoint.
     if (layerConfig.getEntryTypeIsGroup() && !layerConfig.getIsMetadataLayerGroup()) return layerConfig;
 
@@ -267,7 +268,7 @@ export class EsriUtilities {
 
     this.#commonProcessInitialSettings(layerConfig);
 
-    this.#commonProcessTimeDimension(layerConfig, responseJson.timeInfo, layerConfig instanceof EsriImageLayerEntryConfig);
+    this.#commonProcessTimeDimension(layerConfig, responseJson.timeInfo, displayDateMode, layerConfig instanceof EsriImageLayerEntryConfig);
 
     return layerConfig;
   }
@@ -393,6 +394,8 @@ export class EsriUtilities {
    * @param {EsriFeatureLayerEntryConfig | EsriDynamicLayerEntryConfig | EsriImageLayerEntryConfig} layerConfig - The layer entry to configure
    * @param {TimeDimensionESRI} esriTimeDimension - The ESRI time dimension object
    * @param {boolean} singleHandle - True for ESRI Image
+   * @throws {InvalidTimeDimensionError} When range couldn't be computed, or when duration is invalid, or non-positive or when an infinite loop is detected.
+   * @throws {InvalidDateError} When input has invalid dates.
    * @static
    */
   // TODO: Issue #2139 - There is a bug with the temporal dimension returned by service URL:
@@ -400,10 +403,11 @@ export class EsriUtilities {
   static #commonProcessTimeDimension(
     layerConfig: EsriFeatureLayerEntryConfig | EsriDynamicLayerEntryConfig | EsriImageLayerEntryConfig,
     esriTimeDimension: TimeDimensionESRI,
+    displayDateMode: DisplayDateMode | undefined,
     singleHandle?: boolean
   ): void {
     if (esriTimeDimension !== undefined && esriTimeDimension.timeExtent) {
-      layerConfig.setTimeDimension(DateMgt.createDimensionFromESRI(esriTimeDimension, singleHandle));
+      layerConfig.setTimeDimension(DateMgt.createDimensionFromESRI(esriTimeDimension, displayDateMode, singleHandle));
     }
   }
 

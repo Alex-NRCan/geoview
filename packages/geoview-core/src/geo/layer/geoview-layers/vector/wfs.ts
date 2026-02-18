@@ -7,6 +7,7 @@ import { bbox } from 'ol/loadingstrategy';
 import { AbstractGeoViewVector } from '@/geo/layer/geoview-layers/vector/abstract-geoview-vector';
 import { WMS } from '@/geo/layer/geoview-layers/raster/wms';
 import {
+  type DisplayDateMode,
   type TypeLayerStyleSettings,
   type TypeOutfields,
   type TypeOutfieldsType,
@@ -194,6 +195,7 @@ export class WFS extends AbstractGeoViewVector {
   /**
    * Overrides the way the layer metadata is processed.
    * @param {VectorLayerEntryConfig} layerConfig - The layer entry configuration to process.
+   * @param {DisplayDateMode} displayDateMode - The display date mode to use for processing time dimensions in the metadata.
    * @param {OLProjection?} [mapProjection] - The map projection.
    * @param {AbortSignal?} [abortSignal] - Abort signal to handle cancelling of the process.
    * @returns {Promise<VectorLayerEntryConfig>} A promise that the layer entry configuration has gotten its metadata processed.
@@ -201,6 +203,7 @@ export class WFS extends AbstractGeoViewVector {
    */
   protected override async onProcessLayerMetadata(
     layerConfig: VectorLayerEntryConfig,
+    displayDateMode: DisplayDateMode,
     mapProjection?: OLProjection,
     abortSignal?: AbortSignal
   ): Promise<VectorLayerEntryConfig> {
@@ -629,7 +632,7 @@ export class WFS extends AbstractGeoViewVector {
 
   /**
    * Determines the simplified data type of a specified field from a WFS layer configuration.
-   * Extracts the field definition from the layer’s metadata, interprets its WFS type
+   * Extracts the field definition from the layer's metadata, interprets its WFS type
    * (e.g., `xsd:int`, `xsd:date`), and maps it to a normalized internal type
    * (`'string'`, `'number'`, or `'date'`).
    * @param {string} fieldName - The name of the field whose type should be retrieved.

@@ -15,7 +15,7 @@ import { TimeSliderEventProcessor } from '@/api/event-processors/event-processor
 import { LegendEventProcessor } from '@/api/event-processors/event-processor-children/legend-event-processor';
 
 import { logger } from '@/core/utils/logger';
-import { DateMgt } from '@/core/utils/date-mgt';
+import { DateMgt, type TemporalMode, type TypeDisplayDateFormat } from '@/core/utils/date-mgt';
 import { NorthArrowIcon } from '@/core/components/north-arrow/north-arrow-icon';
 
 import { SHARED_STYLES, getScaledCanvasStyles } from '@/core/components/export/layout-styles';
@@ -174,6 +174,8 @@ export class ExportUtilities {
    * @param {ElementFactory} factory - Element factory for creating renderer-specific elements (Canvas/PDF)
    * @param {any} scaledStyles - The scaled styles object (CANVAS_STYLES or PDF_STYLES)
    * @param {any} baseStyles - The base styles object with factory-specific properties
+   * @param {Record<string, TypeDisplayDateFormat>} layerDateFormats - Date formats for layers
+   * @param {Record<string, TemporalMode>} layerDateTemporalModes - Temporal modes for layers
    * @returns {JSX.Element} The rendered item element
    */
   static #renderSingleLegendItem(
@@ -182,7 +184,9 @@ export class ExportUtilities {
     indentLevel: number,
     factory: ElementFactory,
     scaledStyles: any, // eslint-disable-line @typescript-eslint/no-explicit-any
-    baseStyles: any // eslint-disable-line @typescript-eslint/no-explicit-any
+    baseStyles: any, // eslint-disable-line @typescript-eslint/no-explicit-any
+    layerDateFormats: Record<string, TypeDisplayDateFormat>,
+    layerDateTemporalModes: Record<string, TemporalMode>
   ): JSX.Element {
     const { View, Text, Image, Span } = factory;
 
@@ -238,26 +242,18 @@ export class ExportUtilities {
     }
 
     if (item.type === 'time') {
-      const timeText = item.timeInfo?.singleHandle
-        ? DateMgt.formatDate(
-            new Date(item.timeInfo.values[0]),
-            item.timeInfo.displayPattern?.[1] === 'minute' ? 'YYYY-MM-DD HH:mm' : 'YYYY-MM-DD'
-          )
-        : `${DateMgt.formatDate(
-            new Date(item.timeInfo?.values[0] || 0),
-            item.timeInfo?.displayPattern?.[1] === 'minute' ? 'YYYY-MM-DD HH:mm' : 'YYYY-MM-DD'
-          )} - ${DateMgt.formatDate(
-            new Date(item.timeInfo?.values[1] || 0),
-            item.timeInfo?.displayPattern?.[1] === 'minute' ? 'YYYY-MM-DD HH:mm' : 'YYYY-MM-DD'
-          )}`;
-
       return createElement(
         Text,
         {
           key: `time-${item.data.layerPath}-${itemIndex}`,
           style: scaledStyles.timeText(indentLevel),
         },
-        timeText
+        DateMgt.formatISODateOrDateRange(
+          item.timeInfo!.values[0],
+          item.timeInfo!.displayDateFormat ?? layerDateFormats[item.data.layerPath],
+          item.timeInfo!.serviceDateTemporalMode ?? layerDateTemporalModes[item.data.layerPath],
+          item.timeInfo!.values?.[1]
+        )
       );
     }
 
@@ -318,13 +314,17 @@ export class ExportUtilities {
    * @param {ElementFactory} factory - Element factory for creating renderer-specific elements
    * @param {any} scaledStyles - The scaled styles object for sizing
    * @param {any} baseStyles - The base styles object for layout
+   * @param {Record<string, TypeDisplayDateFormat>} layerDateFormats - Date formats for layers
+   * @param {Record<string, TemporalMode>} layerDateTemporalModes - Temporal modes for layers
    * @returns {JSX.Element[]} Array of rendered elements (headers + content containers)
    */
   static #renderColumnItems(
     column: FlattenedLegendItem[],
     factory: ElementFactory,
     scaledStyles: any, // eslint-disable-line @typescript-eslint/no-explicit-any
-    baseStyles: any // eslint-disable-line @typescript-eslint/no-explicit-any
+    baseStyles: any, // eslint-disable-line @typescript-eslint/no-explicit-any
+    layerDateFormats: Record<string, TypeDisplayDateFormat>,
+    layerDateTemporalModes: Record<string, TemporalMode>
   ): JSX.Element[] {
     const { View } = factory;
     const elements: JSX.Element[] = [];
@@ -337,7 +337,9 @@ export class ExportUtilities {
       // Check if this is a layer (depth 0) or child layer (any depth >= 1)
       if (item.type === 'layer' || item.type === 'child') {
         // First render the layer/child header WITHOUT the border
-        elements.push(this.#renderSingleLegendItem(item, i, indentLevel, factory, scaledStyles, baseStyles));
+        elements.push(
+          this.#renderSingleLegendItem(item, i, indentLevel, factory, scaledStyles, baseStyles, layerDateFormats, layerDateTemporalModes)
+        );
 
         const currentDepth = item.depth;
         const contentStart = i + 1;
@@ -369,7 +371,18 @@ export class ExportUtilities {
             const contentItem = column[j];
             const contentIndentLevel = Math.min(contentItem.depth, 3);
 
-            contentItems.push(this.#renderSingleLegendItem(contentItem, j, contentIndentLevel, factory, scaledStyles, baseStyles));
+            contentItems.push(
+              this.#renderSingleLegendItem(
+                contentItem,
+                j,
+                contentIndentLevel,
+                factory,
+                scaledStyles,
+                baseStyles,
+                layerDateFormats,
+                layerDateTemporalModes
+              )
+            );
           }
 
           elements.push(createElement(View, { key: `content-${i}` }, ...contentItems));
@@ -380,7 +393,9 @@ export class ExportUtilities {
           i++;
         }
       } else {
-        elements.push(this.#renderSingleLegendItem(item, i, indentLevel, factory, scaledStyles, baseStyles));
+        elements.push(
+          this.#renderSingleLegendItem(item, i, indentLevel, factory, scaledStyles, baseStyles, layerDateFormats, layerDateTemporalModes)
+        );
         i++;
       }
     }
@@ -401,6 +416,8 @@ export class ExportUtilities {
    * @param {ElementFactory} factory - Element factory for creating renderer-specific elements
    * @param {any} scaledStyles - The scaled styles object for sizing
    * @param {any} baseStyles - The base styles object for layout
+   * @param {Record<string, TypeDisplayDateFormat>} layerDateFormats - Date formats for layers
+   * @param {Record<string, TemporalMode>} layerDateTemporalModes - Temporal modes for layers
    * @param {number[]} [columnWidths] - Optional array of column widths in pixels for justified layout
    * @returns {JSX.Element} The rendered legend container with all columns
    */
@@ -409,6 +426,8 @@ export class ExportUtilities {
     factory: ElementFactory,
     scaledStyles: any, // eslint-disable-line @typescript-eslint/no-explicit-any
     baseStyles: any, // eslint-disable-line @typescript-eslint/no-explicit-any
+    layerDateFormats: Record<string, TypeDisplayDateFormat>,
+    layerDateTemporalModes: Record<string, TemporalMode>,
     columnWidths?: number[]
   ): JSX.Element {
     const { View } = factory;
@@ -441,7 +460,7 @@ export class ExportUtilities {
             key: columnKey,
             style: columnStyle,
           },
-          ...this.#renderColumnItems(column, factory, scaledStyles, baseStyles)
+          ...this.#renderColumnItems(column, factory, scaledStyles, baseStyles, layerDateFormats, layerDateTemporalModes)
         );
       })
     );
@@ -453,7 +472,6 @@ export class ExportUtilities {
    *
    * @param {string} disclaimer - The disclaimer text to display
    * @param {string[]} attributions - Array of attribution texts (one per map layer)
-   * @param {string} date - The export date string to display
    * @param {ElementFactory} factory - Element factory for creating renderer-specific elements
    * @param {any} scaledStyles - The scaled styles object with footer styling
    * @returns {JSX.Element} The rendered footer container
@@ -461,7 +479,6 @@ export class ExportUtilities {
   static renderFooter(
     disclaimer: string,
     attributions: string[],
-    date: string,
     factory: ElementFactory,
     scaledStyles: any // eslint-disable-line @typescript-eslint/no-explicit-any
   ): JSX.Element {
@@ -472,7 +489,11 @@ export class ExportUtilities {
       { style: scaledStyles.footer || {} },
       createElement(Text, { style: scaledStyles.footerDisclaimer }, disclaimer || ''),
       ...attributions.map((attr) => createElement(Text, { key: `${attr.slice(0, 5)}`, style: scaledStyles.footerAttribution }, attr || '')),
-      createElement(Text, { style: scaledStyles.footerDate }, date || '')
+      createElement(
+        Text,
+        { style: scaledStyles.footerDate },
+        DateMgt.formatDate(new Date(), DateMgt.ISO_DATETIME_FORMAT_MINUTES) + ' (UTC)'
+      )
     );
   }
 
@@ -802,10 +823,18 @@ export class ExportUtilities {
    * @param {string} mapId - The GeoView map ID
    * @param {string} exportTitle - The export title (affects height calculation)
    * @param {string} disclaimer - The disclaimer text (affects height calculation)
+   * @param {Record<string, TypeDisplayDateFormat>} layerDateFormats - Date formats for layers
+   * @param {Record<string, TemporalMode>} layerDateTemporalModes - Temporal modes for layers
    * @returns {Promise<TypeMapInfoResult>} Map image URL, scale info, north arrow, legend columns, canvas dimensions
    * @throws {Error} If canvas context is unavailable
    */
-  static async getMapInfo(mapId: string, exportTitle: string, disclaimer: string): Promise<TypeMapInfoResult> {
+  static async getMapInfo(
+    mapId: string,
+    exportTitle: string,
+    disclaimer: string,
+    layerDateFormats: Record<string, TypeDisplayDateFormat>,
+    layerDateTemporalModes: Record<string, TemporalMode>
+  ): Promise<TypeMapInfoResult> {
     // Get all needed data from store state
     const mapElement = AppEventProcessor.getGeoviewHTMLElement(mapId);
     const mapState = MapEventProcessor.getMapStateForExportLayout(mapId);
@@ -1036,19 +1065,12 @@ export class ExportUtilities {
           } else if (item.type === 'time') {
             const timeText = document.createElement('div');
             Object.assign(timeText.style, scaledStyles.timeText(indentLevel));
-            const timeValue = item.timeInfo?.singleHandle
-              ? DateMgt.formatDate(
-                  new Date(item.timeInfo.values[0]),
-                  item.timeInfo.displayPattern?.[1] === 'minute' ? 'YYYY-MM-DD HH:mm' : 'YYYY-MM-DD'
-                )
-              : `${DateMgt.formatDate(
-                  new Date(item.timeInfo?.values[0] || 0),
-                  item.timeInfo?.displayPattern?.[1] === 'minute' ? 'YYYY-MM-DD HH:mm' : 'YYYY-MM-DD'
-                )} - ${DateMgt.formatDate(
-                  new Date(item.timeInfo?.values[1] || 0),
-                  item.timeInfo?.displayPattern?.[1] === 'minute' ? 'YYYY-MM-DD HH:mm' : 'YYYY-MM-DD'
-                )}`;
-            timeText.textContent = timeValue;
+            timeText.textContent = DateMgt.formatISODateOrDateRange(
+              item.timeInfo!.values[0],
+              item.timeInfo!.displayDateFormat ?? layerDateFormats[item.data.layerPath],
+              item.timeInfo!.serviceDateTemporalMode ?? layerDateTemporalModes[item.data.layerPath],
+              item.timeInfo!.values?.[1]
+            );
             groupDiv.appendChild(timeText);
           } else if (item.type === 'child') {
             const childText = document.createElement('div');
@@ -1374,7 +1396,8 @@ export class ExportUtilities {
         canvasWidth: mapImageWidth,
         exportTitle, // Use actual title for accurate height
         disclaimer, // Use actual disclaimer for accurate height
-        date: DateMgt.formatDate(new Date(), 'YYYY-MM-DD, hh:mm:ss A'),
+        layerDateFormats: layerDateFormats,
+        layerDateTemporalModes: layerDateTemporalModes,
       })
     );
     const tempElement = document.createElement('div');
