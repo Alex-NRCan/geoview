@@ -3,16 +3,14 @@ import addErrors from 'ajv-errors';
 
 import { MapFeatureConfig } from '@/api/config/map-feature-config';
 import type {
-  TypeBasemapOptions,
   TypeDisplayLanguage,
   TypeInteraction,
   TypeMapFeaturesInstance,
-  TypeValidMapComponentProps,
-  TypeValidMapCorePackageProps,
   TypeValidMapProjectionCodes,
   TypeZoomAndCenter,
   TypeValidVersions,
   TypeLayerStyleConfig,
+  TypeBasemapId,
 } from '@/api/types/map-schema-types';
 import {
   DEFAULT_MAP_FEATURE_CONFIG,
@@ -36,7 +34,6 @@ import { isJsonString, isValidUUID, parseXMLToJson, removeCommentsFromJSON } fro
 import { logger } from '@/core/utils/logger';
 import { GeoCore } from '@/api/config/geocore';
 import type { ConfigBaseClass } from '@/api/config/validation-classes/config-base-class';
-import { UUIDmapConfigReader } from '@/api/config/reader/uuid-config-reader';
 import { GeoPackageReader } from '@/api/config/reader/geopackage-reader';
 import { ShapefileReader } from '@/api/config/reader/shapefile-reader';
 
@@ -113,7 +110,7 @@ export class ConfigApi {
 
   /** ***************************************************************************************************************************
    * Parses the parameters obtained from a url.
-   * @param {string} urlParams The parameters found on the url after the ?.
+   * @param {string} urlParams - The parameters found on the url after the ?.
    * @returns {any} Object containing the parsed params.
    * @static @private
    */
@@ -139,44 +136,8 @@ export class ConfigApi {
   }
 
   /**
-   * Gets url parameters from url param search string.
-   * @param {objStr} objStr the url parameter string.
-   * @returns {unknown} an object containing url parameters.
-   * @static @private
-   */
-  static #parseObjectFromUrl(objStr: string): unknown {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const obj: any = {};
-
-    if (objStr && objStr.length) {
-      // first { is kept with regex, remove
-      const objProps = objStr.split(',');
-
-      if (objProps) {
-        for (let i = 0; i < objProps.length; i += 1) {
-          const prop = objProps[i].split(':');
-          if (prop && prop.length) {
-            const key: string = prop[0];
-            const value: string = prop[1];
-
-            if (prop[1] === 'true') {
-              obj[key] = true;
-            } else if (prop[1] === 'false') {
-              obj[key] = false;
-            } else {
-              obj[key] = value;
-            }
-          }
-        }
-      }
-    }
-
-    return obj;
-  }
-
-  /**
    * Converts the stringMapFeatureConfig to a json object. Comments will be removed from the string.
-   * @param {string} stringMapFeatureConfig The map configuration string to convert to JSON format.
+   * @param {string} stringMapFeatureConfig - The map configuration string to convert to JSON format.
    * @returns {MapFeatureConfig | undefined} A JSON map feature configuration object.
    * @static
    * @private
@@ -200,23 +161,20 @@ export class ConfigApi {
 
   /**
    * Gets a map feature config from url parameters.
-   * @param {string} urlStringParams The url parameters.
-   *
-   * @returns {Promise<MapFeatureConfig>} A map feature configuration object generated from url parameters.
-   * @static @async
+   * @param {string} urlStringParams - The url parameters.
+   * @param {string[]} [existingUuids] - Optional array of existing layer UUIDs to check for duplicates.
+   * @returns {MapFeatureConfig} A map feature configuration object generated from url parameters.
+   * @static
    */
-  static async getConfigFromUrl(urlStringParams: string): Promise<MapFeatureConfig> {
+  static getConfigFromUrl(urlStringParams: string, existingUuids?: string[]): MapFeatureConfig {
     // return the parameters as an object if url contains any params
     const urlParams = ConfigApi.#getMapPropsFromUrlParams(urlStringParams);
 
     // if user provided any url parameters update
     const jsonConfig = {} as TypeMapFeaturesInstance;
 
-    // update the language if provided from the map configuration.
-    const displayLanguage = (urlParams.l as TypeDisplayLanguage) || 'en';
-
     if (Object.keys(urlParams).length && !urlParams.geoms) {
-      // Ex: p=3857&z=4&c=40,-100&l=en&t=dark&b=basemapId:transport,shaded:false,labeled:true&i=dynamic&cp=details-panel,layers-panel&cc=overview-map&keys=12acd145-626a-49eb-b850-0a59c9bc7506,ccc75c12-5acc-4a6a-959f-ef6f621147b9
+      // Ex: p=3857&z=4&c=40,-100&l=en&t=dark&b=id:transport,s:off,l:on&i=dynamic&keys=12acd145-626a-49eb-b850-0a59c9bc7506,ccc75c12-5acc-4a6a-959f-ef6f621147b9
 
       // get center
       let center: string[] = [];
@@ -231,15 +189,27 @@ export class ConfigApi {
       let zoom = DEFAULT_MAP_FEATURE_CONFIG.map.viewSettings.initialView!.zoomAndCenter![0].toString();
       if (urlParams.z) zoom = urlParams.z as string;
 
+      // get basemap options
+      const { basemapOptions } = DEFAULT_MAP_FEATURE_CONFIG.map;
+      if (urlParams.b) {
+        const values = urlParams.b.split(',');
+        values.forEach((value: string) => {
+          const items = value.split(':');
+          if (items[0] === 'id') basemapOptions.basemapId = items[1] as TypeBasemapId;
+          else if (items[0] === 's') basemapOptions.shaded = items[1] === 'on' ? true : false;
+          else if (items[0] === 'l') basemapOptions.labeled = items[1] === 'on' ? true : false;
+        });
+      }
+
       jsonConfig.map = {
         interaction: urlParams.i as TypeInteraction,
         viewSettings: {
           initialView: {
             zoomAndCenter: [parseInt(zoom, 10), [parseInt(center[0], 10), parseInt(center[1], 10)]] as TypeZoomAndCenter,
           },
-          projection: parseInt(urlParams.p as string, 10) as TypeValidMapProjectionCodes,
+          projection: urlParams.p as TypeValidMapProjectionCodes,
         },
-        basemapOptions: ConfigApi.#parseObjectFromUrl(urlParams.b as string) as TypeBasemapOptions,
+        basemapOptions,
         listOfGeoviewLayerConfig: [] as MapConfigLayerEntry[],
       };
 
@@ -247,22 +217,23 @@ export class ConfigApi {
       // and store it in the listOfGeoviewLayerConfig of the map.
       if (urlParams.keys) {
         try {
-          // Get the GeoView layer configurations from the GeoCore UUIDs provided (urlParams.keys is a CSV string of UUIDs).
-          // TODO: CHECK - We're using 'DEFAULT_MAP_FEATURE_CONFIG.serviceUrls.geocoreUrl' as the geocoreUrl, but
-          // TO.DOCONT: that's the default value, what if another was provided in the config, it'll not be used?
-          const response = await UUIDmapConfigReader.getGVConfigFromUUIDs(
-            DEFAULT_MAP_FEATURE_CONFIG.serviceUrls.geocoreUrl,
-            displayLanguage,
-            urlParams.keys.toString().split(',')
-          );
+          // Parse keys to extract UUIDs
+          const keysArray = urlParams.keys.toString().split(',');
+          const listOfGeoviewLayerConfig: TypeGeoviewLayerConfig[] = [];
 
-          // Focus on the layers in the response
-          const listOfGeoviewLayerConfig = response.layers;
+          keysArray.forEach((key: string) => {
+            // Skip if this UUID already exists in the existing layers
+            if (existingUuids?.includes(key)) {
+              return;
+            }
 
-          // The listOfGeoviewLayerConfig returned by the previous call appended 'rcs.' at the beginning and
-          // '.en' or '.fr' at the end of the UUIDs. We want to restore the ids as they were before.
-          listOfGeoviewLayerConfig.forEach((layerConfig, i) => {
-            listOfGeoviewLayerConfig[i].geoviewLayerId = layerConfig.geoviewLayerId.slice(4, -3);
+            // Create simple layer config for GeoCore layer
+            const layerConfig: MapConfigLayerEntry = {
+              geoviewLayerType: 'geoCore',
+              geoviewLayerId: key,
+            } as MapConfigLayerEntry;
+
+            listOfGeoviewLayerConfig.push(layerConfig as TypeGeoviewLayerConfig);
           });
 
           // Store the new computed listOfGeoviewLayerConfig in the map.
@@ -271,16 +242,6 @@ export class ConfigApi {
           // Log the error. The listOfGeoviewLayerConfig returned will be [].
           logger.logError('Failed to get the GeoView layers from url keys', urlParams.keys, error);
         }
-      }
-
-      // get core components
-      if (urlParams.cc) {
-        jsonConfig.components = (urlParams.cc as string).split(',') as TypeValidMapComponentProps[];
-      }
-
-      // get core packages if any
-      if (urlParams.cp) {
-        jsonConfig.corePackages = (urlParams.cp as string).split(',') as TypeValidMapCorePackageProps[];
       }
 
       // update the version if provided from the map configuration.
@@ -314,7 +275,7 @@ export class ConfigApi {
    * errors are detected, the configuration will be corrected to the best of our ability to avoid crashing the viewer,
    * and all changes made will be logged in the console.
    *
-   * @param {string | MapFeatureConfig} mapConfig The map feature configuration to validate.
+   * @param {string | MapFeatureConfig} mapConfig - The map feature configuration to validate.
    * @returns {MapFeatureConfig} The validated map feature configuration.
    * @static
    */
@@ -354,6 +315,7 @@ export class ConfigApi {
    * @param {string} schemaPath - The JSON schema path used to retrieve the validator function.
    * @param {object} targetObject - The object to be validated against the schema.
    * @returns {boolean} Returns `true` if validation passes, `false` otherwise.
+   * @static
    */
   static validateSchema(schemaPath: string, targetObject: object): boolean {
     // create a validator object
@@ -403,6 +365,7 @@ export class ConfigApi {
    * Converts an ESRI renderer (in stringified JSON format) into a GeoView-compatible layer style configuration.
    * @param {string} rendererAsString - A stringified JSON representation of the ESRI renderer.
    * @returns {TypeLayerStyleConfig | undefined} The corresponding layer style configuration, or `undefined` if parsing or conversion fails.
+   * @static
    */
   static getStyleFromESRIRenderer(rendererAsString: string): TypeLayerStyleConfig | undefined {
     // Redirect
@@ -418,6 +381,7 @@ export class ConfigApi {
    * @param {string} layers - A comma-separated list of WMS layer names to request styles for.
    * @returns {Promise<string>} A promise that resolves to the style definition
    * (typically an XML or SLD string) retrieved from the WMS service.
+   * @static
    */
   static fetchStyleFromWMS(wmsUrl: string, layers: string): Promise<string> {
     // Make sure the URL has necessary information
@@ -431,6 +395,7 @@ export class ConfigApi {
    * Converts a WMS XML Styles renderer into a GeoView-compatible layer style configuration.
    * @param {string} xmlContent - An XML representation of the WMS renderer.
    * @returns {TypeLayerStyleConfig} The corresponding layer style configuration, or `undefined` if parsing or conversion fails.
+   * @static
    */
   static getStyleFromWMSRenderer(xmlContent: string): TypeLayerStyleConfig {
     // Read styles as json
@@ -456,6 +421,7 @@ export class ConfigApi {
    * @param {AbortSignal?} [abortSignal] - Abort signal to handle cancelling of the process.
    * @returns {Promise<TypeGeoviewLayerConfig>} A Promise of a fully initialized `TypeGeoviewLayerConfig`.
    * @throws {NotSupportedError} If the provided layer type is not recognized or supported.
+   * @static
    */
   static async createInitConfigFromType(
     layerType: TypeInitialGeoviewLayerType,
@@ -572,6 +538,7 @@ export class ConfigApi {
    * @param {boolean} isTimeAware - Indicates if the layer is time aware.
    * @returns {Promise<ConfigBaseClass[]>} A Promise of a list of ConfigBaseClass objects.
    * @throws {NotSupportedError} If the provided layer type is not recognized or supported.
+   * @static
    */
   static processLayerFromType(
     layerType: TypeInitialGeoviewLayerType,
@@ -630,6 +597,7 @@ export class ConfigApi {
    * Utility function to serialize to string a TypeGeoviewLayerConfig object.
    * @param {TypeGeoviewLayerConfig} geoviewLayerConfig - The TypeGeoviewLayerConfig to serialize.
    * @returns {string} The serialized TypeGeoviewLayerConfig.
+   * @static
    */
   static serializeGeoviewLayerConfig(geoviewLayerConfig: TypeGeoviewLayerConfig): string {
     // Clone the object
@@ -647,6 +615,7 @@ export class ConfigApi {
    * Utility function to serialize an array of ConfigBaseClass objects.
    * @param {ConfigBaseClass[]} layerConfigs - The array of ConfigBaseClass objects to serialize.
    * @returns {string} The serialized array of ConfigBaseClass.
+   * @static
    */
   static serializeConfigClasses(layerConfigs: ConfigBaseClass[]): string {
     // Serialize
@@ -660,6 +629,8 @@ export class ConfigApi {
    * Utility function to convert an array of ConfigBaseClass objects to a simpler array of JSON objects.
    * @param {ConfigBaseClass[]} layerConfigs - The array of ConfigBaseClass objects to convert to simpler array of JSON objects.
    * @returns {unknown[]} An array of JSON objects.
+   * @static
+   * @private
    */
   static #configClassesToLayerEntryConfigs(layerConfigs: ConfigBaseClass[]): unknown[] {
     // Serialize
@@ -670,6 +641,7 @@ export class ConfigApi {
    * Utility function to validate a UUID.
    * @param {string} uuid - The uuid to test.
    * @returns {boolean} True if the provided uuid is a valid uuid.
+   * @static
    */
   static isValidUUID(uuid: string): boolean {
     // Redirect to the exported function in utilities

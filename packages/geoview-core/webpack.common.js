@@ -236,7 +236,7 @@ const config = {
 
   performance: {
     maxEntrypointSize: 7 * 1024 * 1024, // 7 MiB
-    maxAssetSize: 40 * 1024 * 1024 // 40 MiB, because of big files, notably datasets/geojson/historical_flood_0.geojson (35.1 MiB)
+    maxAssetSize: 40 * 1024 * 1024, // 40 MiB, because of big files, notably datasets/geojson/historical_flood_0.geojson (35.1 MiB)
   },
 };
 
