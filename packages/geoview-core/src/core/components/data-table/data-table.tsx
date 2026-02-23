@@ -164,13 +164,15 @@ function DataTable({ data, layerPath, containerType }: DataTableProps): JSX.Elem
       // Log
       logger.logTraceUseCallback('DATA-TABLE - createLightBoxButton');
 
+      const uniqueButtonId = `${mapId}-${containerType}-btn-${cellId}`;
+
       if (typeof cellValue === 'string' && isImage(cellValue)) {
         return (
           <Button
             type="text"
             size="small"
-            className={`returnLightboxFocusItem-${cellId.split('_')[0]}`}
-            onClick={() => initLightBox(cellValue, cellId, 0)}
+            id={uniqueButtonId}
+            onClick={() => initLightBox(cellValue, uniqueButtonId, 0)}
             sx={{ height: '2.5rem', paddingLeft: '0.5rem', paddingRight: '0.5rem', textTransform: 'none' }}
           >
             {t('dataTable.images')}
@@ -185,7 +187,7 @@ function DataTable({ data, layerPath, containerType }: DataTableProps): JSX.Elem
         cellValue
       );
     },
-    [initLightBox, t]
+    [initLightBox, t, containerType, mapId]
   );
 
   /**
@@ -522,6 +524,10 @@ function DataTable({ data, layerPath, containerType }: DataTableProps): JSX.Elem
   // Decide between using a controlled or uncontrolled input element for the lifetime of the component. More info: https://reactjs.org/link/controlled-components Error Component Stack
 
   let useTable: MRTTableInstance<ColumnsType> | null = null;
+  // Ref to the table wrapper element - used to scope search input DOM queries to a specific table instance
+  const dataTableWrapperRef = useRef<HTMLDivElement>(null);
+  // Ref to track previous globalFilter value - used to detect when clear button is pressed (transition from text to empty)
+  const prevGlobalFilterRef = useRef<string | null>(null);
 
   // Create the Material React Table
   useTable = useMaterialReactTable({
@@ -627,8 +633,19 @@ function DataTable({ data, layerPath, containerType }: DataTableProps): JSX.Elem
     // Improve global filter accessibility
     muiSearchTextFieldProps: {
       inputProps: {
-        type: 'text',
+        type: 'search',
         'aria-label': t('dataTable.searchInputLabel')!,
+      },
+      sx: {
+        // Hide browser's native clear button. We're using a custom clear button in the UI.
+        'input[type="search"]::-webkit-search-cancel-button': {
+          WebkitAppearance: 'none',
+          appearance: 'none',
+        },
+        'input[type="search"]::-webkit-search-decoration': {
+          WebkitAppearance: 'none',
+          appearance: 'none',
+        },
       },
     },
     // Improve table accessibility
@@ -827,11 +844,24 @@ function DataTable({ data, layerPath, containerType }: DataTableProps): JSX.Elem
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [datatableSettings[layerPath].mapFilteredRecord]);
 
+  // Handle focus restoration to the search input field when the "Clear search" button is pressed
+  // A custom "Clear search" button is used because the browser's native "Clear search" button (hidden with CSS above) is not focusable
+  // The esc key will not clear the search because it is mapped to close the panel
+  useEffect(() => {
+    // Log
+    logger.logTraceUseEffect('DATA-TABLE - globalFilter focus', globalFilter);
+    // Only focus when transitioning from having text to being empty (clear button pressed)
+    if (prevGlobalFilterRef.current && !globalFilter && dataTableWrapperRef.current) {
+      dataTableWrapperRef.current?.querySelector<HTMLInputElement>('input[type="search"]')?.focus();
+    }
+    prevGlobalFilterRef.current = globalFilter ?? '';
+  }, [globalFilter]);
+
   // set toolbar custom action message in store.
   useToolbarActionMessage({ data, columnFilters, globalFilter, layerPath, tableInstance: useTable, showUnsymbolizedFeatures });
 
   return (
-    <Box sx={sxClasses.dataTableWrapper} className="data-table-wrapper">
+    <Box ref={dataTableWrapperRef} sx={sxClasses.dataTableWrapper} className="data-table-wrapper">
       <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale={language}>
         <MaterialReactTable table={useTable} />
       </LocalizationProvider>
