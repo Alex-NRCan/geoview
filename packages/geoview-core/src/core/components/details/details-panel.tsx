@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '@mui/material/styles';
 import { IconButton, Grid, ArrowForwardIosOutlinedIcon, ArrowBackIosOutlinedIcon, ClearHighlightIcon, Box } from '@/ui';
+import type { TypeContainerBox } from '@/core/types/global-types';
 import {
   useDetailsStoreActions,
   useDetailsCheckedFeatures,
@@ -20,8 +21,6 @@ import {
   useMapOrderedLayers,
   useMapSelectorLayerQueryable,
 } from '@/core/stores/store-interface-and-intial-values/map-state';
-import { logger } from '@/core/utils/logger';
-import { doUntil } from '@/core/utils/utilities';
 import type { TypeFeatureInfoEntry, TypeLayerData } from '@/api/types/map-schema-types';
 import type { TypeMapMouseInfo } from '@/geo/map/map-viewer';
 
@@ -33,7 +32,7 @@ import { FeatureInfo } from './feature-info';
 import { CONTAINER_TYPE, FEATURE_INFO_STATUS, TABS, TIMEOUT } from '@/core/utils/constant';
 import { DetailsSkeleton } from './details-skeleton';
 import { CoordinateInfo, CoordinateInfoSwitch } from './coordinate-info';
-import type { TypeContainerBox } from '@/core/types/global-types';
+import { logger } from '@/core/utils/logger';
 
 interface DetailsPanelType {
   containerType: TypeContainerBox;
@@ -74,7 +73,6 @@ export function DetailsPanel({ containerType }: DetailsPanelType): JSX.Element {
   const [currentFeatureIndex, setCurrentFeatureIndex] = useState<number>(0);
   const [selectedLayerPathLocal, setSelectedLayerPathLocal] = useState<string>(selectedLayerPath);
   const [arrayOfLayerListLocal, setArrayOfLayerListLocal] = useState<LayerListEntry[]>([]);
-  const [geometryLoaded, setGeometryLoaded] = useState<number>(0); // Counter to force re-render when geometry loads
   const [isRightPanelVisible, setIsRightPanelVisible] = useState<boolean>(false);
   const prevLayerSelected = useRef<TypeLayerData>();
   const prevLayerFeatures = useRef<TypeFeatureInfoEntry[] | undefined | null>();
@@ -290,6 +288,24 @@ export function DetailsPanel({ containerType }: DetailsPanelType): JSX.Element {
   }, [memoSelectedLayerData?.features]);
 
   /**
+   * Memoizes the current feature.
+   */
+  const memoCurrentFeature = useMemo(() => {
+    // The current feature
+    logger.logTraceUseMemo('DETAILS-PANEL - memoCurrentFeature', currentFeatureIndex);
+    return memoSelectedLayerDataFeatures?.[currentFeatureIndex];
+  }, [memoSelectedLayerDataFeatures, currentFeatureIndex]);
+
+  /**
+   * Memoizes the current feature has geometry.
+   */
+  const memoCurrentFeatureHasGeometry = useMemo(() => {
+    // The current feature has its geometry loaded
+    logger.logTraceUseMemo('DETAILS-PANEL - memoCurrentFeatureHasGeometry', !!memoCurrentFeature?.geometry);
+    return !!memoCurrentFeature?.geometry;
+  }, [memoCurrentFeature?.geometry]);
+
+  /**
    * Updates the selected features for the highlight on the map.
    * Removes the previously highlighted feature and adds a new one.
    * @param {number} newIndex The new index to select the feature
@@ -318,7 +334,7 @@ export function DetailsPanel({ containerType }: DetailsPanelType): JSX.Element {
       // Update the current feature index
       setCurrentFeatureIndex(newIndex);
     },
-    [memoSelectedLayerData, isFeatureInCheckedFeatures, removeHighlightedFeature, addHighlightedFeature]
+    [memoSelectedLayerData?.features, isFeatureInCheckedFeatures, removeHighlightedFeature, addHighlightedFeature]
   );
 
   /**
@@ -340,11 +356,10 @@ export function DetailsPanel({ containerType }: DetailsPanelType): JSX.Element {
    */
   useEffect(() => {
     // Log
-    logger.logTraceUseEffect('DETAILS-PANEL - memoSelectedLayerDataFeatures changed', memoLayersList, memoSelectedLayerDataFeatures);
+    logger.logTraceUseEffect('DETAILS-PANEL - memoSelectedLayerDataFeatures changed', memoSelectedLayerDataFeatures);
 
     // Clear the unchecked highlights
     clearHighlightsUnchecked(prevLayerFeatures.current);
-    clearHighlightsUnchecked(memoSelectedLayerDataFeatures);
 
     // Re-highlight all checked features to ensure they persist through zoom
     checkedFeatures.forEach((checkedFeature) => {
@@ -352,65 +367,27 @@ export function DetailsPanel({ containerType }: DetailsPanelType): JSX.Element {
         addHighlightedFeature(checkedFeature);
       }
     });
-
-    // Highlight current feature if panel is open and feature has geometry
-    if (isPanelOpen && memoSelectedLayerDataFeatures && memoSelectedLayerDataFeatures.length) {
-      const featureToHighlight = memoSelectedLayerDataFeatures[currentFeatureIndex];
-
-      if (hasValidGeometry(featureToHighlight)) {
-        addHighlightedFeature(featureToHighlight);
-      }
-    }
-  }, [
-    memoSelectedLayerDataFeatures,
-    currentFeatureIndex,
-    addHighlightedFeature,
-    clearHighlightsUnchecked,
-    checkedFeatures,
-    isPanelOpen,
-    hasValidGeometry,
-    geometryLoaded,
-    memoLayersList,
-  ]);
+    // TODO: REFACTOR - The details-panel should be refactored to simplify the logic of the highlighted features, it's a bit confusing right now, too many useEffects
+    // TO.DOCONT: For example here, it's weird to have the 'memoSelectedLayerDataFeatures' in the dependency array here to make it work...
+  }, [memoSelectedLayerDataFeatures, addHighlightedFeature, clearHighlightsUnchecked, checkedFeatures, hasValidGeometry]);
 
   /**
-   * Poll for geometry loading on the current feature
+   * Use Effect for when the current feature has a geometry loaded
    */
   useEffect(() => {
-    const featureToCheck = memoSelectedLayerDataFeatures?.[currentFeatureIndex];
+    // Log
+    logger.logTraceUseEffect('DETAILS-PANEL - memoCurrentFeature changed', memoCurrentFeature);
 
-    // If feature exists but doesn't have geometry yet, set up polling
-    if (featureToCheck && !featureToCheck.geometry) {
-      const intervalId = doUntil(
-        () => {
-          const currentFeature = memoSelectedLayerDataFeatures?.[currentFeatureIndex];
-
-          if (hasValidGeometry(currentFeature)) {
-            // Geometry loaded! Trigger highlight by forcing a re-render
-            if (isPanelOpen) {
-              addHighlightedFeature(currentFeature);
-            }
-
-            // Force re-render to enable zoom/checkbox buttons
-            setGeometryLoaded((prev) => prev + 1);
-
-            // Return true to stop the interval
-            return true;
-          }
-
-          return false;
-        },
-        500,
-        30000
-      ); // Check every 500ms, timeout after 30 seconds
-
-      return () => {
-        clearInterval(intervalId);
-      };
+    // If current feature
+    if (memoCurrentFeature) {
+      // If the geometry has been loaded
+      if (memoCurrentFeatureHasGeometry) {
+        if (isPanelOpen) addHighlightedFeature(memoCurrentFeature);
+      } else {
+        removeHighlightedFeature(memoCurrentFeature);
+      }
     }
-
-    return undefined;
-  }, [memoSelectedLayerDataFeatures, currentFeatureIndex, isPanelOpen, addHighlightedFeature, hasValidGeometry]);
+  }, [memoCurrentFeature, memoCurrentFeatureHasGeometry, isPanelOpen, addHighlightedFeature, removeHighlightedFeature]);
 
   /**
    * Effect used to persist the layer path bypass for the layerDataArray.
@@ -442,6 +419,7 @@ export function DetailsPanel({ containerType }: DetailsPanelType): JSX.Element {
   // #endregion
 
   // #region EVENT HANDLERS SECTION ***********************************************************************************
+
   /**
    * Handles click to remove all features in right panel.
    */
@@ -658,7 +636,7 @@ export function DetailsPanel({ containerType }: DetailsPanelType): JSX.Element {
     }
 
     if (shouldClear) {
-      logger.logTraceUseEffect('DETAILS-PANEL - panel closed check !!!!e');
+      logger.logTraceUseEffect('DETAILS-PANEL - panel closed check !!!!');
 
       // Clear all highlights
       removeHighlightedFeature('all');
@@ -742,9 +720,8 @@ export function DetailsPanel({ containerType }: DetailsPanelType): JSX.Element {
       return <DetailsSkeleton />;
     }
 
-    if (memoSelectedLayerDataFeatures && memoSelectedLayerDataFeatures.length > 0) {
+    if (memoCurrentFeature) {
       // Get only the current feature
-      const currentFeature = memoSelectedLayerDataFeatures[currentFeatureIndex];
       const isPrevDisabled = currentFeatureIndex <= 0;
       const isNextDisabled = !memoSelectedLayerData?.features || currentFeatureIndex + 1 >= memoSelectedLayerData.features.length;
 
@@ -807,8 +784,8 @@ export function DetailsPanel({ containerType }: DetailsPanelType): JSX.Element {
           </Grid>
 
           <FeatureInfo
-            key={`${currentFeature?.uid}-${currentFeature?.geometry ? 'with-geo' : 'no-geo'}`}
-            feature={currentFeature}
+            key={`${memoCurrentFeature.uid}-${memoCurrentFeatureHasGeometry ? 'with-geo' : 'no-geo'}`}
+            feature={memoCurrentFeature}
             containerType={containerType}
           />
         </Box>

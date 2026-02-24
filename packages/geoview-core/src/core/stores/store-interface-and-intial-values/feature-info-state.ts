@@ -186,7 +186,8 @@ export function initFeatureInfoState(set: TypeSetStore, get: TypeGetStore): IFea
 
 export type TypeFeatureInfoSetEntry = {
   queryStatus: TypeQueryStatus;
-  features: TypeFeatureInfoEntry[] | undefined;
+  features?: TypeFeatureInfoEntry[];
+  featuresHaveGeometry: boolean;
 };
 
 export type TypeFeatureInfoResultSetEntry = TypeResultSetEntry & TypeFeatureInfoSetEntry;
@@ -196,9 +197,9 @@ export type TypeFeatureInfoResultSet = TypeResultSet<TypeFeatureInfoResultSetEnt
 export type TypeHoverFeatureInfo =
   | {
       geoviewLayerType: TypeGeoviewLayerType;
-      featureIcon: string | undefined;
-      fieldInfo: TypeFieldEntry | undefined;
-      nameField: string | null;
+      featureIcon?: string;
+      fieldInfo?: TypeFieldEntry;
+      nameField?: string;
     }
   | undefined
   | null;
