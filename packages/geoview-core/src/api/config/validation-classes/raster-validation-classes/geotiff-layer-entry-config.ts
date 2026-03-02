@@ -8,6 +8,7 @@ import { CONST_LAYER_ENTRY_TYPES, CONST_LAYER_TYPES } from '@/api/types/layer-sc
 import type { AbstractBaseLayerEntryConfigProps } from '@/api/config/validation-classes/abstract-base-layer-entry-config';
 import { AbstractBaseLayerEntryConfig } from '@/api/config/validation-classes/abstract-base-layer-entry-config';
 import type { TypeGeoTIFFLayerConfig } from '@/geo/layer/geoview-layers/raster/geotiff';
+import type { RGBA } from '@/core/utils/utilities';
 
 export interface GeoTIFFLayerEntryConfigProps extends AbstractBaseLayerEntryConfigProps {
   /** Source settings to apply to the GeoView layer source at creation time. */
@@ -18,6 +19,9 @@ export interface GeoTIFFLayerEntryConfigProps extends AbstractBaseLayerEntryConf
  * Type used to define a GeoTIFF layer to display on the map.
  */
 export class GeoTIFFLayerEntryConfig extends AbstractBaseLayerEntryConfig {
+  /** Embedded RGBA color palette extracted from the GeoTIFF file, if present. */
+  #embeddedColorMap: RGBA[] | undefined;
+
   /**
    * The class constructor.
    * @param {GeoTIFFLayerEntryConfigProps} layerConfig -  The layer configuration we want to instanciate.
@@ -62,6 +66,33 @@ export class GeoTIFFLayerEntryConfig extends AbstractBaseLayerEntryConfig {
   }
 
   // #endregion OVERRIDES
+
+  /**
+   * Getter for the embedded color map.
+   *
+   * @returns {RGBA[] | undefined} The embedded RGBA color map, if present.
+   */
+  getEmbeddedColorMap(): RGBA[] | undefined {
+    return this.#embeddedColorMap;
+  }
+
+  /**
+   * Setter for the embedded color map.
+   *
+   * @param colorMap - The embedded RGBA color map to set.
+   */
+  setEmbeddedColorMap(colorMap: RGBA[] | undefined): void {
+    this.#embeddedColorMap = colorMap;
+  }
+
+  /**
+   * checks if an embedded color map is present in the layer config.
+   *
+   * @returns `true` if an embedded color map exists; otherwise `false`.
+   */
+  hasEmbeddedColorMap(): boolean {
+    return this.#embeddedColorMap !== undefined;
+  }
 
   // #region STATIC METHODS
 

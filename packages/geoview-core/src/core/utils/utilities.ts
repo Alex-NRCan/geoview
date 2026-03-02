@@ -1,14 +1,17 @@
 import type { Root } from 'react-dom/client';
 import { createRoot } from 'react-dom/client';
 import sanitizeHtml from 'sanitize-html';
+import { fromUrl } from 'geotiff';
 
 import type { TypeDisplayLanguage } from '@/api/types/map-schema-types';
 import { logger } from '@/core/utils/logger';
 import i18n from '@/core/translation/i18n';
 import type { TypeGuideObject } from '@/core/stores/store-interface-and-intial-values/app-state';
 import { Fetch } from '@/core/utils/fetch-helper';
+import { ensureServiceRequestUrl } from '@/core/utils/ogc-url-helper';
 import type { TypeHTMLElement } from '@/core/types/global-types';
 import { TIMEOUT } from '@/core/utils/constant';
+import { CONFIG_PROXY_URL } from '@/api/types/map-schema-types';
 
 /** The observers to monitor element removals from the DOM tree */
 const observers: Record<string, MutationObserver> = {};
@@ -18,6 +21,19 @@ interface TypeDocument extends Document {
   msExitFullscreen: () => void;
   mozCancelFullScreen: () => void;
 }
+
+interface PingResult {
+  isValid: boolean;
+  isReachable: boolean;
+  needsProxy: boolean;
+  status: number | null;
+  error?: string;
+}
+
+/**
+ * Represents RGBA color as [Red, Green, Blue, Alpha]
+ */
+export type RGBA = [r: number, g: number, b: number, a: number];
 
 /**
  * Generates an array of numbers from `start` (inclusive) to `end` (exclusive),
@@ -390,6 +406,181 @@ export function generateId(length: 8 | 18 | 36 = 36): string {
 export function isValidUUID(uuid: string): boolean {
   const regex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   return regex.test(uuid);
+}
+
+/**
+ * Checks whether a text response contains a valid OGC capabilities root element.
+ *
+ * @param text - The response text to check.
+ * @returns True if the text contains WMS or WFS capabilities markers.
+ */
+function isOgcCapabilitiesResponse(text: string): boolean {
+  const lower = text.toLowerCase();
+  return lower.includes('wms_capabilities') || lower.includes('wmt_ms_capabilities') || lower.includes('wfs_capabilities');
+}
+
+/**
+ * Validates a URL's syntax and tests whether the server is reachable.
+ *
+ * Strategy:
+ * 1. **HEAD → 2xx/3xx** → reachable, no proxy needed.
+ * 2. **HEAD → 4xx/5xx** → server is alive but the bare path fails. Try OGC GetCapabilities
+ *    directly (CORS was fine since HEAD got a response). If valid → reachable. Otherwise → not reachable.
+ * 3. **HEAD → CORS** → server is alive but blocks cross-origin. Try OGC GetCapabilities
+ *    through the proxy. If valid → reachable + needsProxy. Otherwise → not reachable.
+ * 4. **HEAD → network/timeout** → server unreachable.
+ *
+ * The function never throws — all failures are returned as part of the result object.
+ *
+ * @param targetUrl - The URL to validate and ping.
+ * @param proxyBase - Optional. The proxy server base URL. Defaults to CONFIG_PROXY_URL.
+ * @param timeoutMs - Optional. Request timeout in milliseconds. Defaults to 5000ms.
+ * @returns A result object with isValid, isReachable, needsProxy, status, and optional error.
+ */
+export async function validateAndPingUrl(
+  targetUrl: string,
+  proxyBase: string = CONFIG_PROXY_URL,
+  timeoutMs: number = 5000
+): Promise<PingResult> {
+  const result: PingResult = {
+    isValid: false,
+    isReachable: false,
+    needsProxy: false,
+    status: null,
+  };
+
+  // Strip query params for the reachability check
+  const targetUrlWithoutParams = targetUrl.split('?')[0];
+
+  // Syntax validation
+  try {
+    new URL(targetUrlWithoutParams);
+    result.isValid = true;
+  } catch {
+    result.error = 'Invalid URL format';
+    return result;
+  }
+
+  // Build OGC GetCapabilities check URLs
+  const ogcCheckUrls = [
+    ensureServiceRequestUrl(targetUrl, 'WMS', 'GetCapabilities', ''),
+    ensureServiceRequestUrl(targetUrl, 'WFS', 'GetCapabilities', ''),
+  ];
+
+  // HEAD request to see if the server responds
+  const { response, reason } = await Fetch.fetchHeadWithTimeout(targetUrlWithoutParams, timeoutMs);
+
+  if (reason === 'ok' && response) {
+    result.status = response.status;
+
+    // 2xx/3xx — the path exists and is reachable
+    if (response.status < 400) {
+      result.isReachable = true;
+      return result;
+    }
+
+    // 4xx/5xx — server is alive but bare path fails.
+    // WMS/WFS services often return 4xx without query params. Since HEAD succeeded (no CORS issue),
+    // try GetCapabilities directly to see if it is a valid OGC service.
+    // Use raw fetch because WFS GetCapabilities may return non-2xx to the bare path but 200 with params.
+    const directChecks = await Promise.allSettled(
+      ogcCheckUrls.map(async (url) => {
+        const resp = await fetch(url);
+        return resp.text();
+      })
+    );
+
+    // We fire both WMS and WFS GetCapabilities in parallel. If either one returns a valid
+    // capabilities response, the URL is considered reachable — we don't need both to succeed.
+    for (const settled of directChecks) {
+      if (settled.status === 'fulfilled' && isOgcCapabilitiesResponse(settled.value)) {
+        result.isReachable = true;
+        return result;
+      }
+    }
+
+    // Not a valid OGC service either — the path is truly wrong
+    result.isReachable = false;
+    result.error = `Server returned status ${response.status} and no OGC service found at this URL`;
+    return result;
+  }
+
+  if (reason === 'timeout') {
+    result.error = 'Request timed out';
+    return result;
+  }
+
+  if (reason === 'network') {
+    result.error = 'Server unreachable (DNS failure, server down, or network error)';
+    return result;
+  }
+
+  // CORS — server is alive but blocks cross-origin.
+  // Try OGC GetCapabilities through proxy (only WMS/WFS have CORS issues).
+  if (reason === 'cors') {
+    const proxyChecks = await Promise.allSettled(
+      ogcCheckUrls.map(async (checkUrl) => {
+        const proxiedUrl = `${proxyBase}?${checkUrl}`;
+        // Use raw fetch instead of Fetch.fetchText because the proxy may forward non-2xx
+        // responses that still contain valid capabilities XML in the body.
+        const resp = await fetch(proxiedUrl);
+        return resp.text();
+      })
+    );
+
+    // Same as above: if either WMS or WFS GetCapabilities succeeds through the proxy, it's reachable.
+    for (const settled of proxyChecks) {
+      if (settled.status === 'fulfilled' && isOgcCapabilitiesResponse(settled.value)) {
+        result.isReachable = true;
+        result.needsProxy = true;
+        return result;
+      }
+    }
+
+    result.isReachable = false;
+    result.error = 'Server blocks cross-origin requests and no OGC service found';
+    return result;
+  }
+
+  // Unknown failure
+  result.error = 'Unexpected error during URL validation';
+  return result;
+}
+
+/**
+ * Extracts the embedded color palette from a GeoTIFF file at the given URL.
+ *
+ * Returns an array of RGBA color tuples, or `undefined` if no palette is present.
+ * Each color is normalized to 8-bit values.
+ *
+ * @param url - URL to the GeoTIFF file.
+ * @returns Array of RGBA color tuples, or undefined if no palette.
+ */
+export async function extractGeotiffColorMap(url: string): Promise<RGBA[] | undefined> {
+  const tiff = await fromUrl(url);
+  const image = await tiff.getImage();
+  const fileDirectory = image.getFileDirectory();
+
+  // ColorMap is a flat Uint16Array of 3 × N entries laid out as [R0…R(N-1), G0…G(N-1), B0…B(N-1)].
+  // Values are 16-bit (0–65535) and must be scaled to 8-bit (0–255) by dividing by 256.
+  const colorMap = fileDirectory.ColorMap as Uint16Array | undefined;
+
+  if (!colorMap) {
+    return undefined; // no embedded palette
+  }
+
+  const size = colorMap.length / 3;
+  const palette: RGBA[] = [];
+
+  for (let i = 0; i < size; i++) {
+    // Use Math.floor(colorMap[i] / 256) instead of bitwise shift for clarity and to avoid unexpected behavior with large numbers
+    const r = Math.floor(colorMap[i] / 256);
+    const g = Math.floor(colorMap[i + size] / 256);
+    const b = Math.floor(colorMap[i + size * 2] / 256);
+    palette.push([r, g, b, 255]);
+  }
+
+  return palette;
 }
 
 /**
