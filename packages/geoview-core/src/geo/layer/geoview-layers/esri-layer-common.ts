@@ -19,7 +19,6 @@ import type {
   DisplayDateMode,
 } from '@/api/types/map-schema-types';
 import type { TypeLayerMetadataEsri } from '@/api/types/layer-schema-types';
-import { CONST_LAYER_TYPES } from '@/api/types/layer-schema-types';
 import { Fetch } from '@/core/utils/fetch-helper';
 import type { ConfigBaseClass } from '@/api/config/validation-classes/config-base-class';
 import { GroupLayerEntryConfig } from '@/api/config/validation-classes/group-layer-entry-config';
@@ -130,7 +129,6 @@ export class EsriUtilities {
           // eslint-disable-next-line no-param-reassign
           listOfLayerEntryConfig[i] = groupLayerConfig;
 
-          // TODO: Refactor: Do not do this on the fly here anymore with the new configs (quite unpredictable)...
           // Alert that we want to register new entry configs
           callbackWhenRegisteringConfig(groupLayerConfig);
 
@@ -153,7 +151,6 @@ export class EsriUtilities {
             // Append the sub layer entry to the list
             groupLayerConfig.listOfLayerEntryConfig.push(subLayerEntryConfig);
 
-            // TODO: Refactor: Do not do this on the fly here anymore with the new configs (quite unpredictable)...
             // Alert that we want to register new entry configs
             callbackWhenRegisteringConfig(subLayerEntryConfig);
           });
@@ -219,7 +216,7 @@ export class EsriUtilities {
    * initial settings, fields and aliases).
    * @param {EsriDynamic | EsriFeature | EsriImage} layer The ESRI layer instance pointer.
    * @param {TypeLayerEntryConfig} layerConfig The layer entry configuration to process.
-   * @param {AbortSignal?} [abortSignal] - Abort signal to handle cancelling of the process.
+   * @param abortSignal - Optional {@link AbortSignal} used to cancel the layer creation process.
    * @returns {Promise<TypeLayerEntryConfig>} A promise that the layer configuration has its metadata processed.
    * @throws {LayerServiceMetadataUnableToFetchError} When the metadata fetch fails or contains an error.
    * @static
@@ -233,9 +230,9 @@ export class EsriUtilities {
 
     // The url
     let queryUrl = layer.getMetadataAccessPath();
-
-    if (layerConfig.getSchemaTag() !== CONST_LAYER_TYPES.ESRI_IMAGE)
+    if (layerConfig instanceof EsriDynamicLayerEntryConfig || layerConfig instanceof EsriFeatureLayerEntryConfig) {
       queryUrl = queryUrl.endsWith('/') ? `${queryUrl}${layerConfig.layerId}` : `${queryUrl}/${layerConfig.layerId}`;
+    }
 
     let responseJson;
     try {

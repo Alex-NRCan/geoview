@@ -83,7 +83,7 @@ export type TypeFeatureInfoLayerConfig = {
    * The display field of the layer. If it is not present the viewer will make an attempt to find the first valid
    * field.
    */
-  nameField?: string; // TODO: refactor - remove ?
+  nameField?: string;
   /** The list of fields to be displayed by the UI. */
   outfields?: TypeOutfields[];
 
@@ -173,7 +173,6 @@ export const validVectorLayerLegendTypes: TypeGeoviewLayerType[] = [
   CONST_LAYER_TYPES.WKB,
 ];
 
-// TODO: After refactor, use the function in type-guard...
 export const CONST_LAYER_ENTRY_TYPES: Record<LayerEntryTypesKey, TypeLayerEntryType> = {
   VECTOR: 'vector',
   VECTOR_TILE: 'vector-tile',
@@ -195,12 +194,15 @@ export type TypeBaseSourceInitialConfig = {
    * The service endpoint of the layer. Added during creation of specific layer entry config.
    */
   dataAccessPath?: string;
+
   /**
    * Spatial Reference EPSG code supported (https://epsg.io/).
    */
   projection?: TypeValidSourceProjectionCodes;
+
   /** The crossOrigin attribute if needed to load the data. */
   crossOrigin?: string;
+
   /** Definition of the feature information structure that will be used by the getFeatureInfo method. */
   featureInfo?: TypeFeatureInfoLayerConfig;
 };
@@ -222,18 +224,17 @@ export type TypeOfServer = 'mapserver' | 'geoserver' | 'qgis';
 
 /** Base type from which we derive the source properties for all the vector leaf nodes in the layer tree. */
 export interface TypeBaseVectorSourceInitialConfig extends TypeBaseSourceInitialConfig {
-  /** Path used to access the data. */
-  dataAccessPath?: string;
-  /** Maximum number of records to fetch (default: 0). */
-  maxRecordCount?: number; // TODO: refactor - remove ?
   /** Filter to apply on features of this layer. */
+  // TODO: REMOVE this property. The layerFilter isn't on the source object. When removing this, have to remove it from
+  // TO.DOCONT: legacy configs like in 05-esri-feature-and-dynamic.json files.
   layerFilter?: string;
-  /** Definition of the feature information structure that will be used by the getFeatureInfo method. */
-  featureInfo?: TypeFeatureInfoLayerConfig;
+
   /** Loading strategy to use (all or bbox). */
   strategy?: VectorStrategy;
+
   /** The projection code of the source. */
   dataProjection?: string; // TODO: refactor - from geo map schema types
+
   /** Settings to use when loading a GeoJSON layer using a POST instead of a GET */
   postSettings?: TypePostSettings; // TODO: refactor - from geo map schema types
 }
@@ -275,22 +276,19 @@ export type TypeTileGrid = {
 
 /** Type from which we derive the source properties for all the ESRI dynamic leaf nodes in the layer tree. */
 export interface TypeSourceEsriDynamicInitialConfig extends TypeBaseSourceInitialConfig {
-  /** Maximum number of records to fetch (default: 0). */
-  maxRecordCount?: number; // TODO: refactor - remove ?
-  /** Filter to apply on features of this layer. */
+  // TODO: REMOVE this property. The layerFilter isn't on the source object. When removing this, have to remove it from
+  // TO.DOCONT: legacy configs like in 05-esri-feature-and-dynamic.json files.
   layerFilter?: string;
+
   /** Definition of the feature information structure that will be used by the getFeatureInfo method. */
   featureInfo?: TypeFeatureInfoLayerConfig;
 
-  /** The format used by the image layer.
-   * @deprecated Seems not used anymore?
-   */
-  format?: TypeEsriFormatParameter; // TODO: refactor - remove ?
+  /** The format used by the image layer. */
+  format?: TypeEsriFormatParameter;
 
   /**
    * If true, the image will be exported with the background color of the map set as its transparent color. Only the .png
    * and .gif formats support transparency.
-   * @deprecated Seems not used anymore?
    */
   transparent?: boolean;
 

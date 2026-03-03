@@ -35,7 +35,6 @@ export class AllFeatureInfoLayerSet extends AbstractLayerSet {
    * @returns True when the layer should be registered to this all-feature-info-layer-set.
    */
   protected override onRegisterLayerCheck(layer: AbstractBaseGVLayer): boolean {
-    if (layer.getLayerConfig()?.getGeoviewLayerConfig().useAsBasemap) return false;
     // Return if the layer is of queryable type and source is queryable
     let isQueryable =
       super.onRegisterLayerCheck(layer) && AbstractLayerSet.isQueryableType(layer) && AbstractLayerSet.isSourceQueryable(layer);
@@ -84,7 +83,7 @@ export class AllFeatureInfoLayerSet extends AbstractLayerSet {
    */
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   protected override onPropagateToStore(resultSetEntry: TypeAllFeatureInfoResultSetEntry, type: PropagationType): void {
-    // Redirect
+    // Redirect - Add layer to the list after registration
     this.#propagateToStore(resultSetEntry);
   }
 
@@ -216,10 +215,7 @@ export class AllFeatureInfoLayerSet extends AbstractLayerSet {
    * @private
    */
   #propagateToStore(resultSetEntry: TypeAllFeatureInfoResultSetEntry): void {
-    // Only if the layerStatus is loaded
-    if (resultSetEntry.layerStatus === 'loaded') {
-      // Propagate
-      DataTableEventProcessor.propagateFeatureInfoToStore(this.getMapId(), resultSetEntry);
-    }
+    // Propagate
+    DataTableEventProcessor.propagateFeatureInfoToStore(this.getMapId(), resultSetEntry);
   }
 }
