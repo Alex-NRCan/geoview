@@ -64,20 +64,8 @@ export abstract class ConfigBaseClass {
   /** The display name of the layer. */
   #layerName?: string;
 
-  /**
-   * Initial settings to apply to the GeoView layer entry at creation time. Initial settings are inherited from the parent in the
-   * configuration tree.
-   */
-  #initialSettings?: TypeLayerInitialSettings;
-
   /** It is used to identified unprocessed layers and shows the final layer state */
   #layerStatus: TypeLayerStatus = 'newInstance';
-
-  /** The min scale that can be reached by the layer. */
-  #minScale?: number;
-
-  /** The max scale that can be reached by the layer. */
-  #maxScale?: number;
 
   /** It is used internally to distinguish layer groups derived from the metadata. */
   #isMetadataLayerGroup: boolean;
@@ -98,9 +86,10 @@ export abstract class ConfigBaseClass {
 
   /**
    * The class constructor.
-   * @param {ConfigClassOrType} layerConfig - The layer configuration we want to instanciate.
+   *
+   * @param layerConfig - The layer configuration we want to instanciate.
    */
-  // TODO: Refactor - There is an oddity inside LayerApi.addGeoviewLayer to the effect that it's calling validateListOfGeoviewLayerConfig even if it was already called in config-validation.
+  // TODO: REFACTOR - Major TypeLayerEntryConfig - There is an oddity inside LayerApi.addGeoviewLayer to the effect that it's calling validateListOfGeoviewLayerConfig even if it was already called in config-validation.
   // TO.DOCONT: Until this is fixed, this constructor supports sending a ConfigBaseClass in its typing, for now (ConfigClassOrType = ConfigBaseClassProps | ConfigBaseClass)... though it should only be a ConfigBaseClassProps eventually.
   protected constructor(layerConfig: ConfigClassOrType, schemaTag: TypeGeoviewLayerType, entryType: TypeLayerEntryType) {
     // Transfer the properties from the object to the class (without using Object.assign anymore)
@@ -109,9 +98,6 @@ export abstract class ConfigBaseClass {
     this.#schemaTag = schemaTag;
     this.#entryType = entryType;
     this.#layerName = ConfigBaseClass.getClassOrTypeLayerName(layerConfig);
-    this.#initialSettings = ConfigBaseClass.getClassOrTypeInitialSettings(layerConfig);
-    this.#minScale = ConfigBaseClass.getClassOrTypeMinScale(layerConfig);
-    this.#maxScale = ConfigBaseClass.getClassOrTypeMaxScale(layerConfig);
     this.#isMetadataLayerGroup = ConfigBaseClass.getClassOrTypeIsMetadataLayerGroup(layerConfig);
   }
 
@@ -120,9 +106,8 @@ export abstract class ConfigBaseClass {
    * Subclasses should override this method to implement the logic needed
    * to update the service metadata on the current layer entry, including
    * any recursive behavior for child entries or associated sources.
-   * @param {unknown} metadata - The service metadata to set.
-   * @abstract
-   * @protected
+   *
+   * @param metadata - The service metadata to set.
    */
   protected abstract onSetServiceMetadata(metadata: unknown): void;
 
@@ -131,15 +116,15 @@ export abstract class ConfigBaseClass {
    * Subclasses should override this method to implement the logic needed
    * to update the data access path on the current layer entry, including
    * any recursive behavior for child entries or associated sources.
-   * @param {string} dataAccessPath - The data access path to set.
-   * @abstract
-   * @protected
+   *
+   * @param dataAccessPath - The data access path to set.
    */
   protected abstract onSetDataAccessPath(dataAccessPath: string): void;
 
   /**
    * The layerPath getter method for the ConfigBaseClass class and its descendant classes.
-   * @returns {string} The layer path
+   *
+   * @returns The layer path
    */
   get layerPath(): string {
     return ConfigBaseClass.#evaluateLayerPath(this);
@@ -147,7 +132,8 @@ export abstract class ConfigBaseClass {
 
   /**
    * The layerId getter method for the ConfigBaseClass class and its descendant classes.
-   * @retuns {TypeLayerStatus} The layer status
+   *
+   * @retuns The layer status
    */
   get layerStatus(): TypeLayerStatus {
     return this.#layerStatus;
@@ -158,6 +144,8 @@ export abstract class ConfigBaseClass {
    * fallbacks on the geoviewLayerName from the GeoViewLayerConfig or
    * fallbacks on the geoviewLayerId from the GeoViewLayerConfig or
    * fallsback on the layerPath.
+   *
+   * @returns The layer name based on the priority.
    */
   getLayerNameCascade(): string {
     return this.#layerName || this.getGeoviewLayerName() || this.getGeoviewLayerId() || this.layerPath;
@@ -165,6 +153,8 @@ export abstract class ConfigBaseClass {
 
   /**
    * Gets the layer name of the entry layer if any.
+   *
+   * @returns The layer name.
    */
   getLayerName(): string | undefined {
     return this.#layerName;
@@ -172,6 +162,7 @@ export abstract class ConfigBaseClass {
 
   /**
    * Sets the layer name of the entry layer.
+   *
    * @param {string} layerName - The layer name.
    */
   setLayerName(layerName: string): void {
@@ -182,8 +173,25 @@ export abstract class ConfigBaseClass {
   }
 
   /**
+   * Sets the layer name from the metadata layer name, except if the layer entry already had a layer name.
+   *
+   * @param layerName - The layer name if any.
+   */
+  initLayerNameFromMetadata(layerName: string | undefined): void {
+    // If there already is a layer name from the entry props or we're initializing nothing
+    if (this.layerEntryProps.layerName || !layerName) return; // Skip, config has priority
+
+    // If we have no parent layer config and there's already a GeoView layer name
+    if (!this.layerEntryProps.parentLayerConfig && this.layerEntryProps.geoviewLayerConfig.geoviewLayerName) return; // Skip, config has priority
+
+    // Set it
+    this.setLayerName(layerName);
+  }
+
+  /**
    * Gets the schema tag for the layer entry config.
-   * @returns {TypeGeoviewLayerType} The layer entry type (or undefined, e.g. groups).
+   *
+   * @returns The layer entry type (or undefined, e.g. groups).
    */
   getSchemaTag(): TypeGeoviewLayerType {
     return this.#schemaTag;
@@ -305,7 +313,7 @@ export abstract class ConfigBaseClass {
    * @returns {number | undefined} The layer min scale if any.
    */
   getMinScale(): number | undefined {
-    return this.#minScale;
+    return this.layerEntryProps.minScale;
   }
 
   /**
@@ -313,7 +321,7 @@ export abstract class ConfigBaseClass {
    * @param {number?} minScale - The layer min scale or undefined.
    */
   setMinScale(minScale?: number): void {
-    this.#minScale = minScale;
+    this.layerEntryProps.minScale = minScale;
   }
 
   /**
@@ -334,7 +342,7 @@ export abstract class ConfigBaseClass {
    * @returns {number | undefined} The layer max scale if any.
    */
   getMaxScale(): number | undefined {
-    return this.#maxScale;
+    return this.layerEntryProps.maxScale;
   }
 
   /**
@@ -342,7 +350,7 @@ export abstract class ConfigBaseClass {
    * @param {number?} maxScale - The layer max scale or undefined.
    */
   setMaxScale(maxScale?: number): void {
-    this.#maxScale = maxScale;
+    this.layerEntryProps.maxScale = maxScale;
   }
 
   /**
@@ -363,7 +371,7 @@ export abstract class ConfigBaseClass {
    * @returns {TypeLayerInitialSettings | undefined} The initial settings.
    */
   getInitialSettings(): TypeLayerInitialSettings | undefined {
-    return this.#initialSettings;
+    return this.layerEntryProps.initialSettings;
   }
 
   /**
@@ -379,7 +387,7 @@ export abstract class ConfigBaseClass {
    * @returns {Extent  | undefined} The initial settings extend, if any.
    */
   getInitialSettingsExtent(): Extent | undefined {
-    return this.#initialSettings?.extent;
+    return this.layerEntryProps.initialSettings?.extent;
   }
 
   /**
@@ -387,7 +395,7 @@ export abstract class ConfigBaseClass {
    * @returns {Extent  | undefined} The initial settings bounds, if any.
    */
   getInitialSettingsBounds(): Extent | undefined {
-    return this.#initialSettings?.bounds;
+    return this.layerEntryProps.initialSettings?.bounds;
   }
 
   /**
@@ -395,7 +403,7 @@ export abstract class ConfigBaseClass {
    * @returns {string  | undefined} The initial settings className, if any.
    */
   getInitialSettingsClassName(): string | undefined {
-    return this.#initialSettings?.className;
+    return this.layerEntryProps.initialSettings?.className;
   }
 
   /**
@@ -403,7 +411,7 @@ export abstract class ConfigBaseClass {
    * @param {TypeLayerInitialSettings | undefined} initialSettingsMetadata - The initialSettings metadata to use to help fill the blanks in our initialSettings config, if any.
    */
   initInitialSettingsFromMetadata(initialSettingsMetadata: TypeLayerInitialSettings | undefined): void {
-    this.#initialSettings = deepMerge(initialSettingsMetadata, this.#initialSettings);
+    this.layerEntryProps.initialSettings = deepMerge(initialSettingsMetadata, this.layerEntryProps.initialSettings);
   }
 
   /**
@@ -412,9 +420,9 @@ export abstract class ConfigBaseClass {
    */
   initInitialSettingsStatesVisibleFromMetadata(visible: boolean | undefined): void {
     // Validate and update the extent initial settings
-    this.#initialSettings ??= {};
-    this.#initialSettings.states ??= {};
-    this.#initialSettings.states.visible ??= visible;
+    this.layerEntryProps.initialSettings ??= {};
+    this.layerEntryProps.initialSettings.states ??= {};
+    this.layerEntryProps.initialSettings.states.visible ??= visible;
   }
 
   /**
@@ -440,8 +448,8 @@ export abstract class ConfigBaseClass {
    */
   initInitialSettingsExtentAndBoundsFromConfig(): void {
     // Redirect
-    this.#initInitialSettingsExtent(this.#initialSettings?.extent);
-    this.#initInitialSettingsBounds(this.#initialSettings?.bounds);
+    this.#initInitialSettingsExtent(this.layerEntryProps.initialSettings?.extent);
+    this.#initInitialSettingsBounds(this.layerEntryProps.initialSettings?.bounds);
   }
 
   /**
@@ -655,8 +663,8 @@ export abstract class ConfigBaseClass {
   #initInitialSettingsMinZoom(minZoomToValidate: number | undefined): void {
     // If we have something to update it with
     if (minZoomToValidate) {
-      this.#initialSettings ??= {};
-      this.#initialSettings.minZoom = Math.max(this.#initialSettings.minZoom ?? -Infinity, minZoomToValidate);
+      this.layerEntryProps.initialSettings ??= {};
+      this.layerEntryProps.initialSettings.minZoom = Math.max(this.layerEntryProps.initialSettings.minZoom ?? -Infinity, minZoomToValidate);
     }
   }
 
@@ -669,8 +677,8 @@ export abstract class ConfigBaseClass {
   #initInitialSettingsMaxZoom(maxZoomToValidate: number | undefined): void {
     // If we have something to update it with
     if (maxZoomToValidate) {
-      this.#initialSettings ??= {};
-      this.#initialSettings.maxZoom = Math.min(this.#initialSettings.maxZoom ?? Infinity, maxZoomToValidate);
+      this.layerEntryProps.initialSettings ??= {};
+      this.layerEntryProps.initialSettings.maxZoom = Math.min(this.layerEntryProps.initialSettings.maxZoom ?? Infinity, maxZoomToValidate);
     }
   }
 
@@ -684,8 +692,8 @@ export abstract class ConfigBaseClass {
     // If we have something to update it with
     if (extentToValidate) {
       // Validate and update the extent initial settings
-      this.#initialSettings ??= {};
-      this.#initialSettings.extent = GeoUtilities.validateExtentWhenDefined(extentToValidate);
+      this.layerEntryProps.initialSettings ??= {};
+      this.layerEntryProps.initialSettings.extent = GeoUtilities.validateExtentWhenDefined(extentToValidate);
     }
   }
 
@@ -699,8 +707,8 @@ export abstract class ConfigBaseClass {
     // If we have something to update it with
     if (boundsToValidate) {
       // Validate and update the bounds initial settings
-      this.#initialSettings ??= {};
-      this.#initialSettings.bounds = GeoUtilities.validateExtentWhenDefined(boundsToValidate);
+      this.layerEntryProps.initialSettings ??= {};
+      this.layerEntryProps.initialSettings.bounds = GeoUtilities.validateExtentWhenDefined(boundsToValidate);
     }
   }
 
@@ -1094,7 +1102,7 @@ export abstract class ConfigBaseClass {
   static setClassOrTypeInitialSettings(layerConfig: ConfigClassOrType, initialSettings: TypeLayerInitialSettings): void {
     if (layerConfig instanceof ConfigBaseClass) {
       // eslint-disable-next-line no-param-reassign
-      layerConfig.#initialSettings = initialSettings;
+      layerConfig.layerEntryProps.initialSettings = initialSettings;
     } else {
       // eslint-disable-next-line no-param-reassign
       layerConfig.initialSettings = initialSettings;

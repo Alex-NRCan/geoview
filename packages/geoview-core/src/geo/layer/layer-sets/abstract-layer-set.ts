@@ -220,7 +220,6 @@ export abstract class AbstractLayerSet {
 
     // Wait a maximum of 20 seconds for the layer to get to loaded state so that it can get registered, otherwise another attempt will have to be made
     // This await is important when devs call this method directly to register ad-hoc layers.
-    // TODO: REFACTOR - Remove this await? Seems useless now?
     await whenThisThen(() => layer.getLayerStatus() === 'loaded', 20000);
 
     // Update the registration of all layer sets
@@ -286,7 +285,7 @@ export abstract class AbstractLayerSet {
     abortController?: AbortController
   ): Promise<TypeFeatureInfoResult> {
     // If the layer is invisible (or any of its parent(s) is invisible)
-    if (!geoviewLayer.getVisibleIncludingParents(this.layerApi.getGeoviewLayersGroups())) return Promise.resolve({ results: [] });
+    if (!geoviewLayer.getVisibleIncludingParents()) return Promise.resolve({ results: [] });
 
     // If is not in visible range
     if (!geoviewLayer.getInVisibleRange(this.layerApi.mapViewer.getView().getZoom())) return Promise.resolve({ results: [] });

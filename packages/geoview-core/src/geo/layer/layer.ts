@@ -114,7 +114,7 @@ import { SwiperEventProcessor } from '@/api/event-processors/event-processor-chi
 import { DataTableEventProcessor } from '@/api/event-processors/event-processor-children/data-table-event-processor';
 import { FeatureInfoEventProcessor } from '@/api/event-processors/event-processor-children/feature-info-event-processor';
 import { LegendEventProcessor } from '@/api/event-processors/event-processor-children/legend-event-processor';
-import { GeoViewError, LayerConfigNotFoundError } from '@/core/exceptions/geoview-exceptions';
+import { GeoViewError, LayerConfigNotFoundError, LayerNoLastQueryToPerformError } from '@/core/exceptions/geoview-exceptions';
 import { LayerGeoCoreError } from '@/core/exceptions/geocore-exceptions';
 import { ShapefileReader } from '@/api/config/reader/shapefile-reader';
 import { GeoPackageReader } from '@/api/config/reader/geopackage-reader';
@@ -134,6 +134,7 @@ import { OgcWmtsLayerEntryConfig } from '@/api/config/validation-classes/raster-
 import { XYZTilesLayerEntryConfig } from '@/api/config/validation-classes/raster-validation-classes/xyz-layer-entry-config';
 import { VectorTilesLayerEntryConfig } from '@/api/config/validation-classes/raster-validation-classes/vector-tiles-layer-entry-config';
 import type { TypeTimeSliderProps } from '@/core/stores/store-interface-and-intial-values/time-slider-state';
+import type { TypeFeatureInfoResultSet } from '@/core/stores/store-interface-and-intial-values/feature-info-state';
 
 /**
  * A class to get the layer from layer type. Layer type can be esriFeature, esriDynamic and ogcWMS
@@ -741,7 +742,7 @@ export class LayerApi {
    * @throws {LayerCreatedTwiceError} When there already is a layer on the map with the provided geoviewLayerId.
    */
   addGeoviewLayer(geoviewLayerConfig: TypeGeoviewLayerConfig, abortSignal?: AbortSignal): GeoViewLayerAddedResult {
-    // TODO: REFACTOR - This should be dealt with the config classes and this line commented out.
+    // TODO: REFACTOR listOfLayerEntryConfig types - This should be dealt with the config classes and this line commented out.
     // TO.DOCONT: Right now, this function is called when the configuration is first read and schema checked and everything and then again here when we're adding a geoviewLayerConfig.
     // TO.DOCONT: Commenting the function from here would remove an redundancy call and it seems to be working in our templates when the line is commented. However, commenting it would
     // TO.DOCONT: probably cause issues when this 'addGeoviewLayer' function is called by external?
@@ -1112,7 +1113,7 @@ export class LayerApi {
           const layerBeingRemoved = this.#gvLayers[registeredLayerPath];
 
           // If the layer had a parent
-          const parent = layerBeingRemoved?.getParent(this.getGeoviewLayersGroups());
+          const parent = layerBeingRemoved?.getParent();
           if (parent) {
             // Make sure to remove the layer from the parent and that way when the bounds get recalculated the removed layer won't be included
             parent.removeLayer(layerBeingRemoved);
@@ -1712,11 +1713,37 @@ export class LayerApi {
   }
 
   /**
-   * Repeats the last feature info query if any.
-   * @returns {void}
+   * Repeats the last feature info query.
+   * This method waits for the layers to be loaded before performing the query.
+   *
+   * @returns A promise which will hold the result of the query.
+   * @throws {LayerNoLastQueryToPerformError} When there's no last query to perform.
    */
-  repeatLastQuery(): void {
-    FeatureInfoEventProcessor.repeatLastQuery(this.getMapId());
+  async repeatLastQuery(): Promise<TypeFeatureInfoResultSet> {
+    // Wait until the render completes
+    await this.mapViewer.waitForRender();
+
+    // Redirect
+    return FeatureInfoEventProcessor.repeatLastQuery(this.getMapId());
+  }
+
+  /**
+   * Repeats the last feature info query, if any.
+   * This method waits for the layers to be loaded before performing the query.
+   *
+   * @returns A promise which will hold the result of the query or undefined when no query to repeat.
+   */
+  async repeatLastQueryIfAny(): Promise<TypeFeatureInfoResultSet | undefined> {
+    try {
+      // Redirect and leave the 'await' keyword here so the try/catch works as expected.
+      return await this.repeatLastQuery();
+    } catch (error: unknown) {
+      // If the error is LayerNoLastQueryToPerformError, no worries, skip
+      if (error instanceof LayerNoLastQueryToPerformError) return;
+
+      // Otherwise, keep throwing
+      throw error;
+    }
   }
 
   // #region PRIVATE FUNCTIONS
@@ -1955,7 +1982,7 @@ export class LayerApi {
     this.#registerLayerHandlers(gvLayer);
 
     // Calculate the bounds upon creation
-    LegendEventProcessor.setLayerBoundsForLayerAndParentsAndForgetInStore(this.getMapId(), gvLayer, this.getGeoviewLayersGroups());
+    LegendEventProcessor.setLayerBoundsForLayerAndParentsAndForgetInStore(this.getMapId(), gvLayer);
 
     // Emit about its creation so that one can attach events on it right away if necessary
     this.#emitLayerCreated({ layer: gvLayer });
@@ -2079,7 +2106,7 @@ export class LayerApi {
     // If a vector layer has been loaded
     if (layer instanceof AbstractGVVector) {
       // Calculate the bounds as those depend on the actual features in the layer
-      LegendEventProcessor.setLayerBoundsForLayerAndParentsAndForgetInStore(this.getMapId(), layer, this.getGeoviewLayersGroups());
+      LegendEventProcessor.setLayerBoundsForLayerAndParentsAndForgetInStore(this.getMapId(), layer);
     }
 
     // Emit about it
@@ -2112,6 +2139,7 @@ export class LayerApi {
    * @param event - The event containing the opacity change.
    */
   #handleLayerOpacityChanged(layer: AbstractBaseGVLayer, event: LayerOpacityChangedEvent): void {
+    // Update the store
     LegendEventProcessor.setOpacityInStore(this.getMapId(), layer.getLayerPath(), event.opacity);
   }
 
@@ -2253,7 +2281,15 @@ export class LayerApi {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   #handleLayerGroupLayerAdded(sender: GVGroupLayer, event: GVGroupLayerEvent): void {
     // Calculate the bounds on the group layer which had a layer added
-    LegendEventProcessor.setLayerBoundsForLayerAndParentsAndForgetInStore(this.getMapId(), sender, this.getGeoviewLayersGroups());
+    LegendEventProcessor.setLayerBoundsForLayerAndParentsAndForgetInStore(this.getMapId(), sender);
+
+    // Get the initial settings opacity of the group layer
+    const initialSettingsOpacity = sender.getLayerConfig().getInitialSettings()?.states?.opacity;
+
+    // If any
+    if (initialSettingsOpacity !== undefined) {
+      LegendEventProcessor.setOpacityInStore(this.getMapId(), sender.getLayerPath(), initialSettingsOpacity);
+    }
   }
 
   /**
@@ -2269,7 +2305,7 @@ export class LayerApi {
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   #handleLayerGroupLayerRemoved(sender: GVGroupLayer, event: GVGroupLayerEvent): void {
     // Calculate the bounds on the group layer which had a layer removed
-    LegendEventProcessor.setLayerBoundsForLayerAndParentsAndForgetInStore(this.getMapId(), sender, this.getGeoviewLayersGroups());
+    LegendEventProcessor.setLayerBoundsForLayerAndParentsAndForgetInStore(this.getMapId(), sender);
   }
 
   /**
@@ -2978,7 +3014,7 @@ export class LayerApi {
       }
     };
 
-    // TODO: REFACTOR - This function has issues with the expected types and what it's truly doing.
+    // TODO: REFACTOR listOfLayerEntryConfig types - This function has issues with the expected types and what it's truly doing.
     // TO.DOCONT: Sometimes, geoviewLayerConfig is a ConfigBaseClass instance and sometimes a regular json object
     // GV: The old code was doing `if (theGeoviewLayerConfig.geoviewLayerId)` which condition is only possible when `geoviewLayerId` is a property of the class instance.
     // GV: However, since that it's not a property anymore, that code was only being executed when the objet was a json object. For a while now...
