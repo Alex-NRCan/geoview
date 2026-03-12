@@ -1,26 +1,40 @@
 import type { ImageArcGISRest } from 'ol/source';
+import type { Geometry } from 'ol/geom';
 import type { Options as ImageOptions } from 'ol/layer/BaseImage';
+import type { Coordinate } from 'ol/coordinate';
 import { Image as ImageLayer } from 'ol/layer';
 import type { Extent } from 'ol/extent';
+import { Feature } from 'ol';
 import type { Projection as OLProjection } from 'ol/proj';
+import type { Map as OLMap } from 'ol';
 
+import { GeoUtilities } from '@/geo/utils/utilities';
+import { Projection } from '@/geo/utils/projection';
 import { logger } from '@/core/utils/logger';
+import { Fetch } from '@/core/utils/fetch-helper';
 import type { EsriImageLayerEntryConfig } from '@/api/config/validation-classes/raster-validation-classes/esri-image-layer-entry-config';
 import type {
+  codedValueType,
+  rangeDomainType,
+  TypeFeatureInfoEntry,
+  TypeFeatureInfoResult,
+  TypeFieldEntry,
   TypeIconSymbolVectorConfig,
   TypeLayerStyleConfig,
   TypeLayerStyleConfigInfo,
   TypeLayerStyleSettings,
+  TypeOutfieldsType,
 } from '@/api/types/map-schema-types';
 import { CONST_LAYER_TYPES } from '@/api/types/layer-schema-types';
-import { GeoUtilities } from '@/geo/utils/utilities';
+import type { GeometryJson } from '@/geo/layer/gv-layers/utils';
 import { GeoviewRenderer } from '@/geo/utils/renderer/geoview-renderer';
 import { AbstractGVRaster } from '@/geo/layer/gv-layers/raster/abstract-gv-raster';
 import type { TypeLegend } from '@/core/stores/store-interface-and-intial-values/layer-state';
-import { Projection } from '@/geo/utils/projection';
-import { Fetch } from '@/core/utils/fetch-helper';
 import { GVWMS } from '@/geo/layer/gv-layers/raster/gv-wms';
 import type { LayerFilters } from '@/geo/layer/gv-layers/layer-filters';
+import type { TypeMetadataEsriImage, TypeMetadataEsriRasterFunctionInfos, TypeMosaicRule } from '@/api/types/layer-schema-types';
+import { GeometryApi } from '@/geo/layer/geometry/geometry';
+import type { TemporalMode } from '@/index';
 
 /**
  * Manages an Esri Image layer.
@@ -29,6 +43,15 @@ import type { LayerFilters } from '@/geo/layer/gv-layers/layer-filters';
  * @class GVEsriImage
  */
 export class GVEsriImage extends AbstractGVRaster {
+  /** The currently active raster function id */
+  #rasterFunction?: string;
+
+  /** The cache of image previews for the different raster functions */
+  #rasterFunctionPreviewCache = new Map<string, string>();
+
+  /** The currently active mosaic rule */
+  #mosaicRule?: TypeMosaicRule;
+
   /**
    * Constructs a GVEsriImage layer to manage an OpenLayer layer.
    *
@@ -37,6 +60,10 @@ export class GVEsriImage extends AbstractGVRaster {
    */
   constructor(olSource: ImageArcGISRest, layerConfig: EsriImageLayerEntryConfig) {
     super(olSource, layerConfig);
+
+    // Initialize the active raster function from config's initial value
+    this.#rasterFunction = layerConfig.getInitialRasterFunction();
+    this.#mosaicRule = layerConfig.getInitialMosaicRule();
 
     // Create the image layer options.
     const imageLayerOptions: ImageOptions<ImageArcGISRest> = {
@@ -92,7 +119,21 @@ export class GVEsriImage extends AbstractGVRaster {
     const layerConfig = this.getLayerConfig();
     try {
       if (!layerConfig) return null;
-      const legendJson = await Fetch.fetchEsriJson<TypeEsriImageLayerLegend>(`${layerConfig.getMetadataAccessPath()}/legend?f=json`);
+
+      // Build legend URL with optional raster function
+      let legendUrl = `${layerConfig.getMetadataAccessPath()}/legend?f=json`;
+      const rasterFunction = this.#rasterFunction;
+      if (rasterFunction) {
+        const renderingRule = encodeURIComponent(JSON.stringify({ rasterFunction }));
+        legendUrl += `&renderingRule=${renderingRule}`;
+      }
+
+      const mosaicRule = this.#mosaicRule;
+      if (mosaicRule) {
+        legendUrl += `&mosaicRule=${encodeURIComponent(JSON.stringify(mosaicRule))}`;
+      }
+
+      const legendJson = await Fetch.fetchEsriJson<TypeEsriImageLayerLegend>(legendUrl);
       let legendInfo;
       if (legendJson.layers && legendJson.layers.length === 1) {
         legendInfo = legendJson.layers[0].legend;
@@ -193,11 +234,496 @@ export class GVEsriImage extends AbstractGVRaster {
     GVWMS.applyViewFilterOnSource(this.getLayerConfig(), this.getOLSource(), filter);
   }
 
+  /**
+   * Overrides the return of feature information at a given coordinate.
+   * @param {OLMap} map - The Map where to get Feature Info At Coordinate from.
+   * @param {Coordinate} location - The coordinate that will be used by the query.
+   * @param {boolean} queryGeometry - Whether to include geometry in the query, default is true.
+   * @returns {Promise<TypeFeatureInfoResult>} A promise of a TypeFeatureInfoResult.
+   */
+  protected override getFeatureInfoAtCoordinate(
+    map: OLMap,
+    location: Coordinate,
+    queryGeometry: boolean = true
+  ): Promise<TypeFeatureInfoResult> {
+    // Transform coordinate from map projection to lntlat
+    const projCoordinate = Projection.transformToLonLat(location, map.getView().getProjection());
+
+    // Redirect to getFeatureInfoAtLonLat
+    return this.getFeatureInfoAtLonLat(map, projCoordinate, queryGeometry);
+  }
+
+  /**
+   * Overrides the return of feature information at the provided long lat coordinate.
+   * @param {OLMap} map - The Map where to get Feature Info At LonLat from.
+   * @param {Coordinate} lonlat - The coordinate that will be used by the query.
+   * @param {boolean} queryGeometry - Whether to include geometry in the query, default is true.
+   * @returns {Promise<TypeFeatureInfoResult>} A promise of a TypeFeatureInfoResult.
+   */
+  protected override async getFeatureInfoAtLonLat(
+    map: OLMap,
+    lonlat: Coordinate,
+    queryGeometry: boolean = true
+  ): Promise<TypeFeatureInfoResult> {
+    const featureInfoResult: TypeFeatureInfoResult = { results: [] };
+
+    // If invisible or not queryable, return empty result
+    if (!this.getVisible() || !this.getLayerConfig().getQueryableSourceDefaulted()) {
+      return featureInfoResult;
+    }
+
+    // Get the layer config
+    const layerConfig = this.getLayerConfig();
+
+    // Get map projection number
+    const mapView = map.getView();
+    const mapProjection = mapView.getProjection();
+    const mapProjNumber = parseInt(mapProjection.getCode()?.split(':')[1] || '', 10);
+
+    // Transform lonlat to map projection for the geometry parameter
+    const mapCoordinate = Projection.transformFromLonLat(lonlat, mapProjection);
+
+    // Build geometry parameter
+    const geometryParam = encodeURIComponent(
+      JSON.stringify({
+        spatialReference: { wkid: mapProjNumber },
+        x: mapCoordinate[0],
+        y: mapCoordinate[1],
+      })
+    );
+
+    // Build pixel size parameter (use map resolution)
+    const resolution = mapView.getResolution() || 1;
+    const pixelSizeParam = encodeURIComponent(
+      JSON.stringify({
+        spatialReference: { wkid: mapProjNumber },
+        x: resolution,
+        y: resolution,
+      })
+    );
+
+    // Get source parameters for time and mosaic rule
+    const sourceParams = this.getOLSource().getParams();
+
+    // Build time parameter if available from source
+    const timeParam = sourceParams?.TIME ? `&TIME=${this.getOLSource().getParams().TIME}` : '';
+
+    // Build rendering rules parameter if raster function is active
+    let renderingRulesParam = '';
+    if (this.#rasterFunction) {
+      renderingRulesParam = `&renderingRules=${encodeURIComponent(JSON.stringify([{ rasterFunction: this.#rasterFunction }]))}`;
+    }
+
+    // Build mosaic rule parameter if available from source (critical for processedValues)
+    let mosaicRuleParam = '';
+    if (sourceParams?.mosaicRule) {
+      mosaicRuleParam = `&mosaicRule=${encodeURIComponent(JSON.stringify(this.#mosaicRule))}`;
+    }
+
+    // Construct the identify URL
+    const identifyUrl =
+      `${layerConfig.getMetadataAccessPath()}/identify?f=json` +
+      `&geometryType=esriGeometryPoint` +
+      `&geometry=${geometryParam}` +
+      `${renderingRulesParam}` +
+      `${mosaicRuleParam}` +
+      `&pixelSize=${pixelSizeParam}` +
+      `&returnGeometry=${queryGeometry}` +
+      `&returnCatalogItems=true` +
+      `&returnPixelValues=true` +
+      `&maxItemCount=1` +
+      `${timeParam}` +
+      `&processAsMultidimensional=false`;
+
+    // Fetch the identify response
+    const identifyJsonResponse = await Fetch.fetchEsriJson<EsriImageIdentifyJsonResponse>(identifyUrl);
+
+    // If no pixel value returned
+    if (identifyJsonResponse.value === undefined || identifyJsonResponse.value === null || identifyJsonResponse.value === 'NoData') {
+      return featureInfoResult;
+    }
+
+    // Build feature properties starting with pixel-specific fields
+    const properties: Record<string, unknown> = {
+      // Put pixel value first so it appears at top of details
+      PixelValue: identifyJsonResponse.value,
+      PixelName: identifyJsonResponse.name || 'Pixel',
+    };
+
+    // Determine the legend class index from processedValues
+    let classIndex: number | undefined;
+    if (identifyJsonResponse.processedValues?.[0] !== undefined && identifyJsonResponse.processedValues[0] !== 'NoData') {
+      classIndex = parseInt(String(identifyJsonResponse.processedValues[0]), 10);
+      properties.ProcessedValue = identifyJsonResponse.processedValues[0];
+    }
+
+    // Add catalog item attributes if available
+    if (identifyJsonResponse.catalogItems?.features?.[0]?.attributes) {
+      const catalogAttributes = identifyJsonResponse.catalogItems.features[0].attributes;
+      Object.assign(properties, catalogAttributes);
+    }
+
+    // Create geometry if available and requested
+    let geometry: Geometry | undefined;
+    if (queryGeometry && identifyJsonResponse.location) {
+      const locationGeom = identifyJsonResponse.location;
+      geometry = GeometryApi.createGeometryFromType('Point', [locationGeom.x, locationGeom.y]);
+    }
+
+    // Create a feature with the properties
+    const feature = new Feature({ ...properties, geometry });
+    feature.set('classIndex', classIndex);
+
+    // Format and return the result
+    featureInfoResult.results = this.formatFeatureInfoResult(
+      [feature],
+      layerConfig,
+      layerConfig.getServiceDateFormat(),
+      layerConfig.getServiceDateTimezone(),
+      layerConfig.getServiceDateTemporalMode()
+    );
+    return featureInfoResult;
+  }
+
+  /**
+   * Overrides the return of the field type from the metadata. If the type can not be found, return 'string'.
+   * @param {string} fieldName - The field name for which we want to get the type.
+   * @returns {TypeOutfieldsType} The type of the field.
+   * @override
+   */
+  protected override onGetFieldType(fieldName: string): TypeOutfieldsType {
+    // Handle special ESRI Image pixel fields
+    const lowerFieldName = fieldName.toLowerCase();
+
+    // Pixel-specific fields
+    if (lowerFieldName === 'pixelvalue' || lowerFieldName === 'processedvalue') {
+      return 'string';
+    }
+
+    if (lowerFieldName === 'name') {
+      return 'string';
+    }
+
+    // Check catalog item fields from metadata
+    const metadata = this.getLayerConfig().getServiceMetadata() as TypeMetadataEsriImage;
+
+    if (metadata?.fields) {
+      const field = metadata.fields.find((f) => f.name.toLowerCase() === lowerFieldName);
+      if (field) {
+        // Map ESRI field types to our types
+        switch (field.type) {
+          case 'esriFieldTypeSmallInteger':
+          case 'esriFieldTypeInteger':
+          case 'esriFieldTypeOID':
+            return 'number';
+          case 'esriFieldTypeSingle':
+          case 'esriFieldTypeDouble':
+            return 'number';
+          case 'esriFieldTypeDate':
+            return 'date';
+          case 'esriFieldTypeString':
+          case 'esriFieldTypeGeometry':
+          default:
+            return 'string';
+        }
+      }
+    }
+
+    // Default to string for unknown fields
+    return 'string';
+  }
+
+  /**
+   * Overrides the return of the domain of the specified field.
+   * @param {string} fieldName - The field name for which we want to get the domain.
+   * @returns {null | codedValueType | rangeDomainType} The domain of the field.
+   * @override
+   */
+  protected override onGetFieldDomain(fieldName: string): null | codedValueType | rangeDomainType {
+    // Get metadata
+    const metadata = this.getLayerConfig().getServiceMetadata() as TypeMetadataEsriImage;
+
+    // If no fields in metadata, return null
+    if (!metadata?.fields) return null;
+
+    // Find the field
+    const field = metadata.fields.find((f) => f.name.toLowerCase() === fieldName.toLowerCase());
+
+    // Return the domain if found
+    return field?.domain || null;
+  }
+
+  /**
+   * Overrides the formatting of feature info results to skip icon rendering for pixel-based queries.
+   * ESRI Image layers return pixel values, not symbolized features, so we skip the icon source step.
+   * @param {Feature[]} features - The array of features to format.
+   * @returns {TypeFeatureInfoEntry[]} The formatted feature info entries.
+   * @override
+   * @protected
+   */
+  protected override formatFeatureInfoResult(
+    features: Feature[],
+    layerConfig: EsriImageLayerEntryConfig,
+    serviceDateFormat: string | undefined,
+    serviceDateIANA: string | undefined,
+    serviceDateTemporalMode: TemporalMode | undefined
+  ): TypeFeatureInfoEntry[] {
+    // Extract ESRI Image-specific properties BEFORE parent processing
+    const esriImageData = features.map((feature) => ({
+      pixelValue: feature.get('PixelValue'),
+      pixelName: feature.get('PixelName'),
+      processedValue: feature.get('ProcessedValue'),
+      classIndex: feature.get('classIndex'),
+    }));
+
+    // Call parent to get base formatting
+    const baseResults = super.formatFeatureInfoResult(features, layerConfig, serviceDateFormat, serviceDateIANA, serviceDateTemporalMode);
+
+    // Get legend data for RGBA extraction and icon assignment
+    const legend = this.getLegend();
+    const styleConfig = legend?.styleConfig;
+    const legendSettings = styleConfig?.Point;
+    const legendItems = legendSettings?.info;
+
+    // Access canvas array for RGBA extraction
+    const legendCanvases =
+      legend?.legend && typeof legend.legend === 'object' && !(legend.legend instanceof HTMLCanvasElement)
+        ? legend.legend?.Point?.arrayOfCanvas
+        : undefined;
+
+    // Enhance each result with ESRI Image-specific data
+    return baseResults.map((result, index) => {
+      const imageData = esriImageData[index];
+      const { classIndex } = imageData;
+
+      // Add feature icon if we have a matching legend item
+      if (legendItems && Array.isArray(legendItems) && classIndex !== undefined && classIndex >= 0 && classIndex < legendItems.length) {
+        const iconSettings = legendItems[classIndex]?.settings as TypeIconSymbolVectorConfig;
+        const iconSrc = iconSettings?.src;
+        // eslint-disable-next-line no-param-reassign
+        result.featureIcon = iconSrc ? `data:image/png;base64,${iconSrc}` : undefined;
+      }
+
+      // Build new fieldInfo with ESRI Image fields first
+      const newFieldInfo: Record<string, TypeFieldEntry> = {};
+      let fieldKey = 0;
+
+      // Add RGBA values if available
+      if (legendCanvases && Array.isArray(legendCanvases) && classIndex !== undefined && classIndex < legendCanvases.length) {
+        const canvas = legendCanvases[classIndex];
+        if (canvas instanceof HTMLCanvasElement) {
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            const imageDataPixel = ctx.getImageData(5, 5, 1, 1);
+            const r = imageDataPixel.data[0];
+            const g = imageDataPixel.data[1];
+            const b = imageDataPixel.data[2];
+            const a = imageDataPixel.data[3];
+
+            newFieldInfo.R = {
+              fieldKey: fieldKey++,
+              value: r,
+              dataType: 'number',
+              domain: null,
+              alias: 'R',
+            };
+            newFieldInfo.G = {
+              fieldKey: fieldKey++,
+              value: g,
+              dataType: 'number',
+              domain: null,
+              alias: 'G',
+            };
+            newFieldInfo.B = {
+              fieldKey: fieldKey++,
+              value: b,
+              dataType: 'number',
+              domain: null,
+              alias: 'B',
+            };
+            newFieldInfo.A = {
+              fieldKey: fieldKey++,
+              value: a,
+              dataType: 'number',
+              domain: null,
+              alias: 'A',
+            };
+          }
+        }
+      }
+
+      // Add pixel-specific fields
+      if (imageData.pixelValue !== undefined && imageData.pixelValue) {
+        newFieldInfo.PixelValue = {
+          fieldKey: fieldKey++,
+          value: imageData.pixelValue,
+          dataType: 'string',
+          domain: null,
+          alias: 'Pixel Value',
+        };
+      }
+
+      if (imageData.pixelName !== undefined && imageData.pixelName) {
+        newFieldInfo.PixelName = {
+          fieldKey: fieldKey++,
+          value: imageData.pixelName,
+          dataType: 'string',
+          domain: null,
+          alias: 'Pixel Name',
+        };
+      }
+
+      if (imageData.processedValue !== undefined && imageData.processedValue) {
+        newFieldInfo.ProcessedValue = {
+          fieldKey: fieldKey++,
+          value: imageData.processedValue,
+          dataType: 'string',
+          domain: null,
+          alias: 'Processed Value',
+        };
+      }
+
+      // Add existing fields from parent with updated keys
+      Object.entries(result.fieldInfo).forEach(([fieldName, fieldEntry]) => {
+        if (!fieldEntry) return;
+        newFieldInfo[fieldName] = {
+          ...fieldEntry,
+          fieldKey: fieldKey++,
+        };
+      });
+
+      // eslint-disable-next-line no-param-reassign
+      result.fieldInfo = newFieldInfo;
+      // eslint-disable-next-line no-param-reassign
+      result.nameField = 'PixelValue';
+
+      return result;
+    });
+  }
+
   // #endregion OVERRIDES
 
   // #region METHODS
 
-  // WRITE FUNCTIONS HERE..
+  /**
+   * Gets the list of rasterFunctionInfos that are available in the ImageServer
+   * @returns {TypeMetadataEsriRasterFunctionInfo[]} The ImageServer's rasterFunctionInfos
+   */
+  getMetadataRasterFunctionInfos(): TypeMetadataEsriRasterFunctionInfos[] | undefined {
+    return this.getLayerConfig().getRasterFunctionInfos();
+  }
+
+  /**
+   * Gets the currently active raster function identifier.
+   * @returns {string | undefined} The raster function identifier
+   */
+  getRasterFunction(): string | undefined {
+    return this.#rasterFunction;
+  }
+
+  /**
+   * Updates the raster function for the layer
+   * @param {string | undefined} rasterFunctionId - The raster function ID to apply
+   * @returns {void}
+   */
+  setRasterFunction(rasterFunctionId: string | undefined): void {
+    // Update the config
+    this.#rasterFunction = rasterFunctionId;
+
+    // Prepare the renderingRule / rasterFunction parameter
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const params: Record<string, any> = {};
+    if (rasterFunctionId) {
+      params.renderingRule = JSON.stringify({ rasterFunction: rasterFunctionId });
+    }
+
+    // Update the OpenLayers source
+    this.getOLSource().updateParams(params);
+  }
+
+  /**
+   * Gets individual preview promises for each raster function
+   * @param {number} [size=400] - The size of the preview image (width and height)
+   * @returns {Map<string, Promise<string>>} Map of raster function names to preview promises
+   */
+  getRasterFunctionPreviews(size: number = 400): Map<string, Promise<string>> {
+    const promises = new Map<string, Promise<string>>();
+    const rasterFunctionInfos = this.getMetadataRasterFunctionInfos();
+    const layerConfig = this.getLayerConfig();
+
+    if (!rasterFunctionInfos || !layerConfig) return promises;
+
+    const bounds = this.getMetadataExtent();
+    if (!bounds) return promises;
+
+    const baseUrl = layerConfig.getMetadataAccessPath();
+    const bbox = bounds.join(',');
+
+    rasterFunctionInfos.forEach((info) => {
+      // Check cache first
+      if (this.#rasterFunctionPreviewCache.has(info.name)) {
+        promises.set(info.name, Promise.resolve(this.#rasterFunctionPreviewCache.get(info.name)!));
+        return;
+      }
+
+      // Create individual promise
+      const promise = (async () => {
+        try {
+          const renderingRule = encodeURIComponent(JSON.stringify({ rasterFunction: info.name }));
+          const previewUrl = `${baseUrl}/exportImage?bbox=${bbox}&size=${size},${size}&f=image&renderingRule=${renderingRule}`;
+
+          const response = await fetch(previewUrl);
+          if (response.ok) {
+            const blob = await response.blob();
+            const base64 = await new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => resolve(reader.result as string);
+              reader.onerror = reject;
+              reader.readAsDataURL(blob);
+            });
+
+            // Cache the result
+            this.#rasterFunctionPreviewCache.set(info.name, base64);
+            return base64;
+          }
+          throw new Error('Failed to fetch');
+        } catch (error) {
+          logger.logWarning(`Failed to fetch preview for raster function ${info.name}`, error);
+          throw error;
+        }
+      })();
+
+      promises.set(info.name, promise);
+    });
+
+    return promises;
+  }
+
+  /**
+   * Gets the current mosaic rule for the layer.
+   * @returns The current mosaic rule.
+   */
+  getMosaicRule(): TypeMosaicRule | undefined {
+    return this.#mosaicRule;
+  }
+
+  /**
+   * Sets the entire mosaicRule object and updates the OL source.
+   * @param mosaicRule - The new mosaicRule object.
+   */
+  setMosaicRule(mosaicRule: TypeMosaicRule | undefined): void {
+    this.#mosaicRule = mosaicRule;
+
+    const olSource = this.getOLSource();
+    const params = { ...olSource.getParams() };
+    if (mosaicRule) {
+      params.mosaicRule = JSON.stringify(mosaicRule);
+    } else {
+      delete params.mosaicRule;
+    }
+    olSource.updateParams(params);
+    olSource.changed();
+  }
 
   // #endregion METHODS
 }
@@ -225,4 +751,34 @@ export type TypeEsriImageLayerLegendLayerLegend = {
   height: number;
   width: number;
   values: string[];
+};
+
+export type EsriImageIdentifyJsonResponse = {
+  objectId: number;
+  name: string;
+  value: string | number;
+  location?: {
+    x: number;
+    y: number;
+    spatialReference: {
+      wkid: number;
+      latestWkid?: number;
+    };
+  };
+  properties?: {
+    Values: string[];
+  };
+  catalogItems?: {
+    objectIdFieldName: string;
+    geometryType: string;
+    spatialReference: {
+      wkid: number;
+      latestWkid?: number;
+    };
+    features: Array<{
+      attributes: Record<string, unknown>;
+      geometry?: GeometryJson;
+    }>;
+  };
+  processedValues?: string[];
 };

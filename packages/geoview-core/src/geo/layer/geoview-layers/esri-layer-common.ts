@@ -25,6 +25,7 @@ import type {
   TypeMetadataEsriFeatureLayer,
   TypeMetadataEsriLayerSummary,
   TypeMetadataEsriImage,
+  TypeMosaicRule,
 } from '@/api/types/layer-schema-types';
 import { Fetch } from '@/core/utils/fetch-helper';
 import type { ConfigBaseClass } from '@/api/config/validation-classes/config-base-class';
@@ -386,6 +387,12 @@ export class EsriUtilities {
     // Set the layer metadata
     layerConfig.setLayerMetadata(layerMetadata);
 
+    // For ESRI Image layers, extract and store mosaic rule from metadata
+    if (layerConfig instanceof EsriImageLayerEntryConfig) {
+      this.#processImageLayerMosaicRule(layerConfig, layerMetadata as TypeMetadataEsriImage);
+      this.#processImageLayerDefaultRasterFunction(layerConfig, layerMetadata as TypeMetadataEsriImage);
+    }
+
     // The following line allow the type ascention of the type guard functions on the second line below
     if (layerConfig instanceof EsriDynamicLayerEntryConfig || layerConfig instanceof EsriFeatureLayerEntryConfig) {
       // Cast the metadata according to the config type (basically excluding the EsriImage)
@@ -405,12 +412,7 @@ export class EsriUtilities {
 
     this.#commonProcessInitialSettings(layerConfig, layerMetadata);
 
-    this.#commonProcessTimeDimension(
-      layerConfig,
-      layerMetadata.timeInfo,
-      displayDateMode,
-      layerConfig instanceof EsriImageLayerEntryConfig
-    );
+    this.#commonProcessTimeDimension(layerConfig, layerMetadata.timeInfo, displayDateMode);
 
     return layerConfig;
   }
@@ -432,7 +434,7 @@ export class EsriUtilities {
     if (!layerMetadata) throw new LayerServiceMetadataEmptyError(layerConfig.getGeoviewLayerId(), layerConfig.getLayerNameCascade());
 
     // Read variables
-    const queryable = layerMetadata.capabilities.includes('Query');
+    const queryable = layerMetadata.capabilities.includes('Query') || layerMetadata.capabilities.includes('Catalog');
     const hasFields = !!layerMetadata.fields?.length;
     const isGroupLayer = layerMetadataEsriDynamicLayer.type === 'Group Layer';
     const isMetadataGroup = layerConfig.getIsMetadataLayerGroup();
@@ -548,9 +550,110 @@ export class EsriUtilities {
     displayDateMode: DisplayDateMode | undefined,
     singleHandle?: boolean
   ): void {
-    if (esriTimeDimension && esriTimeDimension.timeExtent) {
-      layerConfig.setTimeDimension(DateMgt.createDimensionFromESRI(esriTimeDimension, displayDateMode, singleHandle));
+    if (!esriTimeDimension?.timeExtent) return;
+
+    // TODO: Review the purpose of the singleHandle variable. It now always defaults to false and is used to set the defaultValues of the timeslider,
+    // TO.DOCONT: but the default values could be / should be overwritten by the config. Also, the defaultValues seem like the actual way to make the timeslider a single handle?
+    // Create the time dimension
+    layerConfig.setTimeDimension(DateMgt.createDimensionFromESRI(esriTimeDimension, displayDateMode, singleHandle));
+  }
+
+  /**
+   * Processes ESRI Image Server metadata to set the default raster function if one wasn't configured.
+   * The first non-"None" raster function is used as the default.
+   * @param layerConfig - The ESRI Image layer configuration.
+   * @param metadata - The service metadata response.
+   * @private
+   * @static
+   */
+  static #processImageLayerDefaultRasterFunction(layerConfig: EsriImageLayerEntryConfig, metadata: TypeMetadataEsriImage): void {
+    // Skip if user already configured a raster function
+    if (layerConfig.getInitialRasterFunction()) return;
+
+    // Check if metadata has raster function infos
+    if (!metadata.rasterFunctionInfos || metadata.rasterFunctionInfos.length === 0) return;
+
+    // Find the first non-"None" raster function (first in list is the default)
+    const defaultRasterFunction = metadata.rasterFunctionInfos.find((rf) => rf.name && rf.name.toLowerCase() !== 'none');
+
+    if (defaultRasterFunction) {
+      // Set the default raster function using the setter
+      layerConfig.setInitialRasterFunction(defaultRasterFunction.name);
     }
+  }
+
+  /**
+   * Processes ESRI Image Server metadata to extract default mosaic rule parameters.
+   * Stores the mosaic rule in the layer config for use during source creation and querying.
+   * @param layerConfig - The ESRI Image layer configuration.
+   * @param metadata - The service metadata response.
+   * @private
+   * @static
+   */
+  static #processImageLayerMosaicRule(layerConfig: EsriImageLayerEntryConfig, metadata: TypeMetadataEsriImage): void {
+    // Check if metadata has default mosaic settings
+    if (!metadata.defaultMosaicMethod) return;
+
+    // Build mosaic rule from metadata defaults
+    const mosaicRule: TypeMosaicRule = {
+      mosaicMethod: EsriUtilities.convertMosaicMethod(metadata.defaultMosaicMethod),
+    };
+
+    // Add optional parameters if present
+    if (metadata.sortField) {
+      mosaicRule.sortField = metadata.sortField;
+      mosaicRule.ascending = metadata.sortAscending ?? true;
+    }
+
+    if (metadata.sortValue !== undefined) {
+      mosaicRule.sortValue = String(metadata.sortValue);
+    }
+
+    if (metadata.mosaicOperator) {
+      mosaicRule.mosaicOperation = EsriUtilities.convertMosaicOperator(metadata.mosaicOperator);
+    }
+
+    // Store in layer config via type extension
+    layerConfig.setInitialMosaicRule(mosaicRule);
+  }
+
+  /**
+   * Converts metadata mosaic method to ESRI REST API format.
+   * @param {string} method - The metadata mosaic method.
+   * @returns {TypeMosaicRule['mosaicMethod']} The ESRI API mosaic method string.
+   * @static
+   */
+  static convertMosaicMethod(method: string): TypeMosaicRule['mosaicMethod'] {
+    const methodMap: Record<string, TypeMosaicRule['mosaicMethod']> = {
+      ByAttribute: 'esriMosaicAttribute',
+      Center: 'esriMosaicCenter',
+      Nadir: 'esriMosaicNadir',
+      Viewpoint: 'esriMosaicViewpoint',
+      Seamline: 'esriMosaicSeamline',
+      None: 'esriMosaicNone',
+      LockRaster: 'esriMosaicLockRaster',
+      Northwest: 'esriMosaicNorthwest',
+    };
+    return methodMap[method] || 'esriMosaicNone';
+  }
+
+  /**
+   * Converts metadata mosaic operator to ESRI REST API format.
+   * @param {string} operator - The metadata mosaic operator.
+   * @returns {TypeMosaicRule['mosaicOperation']} The ESRI API mosaic operation string.
+   * @static
+   */
+  static convertMosaicOperator(operator: string): TypeMosaicRule['mosaicOperation'] {
+    const operatorMap: Record<string, TypeMosaicRule['mosaicOperation']> = {
+      First: 'MT_FIRST',
+      Last: 'MT_LAST',
+      Min: 'MT_MIN',
+      Max: 'MT_MAX',
+      Mean: 'MT_MEAN',
+      Blend: 'MT_BLEND',
+      Sum: 'MT_SUM',
+    };
+    return operatorMap[operator];
   }
 
   // #endregion LAYER PROCESSING METHODS

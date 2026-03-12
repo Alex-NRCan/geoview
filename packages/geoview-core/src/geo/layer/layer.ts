@@ -33,6 +33,7 @@ import type {
   TypeLayerStatus,
   GeoCoreLayerConfig,
   GeoPackageLayerConfig,
+  TypeMosaicRule,
 } from '@/api/types/layer-schema-types';
 import { CONST_LAYER_TYPES } from '@/api/types/layer-schema-types';
 import {
@@ -97,6 +98,7 @@ import { AbstractGVVector } from './gv-layers/vector/abstract-gv-vector';
 import { GVGeoJSON } from '@/geo/layer/gv-layers/vector/gv-geojson';
 import type { LayerDelegate as GVGroupLayerDelegate, LayerEvent as GVGroupLayerEvent } from '@/geo/layer/gv-layers/gv-group-layer';
 import { GVGroupLayer } from '@/geo/layer/gv-layers/gv-group-layer';
+import { GVEsriImage } from '@/geo/layer/gv-layers/raster/gv-esri-image';
 import { GVWMS, type ImageLoadRescueDelegate, type ImageLoadRescueEvent } from '@/geo/layer/gv-layers/raster/gv-wms';
 import { GeoUtilities } from '@/geo/utils/utilities';
 import { Projection } from '@/geo/utils/projection';
@@ -1552,6 +1554,49 @@ export class LayerApi {
   setLayerDateTemporalMode(layerPath: string, temporalMode: TemporalMode): void {
     // Redirect
     LegendEventProcessor.setLayerDateTemporalInStore(this.getMapId(), layerPath, temporalMode);
+  }
+
+  /**
+   * Updates the raster function for an ESRI Image layer.
+   * @param {string} layerPath - The path of the layer.
+   * @param {string | undefined} rasterFunctionId - The raster function ID to apply.
+   * @throws {LayerNotFoundError} When the layer couldn't be found at the given layer path.
+   * @throws {LayerWrongTypeError} When the layer is not an ESRI Image layer.
+   */
+  setLayerRasterFunction(layerPath: string, rasterFunctionId: string | undefined): void {
+    // Get the layer
+    const layer = this.getGeoviewLayer(layerPath);
+
+    // Check if it's the right type
+    if (!(layer instanceof GVEsriImage)) throw new LayerWrongTypeError(layerPath, layer.getLayerName());
+
+    // Update the raster function
+    layer.setRasterFunction(rasterFunctionId);
+
+    // Update the store
+    LegendEventProcessor.setLayerRasterFunctionInStore(this.getMapId(), layerPath, rasterFunctionId);
+
+    // Trigger legend re-query through the layer set system (forced refresh)
+    this.legendsLayerSet.queryLegend(layerPath, true);
+  }
+
+  /**
+   * Sets the mosaic rule for an ESRI Image layer.
+   * @param {string} layerPath - The layer path
+   * @param {TypeMosaicRule | undefined} mosaicRule - The mosaic rule to apply
+   */
+  setLayerMosaicRule(layerPath: string, mosaicRule: TypeMosaicRule | undefined): void {
+    const layer = this.getGeoviewLayer(layerPath);
+    if (!(layer instanceof GVEsriImage)) return;
+
+    // Update the mosaic rule
+    layer.setMosaicRule(mosaicRule);
+
+    // Update the store
+    LegendEventProcessor.setLayerMosaicRuleInStore(this.getMapId(), layerPath, mosaicRule);
+
+    // Trigger legend re-query through the layer set system
+    this.legendsLayerSet.queryLegend(layerPath, true);
   }
 
   /**

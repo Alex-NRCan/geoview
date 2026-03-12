@@ -15,6 +15,7 @@ import type {
 import { RequestAbortedError } from '@/core/exceptions/core-exceptions';
 import { LayerNoLastQueryToPerformError } from '@/core/exceptions/geoview-exceptions';
 import { logger } from '@/core/utils/logger';
+import { GVEsriImage } from '../gv-layers/raster/gv-esri-image';
 
 /**
  * A Layer-set working with the LayerApi at handling a result set of registered layers and synchronizing
@@ -211,15 +212,20 @@ export class FeatureInfoLayerSet extends AbstractLayerSet {
           // Get the layer config
           const layerConfig = layer.getLayerConfig();
 
+          // TODO Double check this logic. If it get's reworked, possibly include the "formatEsriImageRecords" logic in the "alignRecordsWithOutFields"
           // If the response contain actual fields
-          if (AbstractLayerSet.recordsContainActualFields(layerConfig, arrayOfRecords)) {
+          if (!(layer instanceof GVEsriImage) && AbstractLayerSet.recordsContainActualFields(layerConfig, arrayOfRecords)) {
             // Align fields with layerConfig fields
             AbstractLayerSet.alignRecordsWithOutFields(layerConfig, arrayOfRecords);
           }
 
           // Filter out unsymbolized features if the showUnsymbolizedFeatures config is false
-          // GV: KML is excluded as it currently has no symbology.
-          if (!AppEventProcessor.getShowUnsymbolizedFeatures(this.getMapId()) && !(layer instanceof GVKML)) {
+          // GV: KML and ESRI Image is excluded as they currently have no symbology.
+          if (
+            !AppEventProcessor.getShowUnsymbolizedFeatures(this.getMapId()) &&
+            !(layer instanceof GVKML) &&
+            !(layer instanceof GVEsriImage)
+          ) {
             // eslint-disable-next-line no-param-reassign
             promiseResult.results = arrayOfRecords.filter((record) => record.featureIcon);
           }

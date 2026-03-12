@@ -2,7 +2,13 @@ import type { Projection as OLProjection } from 'ol/proj';
 
 import type { Extent } from '@/api/types/map-schema-types';
 import type { TemporalMode, TimeDimension, TypeDisplayDateFormat } from '@/core/utils/date-mgt';
-import type { TypeLayerControls, TypeLayerStatus } from '@/api/types/layer-schema-types';
+import type {
+  TypeLayerControls,
+  TypeLayerStatus,
+  TypeMetadataEsriRasterFunctionInfos,
+  TypeMosaicMethod,
+  TypeMosaicRule,
+} from '@/api/types/layer-schema-types';
 import { CONST_LAYER_TYPES } from '@/api/types/layer-schema-types';
 import type { TypeLegendLayer, TypeLegendLayerItem, TypeLegendItem } from '@/core/components/layers/types';
 import { MapViewer } from '@/geo/map/map-viewer';
@@ -21,6 +27,7 @@ import type { AbstractBaseLayerEntryConfig } from '@/api/config/validation-class
 import { AbstractGVRaster } from '@/geo/layer/gv-layers/raster/abstract-gv-raster';
 import { Projection } from '@/geo/utils/projection';
 import type { AbstractBaseGVLayer } from '@/geo/layer/gv-layers/abstract-base-layer';
+import { GVEsriImage } from '@/geo/layer/gv-layers/raster/gv-esri-image';
 import { logger } from '@/core/utils/logger';
 
 // GV Important: See notes in header of MapEventProcessor file for information on the paradigm to apply when working with UIEventProcessor vs UIState
@@ -47,11 +54,24 @@ export class LegendEventProcessor extends AbstractEventProcessor {
     return super.getState(mapId).layerState;
   }
 
+  /**
+   * Sets the selected layer in the layers tab
+   * @param mapId - The map id
+   * @param layerPath - The layer path
+   * @returns {void}
+   * @static
+   */
   static setSelectedLayersTabLayerInStore(mapId: string, layerPath: string): void {
     // Save in store
     this.getLayerState(mapId).setterActions.setSelectedLayerPath(layerPath);
   }
 
+  /**
+   * Reorders the legend layers based on the ordered layer info
+   * @param mapId - The map id
+   * @returns {void}
+   * @static
+   */
   static reorderLegendLayers(mapId: string): void {
     // Sort the layers
     const sortedLayers = this.getLayerState(mapId).legendLayers.sort(
@@ -201,6 +221,170 @@ export class LegendEventProcessor extends AbstractEventProcessor {
       // Advance to parent
       current = current.getParent();
     }
+  }
+
+  /**
+   * Retrieves the layer's rasterFunctionInfos and returns it
+   *
+   * @param mapId - The unique identifier of the map instance.
+   * @param layerPath - The path to the layer.
+   * @returns The raster function infos of the layer, or `undefined` if not available.
+   */
+  static getLayerRasterFunctionInfos(mapId: string, layerPath: string): TypeMetadataEsriRasterFunctionInfos[] | undefined {
+    const geoviewLayer = MapEventProcessor.getMapViewerLayerAPI(mapId).getGeoviewLayerIfExists(layerPath);
+    if (!geoviewLayer || !(geoviewLayer instanceof GVEsriImage)) return;
+
+    return geoviewLayer.getMetadataRasterFunctionInfos();
+  }
+
+  /**
+   * Gets the active raster function for a layer.
+   * @param mapId - The map identifier.
+   * @param layerPath - The layer path.
+   * @returns The active raster function identifier.
+   */
+  static getLayerRasterFunction(mapId: string, layerPath: string): string | undefined {
+    return LegendEventProcessor.getLegendLayerInfo(mapId, layerPath)?.rasterFunction;
+  }
+
+  /**
+   * Sets the active raster function for a layer.
+   * @param mapId - The map identifier.
+   * @param layerPath - The layer path.
+   * @param rasterFunctionId - The raster function identifier to set.
+   */
+  static setLayerRasterFunction(mapId: string, layerPath: string, rasterFunctionId: string | undefined): void {
+    MapEventProcessor.getMapViewerLayerAPI(mapId).setLayerRasterFunction(layerPath, rasterFunctionId);
+  }
+
+  /**
+   * Updates the active raster function for a layer in the store.
+   * @param mapId - The map identifier.
+   * @param layerPath - The layer path.
+   * @param rasterFunctionId - The raster function identifier to set.
+   */
+  static setLayerRasterFunctionInStore(mapId: string, layerPath: string, rasterFunctionId: string | undefined): void {
+    // Find the layer for the given layer path
+    const layers = LegendEventProcessor.getLayerState(mapId).legendLayers;
+    const layer = this.findLayerByPath(layers, layerPath);
+
+    if (layer) {
+      // Set layer rasterFunction
+      layer.rasterFunction = rasterFunctionId;
+      // Set updated legend layers
+      this.getLayerState(mapId).setterActions.setLegendLayers(layers);
+    }
+  }
+
+  /**
+   * Gets the allowed mosaic methods for a layer.
+   * @param mapId - The map identifier.
+   * @param layerPath - The layer path.
+   * @returns The allowed mosaic methods or undefined.
+   */
+  static getLayerAllowedMosaicMethods(mapId: string, layerPath: string): TypeMosaicMethod[] | undefined {
+    const geoviewLayer = MapEventProcessor.getMapViewerLayerAPI(mapId).getGeoviewLayerIfExists(layerPath);
+    if (!geoviewLayer || !(geoviewLayer instanceof GVEsriImage)) return undefined;
+
+    const allowedMosaicMethods = geoviewLayer.getLayerConfig().getAllowedMosaicMethods();
+    return (allowedMosaicMethods?.split(',') as TypeMosaicMethod[]) ?? undefined;
+  }
+
+  /**
+   * Gets the active mosaic rule for a layer.
+   * @param mapId - The map identifier.
+   * @param layerPath - The layer path.
+   * @returns The active mosaic rule or undefined.
+   */
+  static getLayerMosaicRule(mapId: string, layerPath: string): TypeMosaicRule | undefined {
+    return LegendEventProcessor.getLegendLayerInfo(mapId, layerPath)?.mosaicRule;
+  }
+
+  /**
+   * Sets the active mosaic rule for a layer.
+   * @param mapId - The map identifier.
+   * @param layerPath - The layer path.
+   * @param mosaicRule - The mosaic rule to set.
+   */
+  static setLayerMosaicRule(mapId: string, layerPath: string, mosaicRule: TypeMosaicRule | undefined): void {
+    MapEventProcessor.getMapViewerLayerAPI(mapId).setLayerMosaicRule(layerPath, mosaicRule);
+  }
+
+  /**
+   * Updates the mosaicRule for a layer by merging new properties.
+   * @param mapId - The map id.
+   * @param layerPath - The layer path.
+   * @param partialMosaicRule - An object with one or more mosaicRule properties to update.
+   */
+  static setLayerMosaicRuleProperty(mapId: string, layerPath: string, partialMosaicRule: Partial<TypeMosaicRule>): void {
+    const prevRule = LegendEventProcessor.getLayerMosaicRule(mapId, layerPath);
+    if (!prevRule) return;
+
+    // Merge the existing mosaic rule with the new properties, ensuring required properties are preserved
+    const mergedRule: TypeMosaicRule = {
+      ...prevRule,
+      ...partialMosaicRule,
+      mosaicMethod: partialMosaicRule.mosaicMethod ?? prevRule.mosaicMethod ?? 'esriMosaicNone',
+      mosaicOperation: partialMosaicRule.mosaicOperation ?? prevRule.mosaicOperation ?? 'MT_FIRST',
+    };
+
+    MapEventProcessor.getMapViewerLayerAPI(mapId).setLayerMosaicRule(layerPath, mergedRule);
+  }
+
+  /**
+   * Updates the active mosaic rule for a layer in the store.
+   * @param mapId - The map identifier.
+   * @param layerPath - The layer path.
+   * @param mosaicRule - The mosaic rule to set.
+   */
+  static setLayerMosaicRuleInStore(mapId: string, layerPath: string, mosaicRule: TypeMosaicRule | undefined): void {
+    const layers = LegendEventProcessor.getLayerState(mapId).legendLayers;
+    const layer = this.findLayerByPath(layers, layerPath);
+    if (layer) {
+      layer.mosaicRule = mosaicRule;
+      this.getLayerState(mapId).setterActions.setLegendLayers(layers);
+    }
+  }
+
+  /**
+   * Gets the raster function previews for the ESRI image layer.
+   * @param mapId - The map identifier.
+   * @param layerPath - The layer path.
+   * @returns The raster function previews.
+   */
+  static getLayerRasterFunctionPreviews(mapId: string, layerPath: string): Map<string, Promise<string>> {
+    const geoviewLayer = MapEventProcessor.getMapViewerLayerAPI(mapId).getGeoviewLayerIfExists(layerPath);
+    if (!geoviewLayer || !(geoviewLayer instanceof GVEsriImage)) return new Map<string, Promise<string>>();
+
+    return geoviewLayer.getRasterFunctionPreviews();
+  }
+
+  /**
+   * Gets the available settings for a layer.
+   * @param mapId - The map identifier.
+   * @param layerPath - The layer path.
+   * @returns Array of available setting types.
+   */
+  static getLayerSettings(mapId: string, layerPath: string): string[] {
+    const settings: string[] = [];
+
+    const layer = LegendEventProcessor.getLegendLayerInfo(mapId, layerPath);
+    if (!layer) return settings;
+
+    // Check if raster function infos are present
+    const rasterFunctionInfos = this.getLayerRasterFunctionInfos(mapId, layerPath);
+    if (rasterFunctionInfos && rasterFunctionInfos.length > 0) {
+      settings.push('rasterFunction');
+    }
+
+    // Check if mosaicMode is present
+    const mosaicRule = this.getLayerMosaicRule(mapId, layerPath);
+    if (mosaicRule) {
+      settings.push('mosaicRule');
+    }
+
+    // Add other layer types with settings here
+    return settings;
   }
 
   /**
@@ -632,6 +816,8 @@ export class LegendEventProcessor extends AbstractEventProcessor {
             icons: [] as TypeLegendLayerItem[],
             items: [] as TypeLegendItem[],
             children: [] as TypeLegendLayer[],
+            rasterFunction: undefined,
+            mosaicRule: undefined,
           };
 
           existingEntries.push(legendLayerEntry);
@@ -691,6 +877,9 @@ export class LegendEventProcessor extends AbstractEventProcessor {
           children: [] as TypeLegendLayer[],
           items,
           icons,
+          // TODO: Encapsulate rasterFunction and possibly other 'settings' into their own object
+          rasterFunction: layer instanceof GVEsriImage ? layer.getRasterFunction() : undefined,
+          mosaicRule: layer instanceof GVEsriImage ? layer.getMosaicRule() : undefined,
         };
 
         // If layer is regular (not group)

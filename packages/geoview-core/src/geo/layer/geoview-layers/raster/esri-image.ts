@@ -266,6 +266,11 @@ export class EsriImage extends AbstractGeoViewRaster {
     // Get the source
     const source = layerConfig.getSource();
 
+    // Get raster function and mosaic rule
+    const rasterFunction = layerConfig.getInitialRasterFunction();
+    const mosaicRule = layerConfig.getInitialMosaicRule();
+
+    //TODO Fix these depricated parameters?
     const sourceOptions: SourceOptions = {
       url: layerConfig.getDataAccessPath(),
       attributions: layerConfig.getAttributions(),
@@ -273,6 +278,10 @@ export class EsriImage extends AbstractGeoViewRaster {
         LAYERS: `show:${layerConfig.layerId}`,
         ...(source.transparent !== undefined && { transparent: source.transparent }),
         ...(source.format && { format: source.format }),
+        ...(rasterFunction && {
+          renderingRule: JSON.stringify({ rasterFunction: layerConfig.getInitialRasterFunction() }),
+        }),
+        ...(mosaicRule && { mosaicRule: JSON.stringify(mosaicRule) }),
       },
       crossOrigin: source.crossOrigin ?? 'Anonymous',
       projection: layerConfig.getProjectionWithEPSG(),

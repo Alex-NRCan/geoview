@@ -8,7 +8,14 @@ import type { TypeMapFeaturesConfig } from '@/core/types/global-types';
 import { type TypeGetStore, type TypeSetStore, useStableSelector } from '@/core/stores/geoview-store';
 import type { TypeFeatureInfoEntryPartial, TypeLayerStyleConfig, TypeResultSet, TypeResultSetEntry } from '@/api/types/map-schema-types';
 import { DateMgt, type TemporalMode, type TimeDimension, type TimeIANA, type TypeDisplayDateFormat } from '@/core/utils/date-mgt';
-import type { TypeGeoviewLayerType, TypeLayerStatus } from '@/api/types/layer-schema-types';
+import type {
+  TypeGeoviewLayerType,
+  TypeLayerStatus,
+  TypeMetadataEsriRasterFunctionInfos,
+  TypeMosaicMethod,
+  TypeMosaicOperation,
+  TypeMosaicRule,
+} from '@/api/types/layer-schema-types';
 import { CONST_LAYER_TYPES } from '@/api/types/layer-schema-types';
 import { MapEventProcessor } from '@/api/event-processors/event-processor-children/map-event-processor';
 import type { TypeVectorLayerStyles } from '@/geo/utils/renderer/geoview-renderer';
@@ -38,6 +45,11 @@ export interface ILayerState {
     queryLayerEsriDynamic: (layerPath: string, objectIDs: number[]) => Promise<TypeFeatureInfoEntryPartial[]>;
     getLayerDeleteInProgress: () => string;
     getLayerServiceProjection: (layerPath: string) => string | undefined;
+    getLayerRasterFunctionInfos: (layerPath: string) => TypeMetadataEsriRasterFunctionInfos[] | undefined;
+    getLayerRasterFunction: (layerPath: string) => string | undefined;
+    getLayerRasterFunctionPreviews: (layerPath: string) => Map<string, Promise<string>>;
+    getLayerAllowedMosaicMethods: (layerPath: string) => TypeMosaicMethod[] | undefined;
+    getLayerSettings: (layerPath: string) => string[];
     refreshLayer: (layerPath: string) => Promise<void>;
     reloadLayer: (layerPath: string) => void;
     toggleItemVisibility: (layerPath: string, item: TypeLegendItem) => void;
@@ -50,6 +62,11 @@ export interface ILayerState {
     setLayerOpacity: (layerPath: string, opacity: number, updateLegendLayers?: boolean) => void;
     setLayerHoverable: (layerPath: string, enable: boolean) => void;
     setLayerQueryable: (layerPath: string, enable: boolean) => void;
+    setLayerRasterFunction: (layerPath: string, rasterFunctionId: string) => void;
+    setLayerMosaicRule: (layerPath: string, mosaicRule: TypeMosaicRule | undefined) => void;
+    setLayerMosaicRuleAscending: (layerPath: string, value: boolean) => void;
+    setLayerMosaicRuleMethod: (layerPath: string, value: TypeMosaicMethod) => void;
+    setLayerMosaicRuleOperation: (layerPath: string, value: TypeMosaicOperation) => void;
     setSelectedLayerPath: (layerPath: string | undefined) => void;
     zoomToLayerExtent: (layerPath: string) => Promise<void>;
     zoomToLayerVisibleScale: (layerPath: string) => void;
@@ -148,13 +165,53 @@ export function initializeLayerState(set: TypeSetStore, get: TypeGetStore): ILay
       },
 
       /**
-       * Refreshes the specified layer of the current map and resets its states.
-       * This method is a convenience wrapper around
-       * `LegendEventProcessor.refreshLayer` that automatically uses the map ID
-       * from the current store context.
-       * @param {string} layerPath - The path identifying the target layer within the current map.
-       * @returns {Promise<void>} A promise that resolves once the layer has been refreshed,
-       * its states reset, and its items rendered if visible.
+       * Gets the raster function info options of the layer.
+       * @param {string} layerPath - The layer path of the layer to get the options
+       * @returns {TypeMetadataEsriRasterFunctionInfos[] | undefined} The rasterFunctionInfos list of undefined
+       */
+      getLayerRasterFunctionInfos: (layerPath: string): TypeMetadataEsriRasterFunctionInfos[] | undefined => {
+        try {
+          return LegendEventProcessor.getLayerRasterFunctionInfos(get().mapId, layerPath);
+        } catch (error: unknown) {
+          logger.logError(`Error getting raster function information for layer ${layerPath}`, error);
+        }
+        return undefined;
+      },
+
+      /**
+       * Gets the active raster function for a layer.
+       * @param {string} layerPath - The layer path.
+       * @returns {string | undefined} The active raster function identifier.
+       */
+      getLayerRasterFunction: (layerPath: string): string | undefined => {
+        return LegendEventProcessor.getLayerRasterFunction(get().mapId, layerPath);
+      },
+
+      /**
+       * Fetches raster function previews for a layer.
+       * @param {string} layerPath - The layer path.
+       * @returns {Map<string, Promise<string>>} Map of raster function names to preview URLs.
+       */
+      getLayerRasterFunctionPreviews: (layerPath: string): Map<string, Promise<string>> => {
+        return LegendEventProcessor.getLayerRasterFunctionPreviews(get().mapId, layerPath);
+      },
+
+      getLayerAllowedMosaicMethods: (layerPath: string): TypeMosaicMethod[] | undefined => {
+        return LegendEventProcessor.getLayerAllowedMosaicMethods(get().mapId, layerPath);
+      },
+
+      /**
+       * Gets the available settings for a layer.
+       * @param {string} layerPath - The layer path.
+       * @returns {string[]} Array of available setting types.
+       */
+      getLayerSettings: (layerPath: string): string[] => {
+        return LegendEventProcessor.getLayerSettings(get().mapId, layerPath);
+      },
+
+      /**
+       * Refresh layer and set states to original values.
+       * @param {string} layerPath - The layer path of the layer to change.
        */
       refreshLayer: (layerPath: string): Promise<void> => {
         // Redirect to processor.
@@ -287,6 +344,51 @@ export function initializeLayerState(set: TypeSetStore, get: TypeGetStore): ILay
       setLayerQueryable: (layerPath: string, enable: boolean): void => {
         // Redirect to event processor
         LegendEventProcessor.setLayerQueryable(get().mapId, layerPath, enable);
+      },
+
+      /**
+       * Sets the active raster function for a layer.
+       * @param {string} layerPath - The layer path.
+       * @param {string | undefined} rasterFunctionId - The raster function identifier.
+       */
+      setLayerRasterFunction: (layerPath: string, rasterFunctionId: string | undefined): void => {
+        LegendEventProcessor.setLayerRasterFunction(get().mapId, layerPath, rasterFunctionId);
+      },
+
+      /**
+       * Sets the mosaic rule for a layer.
+       * @param layerPath - The layer path.
+       * @param mosaicRule The new mosaicRule object or undefined to clear the mosaic rule.
+       */
+      setLayerMosaicRule: (layerPath, mosaicRule): void => {
+        LegendEventProcessor.setLayerMosaicRule(get().mapId, layerPath, mosaicRule);
+      },
+
+      /**
+       * Sets the ascending property of the mosaic rule for a layer.
+       * @param layerPath - The layer path.
+       * @param value - The new value for the ascending property.
+       */
+      setLayerMosaicRuleAscending: (layerPath, value: boolean): void => {
+        LegendEventProcessor.setLayerMosaicRuleProperty(get().mapId, layerPath, { ascending: value });
+      },
+
+      /**
+       * Sets the mosaic method property of the mosaic rule for a layer.
+       * @param layerPath - The layer path.
+       * @param value - The new value for the mosaic method property.
+       */
+      setLayerMosaicRuleMethod: (layerPath: string, value: TypeMosaicMethod): void => {
+        LegendEventProcessor.setLayerMosaicRuleProperty(get().mapId, layerPath, { mosaicMethod: value });
+      },
+
+      /**
+       * Sets the mosaic operation property of the mosaic rule for a layer.
+       * @param layerPath - The layer path.
+       * @param value - The new value for the mosaic operation property.
+       */
+      setLayerMosaicRuleOperation: (layerPath: string, value: TypeMosaicOperation): void => {
+        LegendEventProcessor.setLayerMosaicRuleProperty(get().mapId, layerPath, { mosaicOperation: value });
       },
 
       /**
@@ -612,6 +714,28 @@ export const useLayerDisplayDateTimezone = (layerPath: string): TimeIANA => {
   });
 };
 
+/**
+ * React hook that returns the raster function infos for a specific layer.
+ * @param layerPath The layer path
+ * @returns The raster function infos for the layer or undefined
+ */
+export const useLayerSelectorRasterFunctionInfos = (layerPath: string): TypeMetadataEsriRasterFunctionInfos[] | undefined => {
+  return useStore(useGeoViewStore(), (state) => {
+    return state.layerState.actions.getLayerRasterFunctionInfos(layerPath);
+  });
+};
+
+/**
+ * React hook that returns the allowed mosaic methods for a specific layer.
+ * @param layerPath The layer path
+ * @returns The allowed mosaic methods for the layer or undefined
+ */
+export const useLayerSelectorAllowedMosaicMethods = (layerPath: string): TypeMosaicMethod[] | undefined => {
+  return useStore(useGeoViewStore(), (state) => {
+    return state.layerState.actions.getLayerAllowedMosaicMethods(layerPath);
+  });
+};
+
 // Generic hook that can select any key from the layer
 function useLayerSelectorLayerValueGeneric<K extends keyof TypeLegendLayer>(layerPath: string, key: K): TypeLegendLayer[K] | undefined {
   return useStore(useGeoViewStore(), (state) => {
@@ -677,6 +801,8 @@ export const useLayerSelectorIcons = createLayerSelectorHook('icons');
 export const useLayerSelectorLegendQueryStatus = createLayerSelectorHook('legendQueryStatus');
 export const useLayerSelectorCanToggle = createLayerSelectorHook('canToggle');
 export const useLayerSelectorStyleConfig = createLayerSelectorHook('styleConfig');
+export const useLayerSelectorRasterFunction = createLayerSelectorHook('rasterFunction');
+export const useLayerSelectorMosaicRule = createLayerSelectorHook('mosaicRule');
 
 // Store Actions
 export const useLayerStoreActions = (): LayerActions => useStore(useGeoViewStore(), (state) => state.layerState.actions);
