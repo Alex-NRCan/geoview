@@ -31,6 +31,7 @@ export interface TypeLegendLayer {
   bounds?: Extent;
   bounds4326?: Extent;
   controls?: TypeLayerControls;
+  deletionStartTime?: number;
   layerId: string;
   layerPath: string;
   layerAttribution?: string[];

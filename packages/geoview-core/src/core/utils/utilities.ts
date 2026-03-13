@@ -990,8 +990,8 @@ export function isImage(item: string): boolean {
 /**
  * Checks object to see if it can be converted to a string; if not, returns an empty string
  *
- * @param {unknown} str - The unknown object to stringify
- * @return {unknown | string} Returns the original object if it can be converted to a string; '' otherwise
+ * @param str - The unknown object to stringify
+ * @return Returns the original object if it can be converted to a string; '' otherwise
  */
 export function stringify(str: unknown): unknown | string {
   if (typeof str === 'undefined' || str === null) {
@@ -1004,79 +1004,172 @@ export function stringify(str: unknown): unknown | string {
 // #region TIMING HELPERS
 
 /**
- * Delay helper function.
- * @param {number} ms - The number of milliseconds to wait for.
- * @returns {Promise<void>} Promise which resolves when the delay timeout expires.
+ * Creates a delayed job which includes a promise that resolves after a specified timeout, with the ability to cancel or reject it manually.
+ *
+ * @param timeout - The number of milliseconds to wait before resolving the promise.
+ * @returns An object representing the delayed job, containing:
+ *   - `promise`: A Promise that resolves after the timeout (or immediately if canceled).
+ *   - `cancel()`: Cancels the timeout and immediately resolves the promise.
+ *   - `reject(reason)`: Cancels the timeout and rejects the promise with the given reason.
+ *   - `timeoutId`: The ID of the underlying setTimeout, useful for advanced control.
  */
-export function delay(ms: number): Promise<void> {
-  return new Promise((resolve) => {
+export function doTimeout(timeout: number): DelayJob {
+  // Create a promise of the delay
+  let timeoutId: ReturnType<typeof setTimeout>;
+  let resolveFn: (value: DelayResult) => void;
+  let rejectFn: (reason?: unknown) => void;
+
+  let finished = false; // To prevent multiple resolutions/rejections
+  const promise = new Promise<DelayResult>((resolve, reject) => {
+    // Keep a reference to the resolve function
+    resolveFn = (result) => {
+      if (finished) return;
+      finished = true;
+      resolve(result);
+    };
+
+    // Keep a reference to the reject function
+    rejectFn = (reason) => {
+      if (finished) return;
+      finished = true;
+      reject(reason);
+    };
+
     // Wait
-    setTimeout(resolve, ms);
+    timeoutId = setTimeout(() => resolveFn('timeout'), timeout);
+  });
+
+  // Return the promise and the timeoutId in case we want to abort it
+  return {
+    promise,
+    cancel: () => {
+      clearTimeout(timeoutId);
+      resolveFn('cancelled');
+    },
+    reject: (reason: unknown) => {
+      clearTimeout(timeoutId);
+      rejectFn(reason);
+    },
+    timeoutId: timeoutId!,
+  };
+}
+
+/**
+ * Delay helper function.
+ *
+ * @param timeout - The number of milliseconds to wait for.
+ * @returns A Promise which resolves when the delay timeout expires.
+ */
+export function delay(timeout: number): Promise<void> {
+  // Redirect
+  return doTimeout(timeout).promise.then((result) => {
+    if (result !== 'timeout') {
+      throw new Error('Delay was cancelled unexpectedly');
+    }
   });
 }
 
 /**
- * Repeatedly invokes a callback function at a given interval until it returns `true` or until timeout is reached.
- * Once the callback returns `true` or the timeout expires, the interval is cleared and the polling stops.
- * @param {() => T} callback - A function that is called every `ms` milliseconds.
- *                                   If it returns `true`, the interval is cleared.
- * @param {number} ms - The interval time in milliseconds between callback executions.
- * @param {number} [timeout] - Optional timeout in milliseconds. If provided, the interval will be automatically
- *                              cleared after this duration, regardless of callback return value.
- * @returns {ReturnType<typeof setInterval>} The interval timer ID, which can be used to clear the interval manually if needed.
+ * Repeatedly invokes a callback at a fixed interval until one of the following
+ * conditions is met:
+ * 1. The callback returns a truthy value (early termination).
+ * 2. The optional timeout duration is reached.
+ * The callback receives the elapsed time (in milliseconds) since the interval
+ * started. If `startImmediately` is `true`, the callback is invoked once
+ * immediately before the interval begins.
+ *
+ * @param callback - Function executed on each interval tick. Receives the elapsed
+ * time (ms) since the start. If the function returns a truthy value, the interval
+ * is cleared immediately.
+ * @param intervalMs - Interval duration in milliseconds between each callback invocation.
+ * @param timeout - Optional maximum duration in milliseconds before the interval
+ * is automatically cleared. If omitted, the interval runs until the callback stops it.
+ * @param startImmediately - If `true`, the callback is invoked once immediately
+ * before the interval is scheduled. Defaults to `false`.
+ * @returns The job object containing the cancel function and interval ID.
  */
-export function doUntil<T>(callback: () => T, ms: number, timeout?: number): ReturnType<typeof setInterval> {
-  // Start a recurrent timer
-  let done = false;
-  const interval = setInterval(() => {
-    // If done, skip (protect against race conditions)
-    if (done) return;
+export function doUntil<T>(callback: (elapsed: number) => T, intervalMs: number, timeout?: number, startImmediately = false): DoUntilJob {
+  // Note the start time
+  const start = Date.now();
 
-    // Callback
-    const shouldStop = callback();
+  // Mutable state: tracks whether the loop has been stopped
+  let stopped = false;
+  let interval: ReturnType<typeof setInterval> | undefined = undefined;
 
-    // If clearing the interval
-    if (shouldStop) {
-      done = true;
-      clearInterval(interval);
+  // Idempotent — safe to call multiple times
+  const cancel = (): void => {
+    if (stopped) return;
+    stopped = true;
+    clearInterval(interval);
+  };
+
+  // Returns true when the loop should no longer run
+  const tick = (): boolean => {
+    // Already cancelled externally
+    if (stopped) return true;
+
+    const elapsed = Date.now() - start;
+
+    // Timeout reached — stop
+    if (timeout && elapsed >= timeout) {
+      cancel();
+      return true;
     }
-  }, ms);
 
-  // Set up timeout if provided
-  if (timeout !== undefined) {
-    setTimeout(() => {
-      if (!done) {
-        done = true;
-        clearInterval(interval);
-      }
-    }, timeout);
+    // Invoke the caller's logic; truthy = "I'm done"
+    const shouldStop = callback(elapsed);
+
+    // The callback itself may have called cancel()
+    if (stopped) return true;
+
+    // Callback signalled completion
+    if (shouldStop) {
+      cancel();
+      return true;
+    }
+
+    // Keep going
+    return false;
+  };
+
+  // Optional first invocation before the interval kicks in
+  if (startImmediately) tick();
+
+  // If the immediate tick already stopped us, skip scheduling
+  if (!stopped) {
+    interval = setInterval(tick, intervalMs);
   }
 
-  // Return the interval timer
-  return interval;
+  // Return the job
+  return {
+    start,
+    cancel,
+    interval,
+  };
 }
 
 /**
  * Repeatedly invokes a callback function at a specified interval until one of two conditions is met:
  * - The callback function explicitly returns `true`, indicating the interval should be cleared.
- * - All provided promises have resolved or rejected.
+ * - The provided promise has resolved or rejected.
  * This is useful for performing a recurring action (e.g., logging or polling) that can end either due to
  * external completion logic or once all promises are settled.
- * @param {() => T} callback - A function executed on each interval. If it returns `true`, the interval is cleared.
- * @param {Promise<unknown>[]} promises - An array of promises whose completion will also stop the interval.
- * @param {number} ms - The interval duration in milliseconds.
- * @returns {ReturnType<typeof setInterval>} The interval timer, which can be cleared manually if needed.
+ *
+ * @param callback - A function executed on each interval. If it returns `true`, the interval is cleared.
+ * @param promise - A Promise whose completion will also stop the interval.
+ * @param intervalMs - The interval duration in milliseconds.
+ * @returns The interval timer, which can be cleared manually if needed.
  */
-export function doUntilPromises<T>(callback: () => T, promises: Promise<unknown>[], ms: number): ReturnType<typeof setInterval> {
+export function doUntilPromise<T>(callback: () => T, promise: Promise<unknown>, intervalMs: number): DoUntilJob {
   // Start a recurrent timer
-  const interval = doUntil(callback, ms);
+  const job = doUntil(callback, intervalMs);
 
   // Disble eslint here, it should be caught by the creator of the promise
   // eslint-disable-next-line @typescript-eslint/no-floating-promises
-  Promise.all(promises).finally(() => clearInterval(interval));
+  promise.finally(() => job.cancel());
 
   // Return the interval timer
-  return interval;
+  return job;
 }
 
 /**
@@ -1084,12 +1177,13 @@ export function doUntilPromises<T>(callback: () => T, promises: Promise<unknown>
  * This function is recursive and checks for a validity of something via the checkCallback() until it's found or until the timer runs out.
  * When the check callback returns true (or some found object), the doCallback() function is called with the found information.
  * If checkCallback wasn't found and timer expired, the failCallback() function is called.
- * @param {function} checkCallback - The function executed to verify a particular condition until it's passed
- * @param {function} doCallback - The function executed when checkCallback returns true or some object
- * @param {function} failCallback - The function executed when checkCallback has failed for too long (went over the timeout)
- * @param {Date} startDate - The initial date this task was started
- * @param {number} timeout - The duration in milliseconds until the task is aborted
- * @param {number} checkFrequency - The frequency in milliseconds to callback for a check.
+ *
+ * @param checkCallback - The function executed to verify a particular condition until it's passed
+ * @param doCallback - The function executed when checkCallback returns true or some object
+ * @param failCallback - The function executed when checkCallback has failed for too long (went over the timeout)
+ * @param startDate - The initial date this task was started
+ * @param timeout - The duration in milliseconds until the task is aborted
+ * @param checkFrequency - The frequency in milliseconds to callback for a check.
  */
 // eslint-disable-next-line no-underscore-dangle
 function _whenThisThenThat<T>(
@@ -1139,11 +1233,12 @@ function _whenThisThenThat<T>(
  * This generic function checks for a validity of something via the checkCallback() until it's found or until the timer runs out.
  * When the check callback returns true (or some found object), the doCallback() function is called with the found information.
  * If checkCallback wasn't found and timer expired, the failCallback() function is called.
- * @param {function} checkCallback - The function executed to verify a particular condition until it's passed
- * @param {function} doCallback - The function executed when checkCallback returns true or some object
- * @param {function} failCallback - The function executed when checkCallback has failed for too long (went over the timeout)
- * @param {number} timeout - The duration in milliseconds until the task is aborted (defaults to 10 seconds)
- * @param {number} checkFrequency - The frequency in milliseconds to callback for a check (defaults to 100 milliseconds)
+ *
+ * @param checkCallback - The function executed to verify a particular condition until it's passed
+ * @param doCallback - The function executed when checkCallback returns true or some object
+ * @param failCallback - The function executed when checkCallback has failed for too long (went over the timeout)
+ * @param timeout - The duration in milliseconds until the task is aborted (defaults to 10 seconds)
+ * @param checkFrequency - The frequency in milliseconds to callback for a check (defaults to 100 milliseconds)
  */
 export function whenThisThenThat<T>(
   checkCallback: () => T,
@@ -1159,9 +1254,11 @@ export function whenThisThenThat<T>(
 /**
  * This asynchronous generic function checks for a validity of something via the checkCallback() until it's found or until the timer runs out.
  * This method returns a Promise which the developper can use to await or use .then().catch().finally() principles.
- * @param {function} checkCallback - The function executed to verify a particular condition until it's passed
- * @param {number} timeout - The duration in milliseconds until the task is aborted (defaults to 10 seconds)
- * @param {number} checkFrequency - The frequency in milliseconds to check for an update (defaults to 100 milliseconds)
+ *
+ * @param checkCallback - The function executed to verify a particular condition until it's passed
+ * @param timeout - The duration in milliseconds until the task is aborted (defaults to 10 seconds)
+ * @param checkFrequency - The frequency in milliseconds to check for an update (defaults to 100 milliseconds)
+ * @returns A Promise which resolves when the check passes
  */
 export function whenThisThen<T>(checkCallback: () => T, timeout?: number, checkFrequency?: number): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -1173,9 +1270,10 @@ export function whenThisThen<T>(checkCallback: () => T, timeout?: number, checkF
 // #endregion TIMING HELPERS
 
 /**
- * Escape special characters from string
- * @param {string} text - The text to escape
- * @returns {string} Espaced string
+ * Escape special characters from string.
+ *
+ * @param text - The text to escape
+ * @returns Espaced string
  */
 export function escapeRegExp(text: string): string {
   return text.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
@@ -1477,3 +1575,33 @@ export function normalizeDatacubeAccessPath(path: string): string {
   //TODO: extract to list of exceptions / normalizations?
   return path.toLowerCase().includes('datacube') ? path.replace('wrapper/ramp/ogc', 'wrapper/ogc').replace('/ows/', '/wrapper/ogc/') : path;
 }
+
+/** Job returned by the doWhen function */
+export type DelayJob = {
+  /** The promise representing the delay job */
+  promise: Promise<DelayResult>;
+
+  /** Cancels the delay job, resolving correctly */
+  cancel: () => void;
+
+  /** Rejects the delay job, throwing an error */
+  reject: (reason?: unknown) => void;
+
+  /** The ID of the timeout */
+  timeoutId: ReturnType<typeof setTimeout>;
+};
+
+/** Job result indicating if the delay timedout, good, or the job got cancelled */
+export type DelayResult = 'timeout' | 'cancelled';
+
+/** Job returned by the doUntil function */
+export type DoUntilJob = {
+  /** The start time of the job */
+  start: number;
+
+  /** Cancels the job */
+  cancel: () => void;
+
+  /** The ID of the interval */
+  interval?: ReturnType<typeof setInterval>;
+};

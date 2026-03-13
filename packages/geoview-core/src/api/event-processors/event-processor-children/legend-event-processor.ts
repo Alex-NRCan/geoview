@@ -29,6 +29,7 @@ import { Projection } from '@/geo/utils/projection';
 import type { AbstractBaseGVLayer } from '@/geo/layer/gv-layers/abstract-base-layer';
 import { GVEsriImage } from '@/geo/layer/gv-layers/raster/gv-esri-image';
 import { logger } from '@/core/utils/logger';
+import { doTimeout, type DelayJob } from '@/core/utils/utilities';
 
 // GV Important: See notes in header of MapEventProcessor file for information on the paradigm to apply when working with UIEventProcessor vs UIState
 
@@ -87,13 +88,13 @@ export class LegendEventProcessor extends AbstractEventProcessor {
   /**
    * Gets a specific state.
    * @param {string} mapId - The mapId
-   * @param {'highlightedLayer' | 'selectedLayerPath' | 'displayState' | 'layerDeleteInProgress'} state - The state to get
+   * @param {'highlightedLayer' | 'selectedLayerPath' | 'displayState'} state - The state to get
    * @returns {string | boolean | null | undefined} The requested state
    * @static
    */
   static getLayerPanelState(
     mapId: string,
-    state: 'highlightedLayer' | 'selectedLayerPath' | 'displayState' | 'layerDeleteInProgress'
+    state: 'highlightedLayer' | 'selectedLayerPath' | 'displayState'
   ): string | boolean | null | undefined {
     return this.getLayerState(mapId)[state];
   }
@@ -1057,6 +1058,149 @@ export class LegendEventProcessor extends AbstractEventProcessor {
     }
   }
 
+  // #region DELETE LAYERS CONTROLLER
+
+  /** Holds all the layers in process of being deleted from the map */
+  static readonly #LAYERS_BEING_DELETED: Record<string, Record<string, LayerDeletionJob>> = {};
+
+  /**
+   * Retrieves the timestamp when a layer started its deletion process.
+   *
+   * @param mapId - Identifier of the map instance.
+   * @param layerPath - Unique path identifying the layer within the map.
+   * @returns The timestamp (in ms) when deletion started, or `undefined`
+   * if the layer is not currently pending deletion.
+   */
+  static #getLayerBeingDeleted(mapId: string, layerPath: string): LayerDeletionJob | undefined {
+    return this.#LAYERS_BEING_DELETED[mapId]?.[layerPath];
+  }
+
+  /**
+   * Marks a layer as being in the deletion process.
+   *
+   * @param mapId - Identifier of the map instance.
+   * @param layerPath - Unique path identifying the layer within the map.
+   */
+  static #addLayerBeingDeleted(mapId: string, layerPath: string, job: LayerDeletionJob): void {
+    // Add the layer for deletion
+    this.#LAYERS_BEING_DELETED[mapId] ??= {};
+    this.#LAYERS_BEING_DELETED[mapId][layerPath] = job;
+  }
+
+  /**
+   * Removes a layer from the pending deletion list and clears its
+   * deletion progress indicator from the UI store.
+   *
+   * @param mapId - Identifier of the map instance.
+   * @param layerPath - Unique path identifying the layer within the map.
+   */
+  static #removeLayerBeingDeleted(mapId: string, layerPath: string): void {
+    // Remove the layer from deletion
+    this.getLayerState(mapId).setterActions.setLayerDeletionStartTime(layerPath, undefined);
+    delete this.#LAYERS_BEING_DELETED[mapId][layerPath];
+  }
+
+  /**
+   * Starts the delayed deletion process for a layer, allowing a short
+   * time window for the user to undo the operation.
+   *
+   * During this period:
+   * - The layer is temporarily hidden.
+   * - A deletion start timestamp is stored so the UI can derive progress locally.
+   * - The user may abort the deletion via {@link deleteLayerAbort}.
+   *
+   * If the undo window expires, the layer is permanently deleted.
+   * If called again for the same layer while a previous timer is running,
+   * the previous timer is cancelled and a new one starts, preserving the
+   * original visibility state from the first call.
+   *
+   * @param mapId - Identifier of the map instance.
+   * @param layerPath - Unique path identifying the layer within the map.
+   * @param undoWindowDuration - Duration in milliseconds of the undo window before deletion is finalized.
+   * @returns A promise resolving to:
+   * - `true` if the deletion completed successfully.
+   * - `false` if the deletion was aborted, superseded by a newer call, or
+   *   if the layer was already in the deletion process.
+   * @throws {LayerNotFoundError} When the layer couldn't be found at the given layer path.
+   */
+  static async deleteLayerStartTimer(mapId: string, layerPath: string, undoWindowDuration: number): Promise<boolean> {
+    // If there was already a job going, cancel it but keep the reference so we can preserve its original visibility
+    const existingJob = this.#getLayerBeingDeleted(mapId, layerPath);
+    if (existingJob) {
+      // Cancel
+      existingJob.delayedJob.cancel();
+    }
+
+    // Get the layer
+    const layerApi = MapEventProcessor.getMapViewerLayerAPI(mapId);
+    const gvLayer = layerApi.getGeoviewLayer(layerPath);
+
+    // Note the original visibility state of the layer before starting the deletion process.
+    // If there was already a pending deletion, preserve its original visibility since the layer is already hidden.
+    const originalVisibility = existingJob?.originalVisibility ?? gvLayer.getVisible();
+
+    // Hide layer immediately
+    gvLayer.setVisible(false);
+    layerApi.removeLayerHighlights(layerPath);
+
+    // Update the store with the start time of the deletion of the layer
+    this.getLayerState(mapId).setterActions.setLayerDeletionStartTime(layerPath, Date.now());
+
+    // Start delayed job
+    const delayedJob = doTimeout(undoWindowDuration);
+
+    // Register job (replaces any previous entry for this layerPath)
+    this.#addLayerBeingDeleted(mapId, layerPath, {
+      delayedJob,
+      originalVisibility,
+    });
+
+    // Wait for the job to perform operation or be cancelled
+    const result = await delayedJob.promise;
+
+    // Check if our job is still the current one. A subsequent call to deleteLayerStartTimer
+    // may have replaced it while we were awaiting — in that case, let the newer call own the lifecycle.
+    const currentJob = this.#getLayerBeingDeleted(mapId, layerPath);
+    if (currentJob?.delayedJob !== delayedJob) {
+      return false;
+    }
+
+    // Our job is still current — remove it from the stack
+    this.#removeLayerBeingDeleted(mapId, layerPath);
+
+    if (result === 'timeout') {
+      // Perform deletion
+      this.deleteLayer(mapId, layerPath);
+      return true;
+    }
+
+    // Undo deletion — restore original visibility
+    const gvLayerIfExists = layerApi.getGeoviewLayerIfExists(layerPath);
+    gvLayerIfExists?.setVisible(originalVisibility);
+
+    // Negative
+    return false;
+  }
+
+  /**
+   * Aborts an ongoing layer deletion process if it has not yet been finalized.
+   *
+   * This restores the layer to its previous visibility state and stops
+   * the deletion timer.
+   *
+   * @param mapId - Identifier of the map instance.
+   * @param layerPath - Unique path identifying the layer within the map.
+   */
+  static deleteLayerAbort(mapId: string, layerPath: string): void {
+    // Get the job about layer deletion
+    const job = this.#getLayerBeingDeleted(mapId, layerPath);
+
+    // Cancel the delayed job
+    job?.delayedJob.cancel();
+  }
+
+  // #endregion DELETE LAYERS CONTROLLER
+
   /**
    * Delete layer.
    * @param {string} mapId - The ID of the map.
@@ -1349,3 +1493,9 @@ export class LegendEventProcessor extends AbstractEventProcessor {
     });
   };
 }
+
+/** A job operation when the user wants to delete a layer */
+type LayerDeletionJob = {
+  delayedJob: DelayJob;
+  originalVisibility: boolean;
+};
