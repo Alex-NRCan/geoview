@@ -15,11 +15,12 @@ export const getSxClasses = (theme: Theme): SxStyles => ({
     },
   },
 
-  rasterFunctionMenu: {
+  // Shared styles for setting selector submenus (raster function, WMS style, etc.)
+  settingSelectorMenu: {
     '& .MuiPaper-root': {
       padding: '8px',
       maxHeight: '400px',
-      paddingRight: '16px', // Extra padding for scrollbar space
+      paddingRight: '16px',
       // Custom scrollbar styling
       '&::-webkit-scrollbar': {
         width: '8px',
@@ -40,7 +41,7 @@ export const getSxClasses = (theme: Theme): SxStyles => ({
     },
   },
 
-  rasterFunctionMenuItem: {
+  settingSelectorMenuItem: {
     border: '1px solid',
     borderColor: 'divider',
     borderRadius: 2,
@@ -53,7 +54,20 @@ export const getSxClasses = (theme: Theme): SxStyles => ({
       borderColor: 'primary.main',
     },
   },
-  previewImageContainer: {
+
+  settingSelectorListItemText: {
+    '& .MuiListItemText-primary': {
+      fontWeight: 600,
+    },
+  },
+
+  settingSelectorPreviewIcon: {
+    width: 100,
+    height: 100,
+  },
+
+  // ESRI Image Raster Function specific styles
+  rasterFunctionPreviewImageContainer: {
     width: 100,
     height: 100,
     border: '2px solid',
@@ -65,19 +79,47 @@ export const getSxClasses = (theme: Theme): SxStyles => ({
     overflow: 'hidden',
     marginRight: '16px',
   },
-  previewImage: {
+
+  rasterFunctionPreviewImage: {
     width: '100%',
     height: '100%',
     objectFit: 'cover',
   },
-  previewIcon: {
-    width: 100,
-    height: 100,
+
+  // WMS Style specific styles
+  wmsStyleMenuItem: {
+    border: '1px solid',
+    borderColor: 'divider',
+    borderRadius: 2,
+    margin: '4px 0',
+    padding: '12px',
+    alignItems: 'center',
+    '&:hover': {
+      borderColor: 'primary.main',
+    },
+    '&.Mui-selected': {
+      borderColor: 'primary.main',
+    },
   },
 
-  rasterFunctionListItemText: {
-    '& .MuiListItemText-primary': {
-      fontWeight: 600,
-    },
+  wmsStylePreviewImageContainer: {
+    width: 100,
+    minHeight: 100,
+    maxHeight: 200, // Cap maximum height to handle tall legend images
+    border: '2px solid',
+    borderColor: 'divider',
+    borderRadius: 2,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    marginRight: '16px',
+  },
+
+  wmsStylePreviewImage: {
+    width: '100%',
+    height: 'auto', // Preserve aspect ratio
+    maxHeight: '200px',
+    objectFit: 'contain', // Show full image without cropping
   },
 });

@@ -1558,8 +1558,9 @@ export class LayerApi {
 
   /**
    * Updates the raster function for an ESRI Image layer.
-   * @param {string} layerPath - The path of the layer.
-   * @param {string | undefined} rasterFunctionId - The raster function ID to apply.
+   *
+   * @param layerPath - The path of the layer.
+   * @param rasterFunctionId - The raster function ID to apply or undefined to remove it.
    * @throws {LayerNotFoundError} When the layer couldn't be found at the given layer path.
    * @throws {LayerWrongTypeError} When the layer is not an ESRI Image layer.
    */
@@ -1574,6 +1575,7 @@ export class LayerApi {
     layer.setRasterFunction(rasterFunctionId);
 
     // Update the store
+    //TODO: REFACTOR - The store update should happen through a store adaptor via a setRasterFunctionChanged event raised by the layer
     LegendEventProcessor.setLayerRasterFunctionInStore(this.getMapId(), layerPath, rasterFunctionId);
 
     // Trigger legend re-query through the layer set system (forced refresh)
@@ -1582,8 +1584,9 @@ export class LayerApi {
 
   /**
    * Sets the mosaic rule for an ESRI Image layer.
-   * @param {string} layerPath - The layer path
-   * @param {TypeMosaicRule | undefined} mosaicRule - The mosaic rule to apply
+   *
+   * @param layerPath - The layer path
+   * @param mosaicRule - The mosaic rule to apply or undefined to remove it
    */
   setLayerMosaicRule(layerPath: string, mosaicRule: TypeMosaicRule | undefined): void {
     const layer = this.getGeoviewLayer(layerPath);
@@ -1593,7 +1596,29 @@ export class LayerApi {
     layer.setMosaicRule(mosaicRule);
 
     // Update the store
+    //TODO: REFACTOR - The store update should happen through a store adaptor via a setMosaicRuleChanged event raised by the layer
     LegendEventProcessor.setLayerMosaicRuleInStore(this.getMapId(), layerPath, mosaicRule);
+
+    // Trigger legend re-query through the layer set system
+    this.legendsLayerSet.queryLegend(layerPath, true);
+  }
+
+  /**
+   * Sets the WMS style for a WMS layer.
+   *
+   * @param layerPath - The layer path
+   * @param wmsStyle - The WMS style to apply
+   */
+  setLayerWmsStyle(layerPath: string, wmsStyle: string): void {
+    const layer = this.getGeoviewLayer(layerPath);
+    if (!(layer instanceof GVWMS)) return;
+
+    // Update the WMS style
+    layer.setWmsStyle(wmsStyle);
+
+    // Update the store
+    //TODO: REFACTOR - The store update should happen through a store adaptor via a setWmsStyleChanged event raised by the layer
+    LegendEventProcessor.setLayerWmsStyleInStore(this.getMapId(), layerPath, wmsStyle);
 
     // Trigger legend re-query through the layer set system
     this.legendsLayerSet.queryLegend(layerPath, true);

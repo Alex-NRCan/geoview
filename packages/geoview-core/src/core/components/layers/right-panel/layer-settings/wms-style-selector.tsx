@@ -3,56 +3,56 @@ import { useTheme } from '@mui/material/styles';
 import { Menu, MenuItem, ListItemIcon, ListItemText, Box, CircularProgress } from '@/ui';
 import { ImageNotSupportedIcon } from '@/ui';
 import { getSxClasses } from './layer-settings-style';
-import {
-  useLayerStoreActions,
-  useLayerSelectorRasterFunctionInfos,
-  useLayerSelectorRasterFunction,
-} from '@/core/stores/store-interface-and-intial-values/layer-state';
+import { useLayerStoreActions, useLayerSelectorWmsStyle } from '@/core/stores/store-interface-and-intial-values/layer-state';
 import type { TypeLegendLayer } from '@/core/components/layers/types';
-import type { TypeMetadataEsriRasterFunctionInfos } from '@/api/types/layer-schema-types';
+import type { TypeMetadataWMSCapabilityLayerStyle } from '@/api/types/layer-schema-types';
 import { logger } from '@/core/utils/logger';
 
-interface RasterFunctionSelectorProps {
+interface WmsStyleSelectorProps {
   layerDetails: TypeLegendLayer;
   anchorEl: HTMLElement | null;
   onClose: () => void;
   onClickOutside: (event: {}, reason?: 'backdropClick' | 'escapeKeyDown') => void;
 }
 
-interface RasterFunctionMenuItemProps {
-  info: TypeMetadataEsriRasterFunctionInfos;
+interface WmsStyleMenuItemProps {
+  style: TypeMetadataWMSCapabilityLayerStyle;
   isSelected: boolean;
-  previewPromise: Promise<string> | undefined;
   onSelect: (name: string) => void;
 }
 
-function RasterFunctionMenuItem({ info, isSelected, previewPromise, onSelect }: RasterFunctionMenuItemProps): JSX.Element {
+function WmsStyleMenuItem({ style, isSelected, onSelect }: WmsStyleMenuItemProps): JSX.Element {
   // Log
-  logger.logTraceRender('components/layers/right-panel/layer-settings/raster-function-selector > RasterFunctionMenuItem');
+  logger.logTraceRender('components/layers/right-panel/layer-settings/wms-style-selector > WmsStyleMenuItem');
 
   // Hooks
   const theme = useTheme();
   const sxClasses = getSxClasses(theme);
 
   // State
-  const [previewSrc, setPreviewSrc] = useState<string | null>(null);
+  const [legendSrc, setLegendSrc] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     // Log
-    logger.logTraceUseEffect(`RASTER FUNCTION MENU ITEM - image preview - ${info.name}`, previewPromise);
+    logger.logTraceUseEffect(`WMS STYLE MENU ITEM - legend image - ${style.Name}`, style.LegendURL);
 
-    if (!previewPromise) return;
-    previewPromise
-      .then(setPreviewSrc)
-      .catch(() => setPreviewSrc(null))
-      .finally(() => setLoading(false));
-  }, [info.name, previewPromise]);
+    // Get the first legend URL if available
+    const legendUrl = style.LegendURL?.[0]?.OnlineResource?.['@attributes']?.['xlink:href'];
+
+    if (legendUrl) {
+      setLegendSrc(legendUrl);
+      setLoading(false);
+    } else {
+      setLegendSrc(null);
+      setLoading(false);
+    }
+  }, [style]);
 
   const renderIcon = (): JSX.Element => {
     if (loading) {
       return (
-        <Box sx={sxClasses.rasterFunctionPreviewImageContainer}>
+        <Box sx={sxClasses.wmsStylePreviewImageContainer}>
           <CircularProgress
             isLoaded={false}
             size={24}
@@ -68,31 +68,31 @@ function RasterFunctionMenuItem({ info, isSelected, previewPromise, onSelect }: 
         </Box>
       );
     }
-    if (previewSrc) {
+    if (legendSrc) {
       return (
-        <Box sx={sxClasses.rasterFunctionPreviewImageContainer}>
-          <Box component="img" src={previewSrc} alt={info.name} sx={sxClasses.rasterFunctionPreviewImage} />
+        <Box sx={sxClasses.wmsStylePreviewImageContainer}>
+          <Box component="img" src={legendSrc} alt={style.Name} sx={sxClasses.wmsStylePreviewImage} />
         </Box>
       );
     }
     return (
-      <Box sx={sxClasses.rasterFunctionPreviewImageContainer}>
+      <Box sx={sxClasses.wmsStylePreviewImageContainer}>
         <ImageNotSupportedIcon sx={sxClasses.settingSelectorPreviewIcon} />
       </Box>
     );
   };
 
   return (
-    <MenuItem onClick={() => onSelect(info.name)} selected={isSelected} sx={sxClasses.settingSelectorMenuItem}>
+    <MenuItem onClick={() => onSelect(style.Name)} selected={isSelected} sx={sxClasses.wmsStyleMenuItem}>
       <ListItemIcon>{renderIcon()}</ListItemIcon>
-      <ListItemText primary={info.name} secondary={info.description} sx={sxClasses.settingSelectorListItemText} />
+      <ListItemText primary={style.Name} sx={sxClasses.settingSelectorListItemText} />
     </MenuItem>
   );
 }
 
-export function RasterFunctionSelector(props: RasterFunctionSelectorProps): JSX.Element {
+export function WmsStyleSelector(props: WmsStyleSelectorProps): JSX.Element {
   // Log
-  logger.logTraceRender('components/layers/right-panel/layer-settings/raster-function-selector > RasterFunctionSelector');
+  logger.logTraceRender('components/layers/right-panel/layer-settings/wms-style-selector > WmsStyleSelector');
 
   const { layerDetails, anchorEl, onClose, onClickOutside } = props;
 
@@ -101,28 +101,19 @@ export function RasterFunctionSelector(props: RasterFunctionSelectorProps): JSX.
   const sxClasses = getSxClasses(theme);
 
   // Store actions
-  const { setLayerRasterFunction, getLayerRasterFunctionPreviews } = useLayerStoreActions();
+  const { setLayerWmsStyle, getLayerWmsAvailableStyles } = useLayerStoreActions();
 
   // Store hooks
-  const storeRasterFunctionInfos = useLayerSelectorRasterFunctionInfos(layerDetails.layerPath);
-  const rasterFunctionInfos = useMemo(() => storeRasterFunctionInfos || [], [storeRasterFunctionInfos]);
-  const currentRasterFunction = useLayerSelectorRasterFunction(layerDetails.layerPath);
+  const currentWmsStyle = useLayerSelectorWmsStyle(layerDetails.layerPath);
 
-  // State
-  const [previewPromises, setPreviewPromises] = useState<Map<string, Promise<string>>>(new Map());
+  // Get the full style metadata
+  const wmsStyleArray = useMemo(
+    () => getLayerWmsAvailableStyles(layerDetails.layerPath) || [],
+    [getLayerWmsAvailableStyles, layerDetails.layerPath]
+  );
 
-  useEffect(() => {
-    // Log
-    logger.logTraceUseEffect('RASTER FUNCTION SELECTOR - Layer Raster Function Infos sync', rasterFunctionInfos);
-
-    if (rasterFunctionInfos.length > 0) {
-      const promises = getLayerRasterFunctionPreviews(layerDetails.layerPath);
-      setPreviewPromises(promises);
-    }
-  }, [layerDetails.layerPath, rasterFunctionInfos, getLayerRasterFunctionPreviews]);
-
-  const handleSelect = (rasterFunctionName: string): void => {
-    setLayerRasterFunction(layerDetails.layerPath, rasterFunctionName);
+  const handleSelect = (wmsStyleName: string): void => {
+    setLayerWmsStyle(layerDetails.layerPath, wmsStyleName);
   };
 
   const handleClose = (event: {}, reason: 'backdropClick' | 'escapeKeyDown'): void => {
@@ -178,14 +169,8 @@ export function RasterFunctionSelector(props: RasterFunctionSelectorProps): JSX.
         },
       }}
     >
-      {rasterFunctionInfos.map((info) => (
-        <RasterFunctionMenuItem
-          key={info.name}
-          info={info}
-          isSelected={currentRasterFunction === info.name}
-          previewPromise={previewPromises.get(info.name)}
-          onSelect={handleSelect}
-        />
+      {wmsStyleArray.map((style) => (
+        <WmsStyleMenuItem key={style.Name} style={style} isSelected={currentWmsStyle === style.Name} onSelect={handleSelect} />
       ))}
     </Menu>
   );

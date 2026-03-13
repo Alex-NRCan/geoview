@@ -6,6 +6,7 @@ import type {
   TypeLayerControls,
   TypeLayerStatus,
   TypeMetadataEsriRasterFunctionInfos,
+  TypeMetadataWMSCapabilityLayerStyle,
   TypeMosaicMethod,
   TypeMosaicRule,
 } from '@/api/types/layer-schema-types';
@@ -14,6 +15,7 @@ import type { TypeLegendLayer, TypeLegendLayerItem, TypeLegendItem } from '@/cor
 import { MapViewer } from '@/geo/map/map-viewer';
 import { GeoUtilities } from '@/geo/utils/utilities';
 import type { ConfigBaseClass } from '@/api/config/validation-classes/config-base-class';
+import { OgcWmsLayerEntryConfig } from '@/api/config/validation-classes/raster-validation-classes/ogc-wms-layer-entry-config';
 import type {
   ILayerState,
   LegendQueryStatus,
@@ -240,6 +242,7 @@ export class LegendEventProcessor extends AbstractEventProcessor {
 
   /**
    * Gets the active raster function for a layer.
+   *
    * @param mapId - The map identifier.
    * @param layerPath - The layer path.
    * @returns The active raster function identifier.
@@ -250,6 +253,7 @@ export class LegendEventProcessor extends AbstractEventProcessor {
 
   /**
    * Sets the active raster function for a layer.
+   *
    * @param mapId - The map identifier.
    * @param layerPath - The layer path.
    * @param rasterFunctionId - The raster function identifier to set.
@@ -260,6 +264,7 @@ export class LegendEventProcessor extends AbstractEventProcessor {
 
   /**
    * Updates the active raster function for a layer in the store.
+   *
    * @param mapId - The map identifier.
    * @param layerPath - The layer path.
    * @param rasterFunctionId - The raster function identifier to set.
@@ -279,6 +284,7 @@ export class LegendEventProcessor extends AbstractEventProcessor {
 
   /**
    * Gets the allowed mosaic methods for a layer.
+   *
    * @param mapId - The map identifier.
    * @param layerPath - The layer path.
    * @returns The allowed mosaic methods or undefined.
@@ -293,6 +299,7 @@ export class LegendEventProcessor extends AbstractEventProcessor {
 
   /**
    * Gets the active mosaic rule for a layer.
+   *
    * @param mapId - The map identifier.
    * @param layerPath - The layer path.
    * @returns The active mosaic rule or undefined.
@@ -303,6 +310,7 @@ export class LegendEventProcessor extends AbstractEventProcessor {
 
   /**
    * Sets the active mosaic rule for a layer.
+   *
    * @param mapId - The map identifier.
    * @param layerPath - The layer path.
    * @param mosaicRule - The mosaic rule to set.
@@ -313,6 +321,7 @@ export class LegendEventProcessor extends AbstractEventProcessor {
 
   /**
    * Updates the mosaicRule for a layer by merging new properties.
+   *
    * @param mapId - The map id.
    * @param layerPath - The layer path.
    * @param partialMosaicRule - An object with one or more mosaicRule properties to update.
@@ -334,6 +343,7 @@ export class LegendEventProcessor extends AbstractEventProcessor {
 
   /**
    * Updates the active mosaic rule for a layer in the store.
+   *
    * @param mapId - The map identifier.
    * @param layerPath - The layer path.
    * @param mosaicRule - The mosaic rule to set.
@@ -348,7 +358,48 @@ export class LegendEventProcessor extends AbstractEventProcessor {
   }
 
   /**
+   * Gets the active WMS style for a layer.
+   *
+   * @param mapId - The map identifier.
+   * @param layerPath - The layer path.
+   * @returns The active WMS style name.
+   */
+  static getLayerWmsStyle(mapId: string, layerPath: string): string | undefined {
+    return LegendEventProcessor.getLegendLayerInfo(mapId, layerPath)?.wmsStyle;
+  }
+
+  /**
+   * Sets the active WMS style for a layer.
+   *
+   * @param mapId - The map identifier.
+   * @param layerPath - The layer path.
+   * @param wmsStyleName - The WMS style name to set.
+   */
+  static setLayerWmsStyle(mapId: string, layerPath: string, wmsStyleName: string | undefined): void {
+    if (!wmsStyleName) return;
+    MapEventProcessor.getMapViewerLayerAPI(mapId).setLayerWmsStyle(layerPath, wmsStyleName);
+  }
+
+  /**
+   * Updates the active WMS style for a layer in the store.
+   *
+   * @param mapId - The map identifier.
+   * @param layerPath - The layer path.
+   * @param wmsStyleName - The WMS style name to set.
+   */
+  static setLayerWmsStyleInStore(mapId: string, layerPath: string, wmsStyleName: string | undefined): void {
+    const layers = LegendEventProcessor.getLayerState(mapId).legendLayers;
+    const layer = this.findLayerByPath(layers, layerPath);
+
+    if (layer) {
+      layer.wmsStyle = wmsStyleName;
+      this.getLayerState(mapId).setterActions.setLegendLayers(layers);
+    }
+  }
+
+  /**
    * Gets the raster function previews for the ESRI image layer.
+   *
    * @param mapId - The map identifier.
    * @param layerPath - The layer path.
    * @returns The raster function previews.
@@ -361,7 +412,27 @@ export class LegendEventProcessor extends AbstractEventProcessor {
   }
 
   /**
+   * Retrieves the layer's available WMS styles.
+   *
+   * @param mapId - The unique identifier of the map instance.
+   * @param layerPath - The path to the layer.
+   * @returns The available WMS style names, or `undefined` if not available.
+   */
+  static getLayerWmsStyles(mapId: string, layerPath: string): TypeMetadataWMSCapabilityLayerStyle[] | undefined {
+    // Get the layer config
+    const layerConfig = MapEventProcessor.getMapViewerLayerAPI(mapId).getLayerEntryConfigIfExists(layerPath);
+
+    // Check if it's a WMS layer config
+    if (layerConfig && layerConfig instanceof OgcWmsLayerEntryConfig) {
+      return layerConfig.getStylesMetadata();
+    }
+
+    return undefined;
+  }
+
+  /**
    * Gets the available settings for a layer.
+   *
    * @param mapId - The map identifier.
    * @param layerPath - The layer path.
    * @returns Array of available setting types.
@@ -382,6 +453,12 @@ export class LegendEventProcessor extends AbstractEventProcessor {
     const mosaicRule = this.getLayerMosaicRule(mapId, layerPath);
     if (mosaicRule) {
       settings.push('mosaicRule');
+    }
+
+    // Check if multiple WMS styles are available
+    const styles = this.getLayerWmsStyles(mapId, layerPath);
+    if (styles && styles.length > 1) {
+      settings.push('wmsStyles');
     }
 
     // Add other layer types with settings here
