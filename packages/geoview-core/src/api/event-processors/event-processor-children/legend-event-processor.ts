@@ -505,7 +505,7 @@ export class LegendEventProcessor extends AbstractEventProcessor {
    * @param {boolean} queryable - The queryable state to set.
    * @static
    */
-  // TODO: REFACTOR EVENT PROCESSOR - The 'EventProcessor' classes could use some rethinking, especially when they end up calling the layer api to execute something like
+  // TODO: REFACTOR - EVENT PROCESSOR - The 'EventProcessor' classes could use some rethinking, especially when they end up calling the layer api to execute something like
   // TO.DOCONT: here and in multiple other places. This TODO considers also the next function here 'setLayerQueryableInStore' which saves the state to the store.
   // TO.DOCONT: Is there a big benefit to having this function here which simply redirect the call to the layer api - which is basically hiding the coupling to the 'api'?
   // TO.DOCONT: It seems a bit convoluted that the event processor would both perform the action via layer api AND be responsible to update the store (which is a function also called by the layer api).
@@ -901,7 +901,7 @@ export class LegendEventProcessor extends AbstractEventProcessor {
           existingEntries.push(legendLayerEntry);
           entryIndex = existingEntries.length - 1;
         } else {
-          // TODO: CHECK - propagateLegendToStore - Is it missing group layer entry config properties in the store?
+          // TODO: REFACTOR - propagateLegendToStore - Is it missing group layer entry config properties in the store?
           // TO.DOCONT: At the time of writing this, it was just updating the layerStatus on the group layer entry.
           // TO.DOCONT: It seemed to me it should also at least update the name and the bounds (the bounds are tricky, as they get generated only when the children are loaded)
           // TO.DOCONT: Is there any other group layer entry attributes we would like to propagate in the legends store? I'd think so?
@@ -1208,16 +1208,18 @@ export class LegendEventProcessor extends AbstractEventProcessor {
       existingJob.delayedJob.cancel();
     }
 
-    // Get the layer
+    // Get the layer api
     const layerApi = MapEventProcessor.getMapViewerLayerAPI(mapId);
-    const gvLayer = layerApi.getGeoviewLayer(layerPath);
+
+    // Get the layer if it exists, it's possible it doesn't exist if the layer failed to process
+    const gvLayer = layerApi.getGeoviewLayerIfExists(layerPath);
 
     // Note the original visibility state of the layer before starting the deletion process.
     // If there was already a pending deletion, preserve its original visibility since the layer is already hidden.
-    const originalVisibility = existingJob?.originalVisibility ?? gvLayer.getVisible();
+    const originalVisibility = existingJob?.originalVisibility ?? gvLayer?.getVisible() ?? false;
 
     // Hide layer immediately
-    gvLayer.setVisible(false);
+    gvLayer?.setVisible(false);
     layerApi.removeLayerHighlights(layerPath);
 
     // Update the store with the start time of the deletion of the layer
@@ -1252,8 +1254,7 @@ export class LegendEventProcessor extends AbstractEventProcessor {
     }
 
     // Undo deletion — restore original visibility
-    const gvLayerIfExists = layerApi.getGeoviewLayerIfExists(layerPath);
-    gvLayerIfExists?.setVisible(originalVisibility);
+    gvLayer?.setVisible(originalVisibility);
 
     // Negative
     return false;
@@ -1383,7 +1384,7 @@ export class LegendEventProcessor extends AbstractEventProcessor {
     if (layer) {
       // ! Change the visibility of the given item.
       // ! which happens to be the same object reference as the one in the items array here
-      // TODO: Refactor - Rethink this pattern to find a better cohesive solution for ALL 'set' that go in the store and change them all
+      // TODO: REFACTOR - Rethink this pattern to find a better cohesive solution for ALL 'set' that go in the store and change them all
       // eslint-disable-next-line no-param-reassign
       item.isVisible = visibility;
 

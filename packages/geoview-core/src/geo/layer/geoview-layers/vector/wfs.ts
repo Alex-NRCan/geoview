@@ -153,7 +153,7 @@ export class WFS extends AbstractGeoViewVector {
     }
 
     // Redirect
-    // TODO: Check - Config init - Check if there's a way to better determine the vector strategy flag, defaults to 'all', how is it used here?
+    // TODO: MINOR - Config init - Check if there's a way to better determine the vector strategy flag, defaults to 'all', how is it used here?
     return WFS.createGeoviewLayerConfig(
       this.getGeoviewLayerId(),
       this.getGeoviewLayerName(),
@@ -636,7 +636,6 @@ export class WFS extends AbstractGeoViewVector {
           name: fieldEntry.name,
           alias: fieldEntry.alias ?? fieldEntry.name,
           type: WFS.getFieldType(fieldEntry.name, layerConfig),
-          domain: null,
         };
 
         outfields!.push(newOutfield);

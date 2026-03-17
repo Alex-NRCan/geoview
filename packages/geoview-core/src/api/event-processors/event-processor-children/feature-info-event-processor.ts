@@ -5,13 +5,7 @@ import { Projection } from '@/geo/utils/projection';
 import type { BatchedPropagationLayerDataArrayByMap, SubscriptionDelegate } from '@/api/event-processors/abstract-event-processor';
 import { AbstractEventProcessor } from '@/api/event-processors/abstract-event-processor';
 import { UIEventProcessor } from './ui-event-processor';
-import type {
-  TypeFeatureInfoEntry,
-  TypeResultSetEntry,
-  TypeUtmZoneResponse,
-  TypeAltitudeResponse,
-  TypeNtsResponse,
-} from '@/api/types/map-schema-types';
+import type { TypeFeatureInfoEntry, TypeUtmZoneResponse, TypeAltitudeResponse, TypeNtsResponse } from '@/api/types/map-schema-types';
 import type {
   IFeatureInfoState,
   TypeFeatureInfoResultSet,
@@ -210,40 +204,13 @@ export class FeatureInfoEventProcessor extends AbstractEventProcessor {
     }
 
     // Redirect to helper function
-    this.#deleteFromArray(featureInfoState.layerDataArray, layerPath, (layerArrayResult) => {
+    this.helperDeleteFromArray(featureInfoState.layerDataArray, layerPath, (layerArrayResult) => {
       // Update the layer data array in the store
       featureInfoState.setterActions.setLayerDataArray(layerArrayResult);
 
       // Log
       logger.logInfo('Removed Feature Info in stores for layer path:', layerPath);
     });
-  }
-
-  /**
-   * Helper function to delete a layer information from an array when found
-   * @param {T[]} layerArray - The layer array to work with
-   * @param {string} layerPath - The layer path to delete
-   * @param {(layerArray: T[]) => void} onDeleteCallback - The callback executed when the array is updated
-   * @returns {void}
-   * @private
-   * @static
-   */
-  static #deleteFromArray<T extends TypeResultSetEntry>(
-    layerArray: T[],
-    layerPath: string,
-    onDeleteCallback: (layerArray: T[]) => void
-  ): void {
-    // Find the layer data info to delete from the array
-    const layerDataInfoToDelIndex = layerArray.findIndex((layerInfo) => layerInfo.layerPath === layerPath);
-
-    // If found
-    if (layerDataInfoToDelIndex >= 0) {
-      // Remove from the array
-      layerArray.splice(layerDataInfoToDelIndex, 1);
-
-      // Callback with updated array
-      onDeleteCallback(layerArray);
-    }
   }
 
   /**
@@ -313,11 +280,6 @@ export class FeatureInfoEventProcessor extends AbstractEventProcessor {
   static #propagateFeatureInfoToStoreBatch(mapId: string, layerDataArray: TypeFeatureInfoResultSetEntry[]): Promise<void> {
     // The feature info state
     const featureInfoState = this.getFeatureInfoState(mapId);
-
-    // TODO: CHECK - 'details propagation' when some layers have been loaded in the UI, but their queries fail (very specific case that happened during a weekend)
-    // TO.DOCONT: Putting the TODO here, but not sure where the fix should be.
-    // TO.DOCONT: When layers have spotty query happening (but are loaded with their legends fine in the ui) the Details panel has trouble maitaining the
-    // TO.DOCONT: currently selected layer, selected, in the ui when clicking on various features on the map.
 
     // Redirect to batch propagate
     return this.helperPropagateArrayStoreBatch(
@@ -394,11 +356,11 @@ export class FeatureInfoEventProcessor extends AbstractEventProcessor {
           {
             uid: 'coordinate-info-feature',
             fieldInfo: {
-              latitude: { value: lat.toFixed(6), fieldKey: 0, dataType: 'number', alias: 'Latitude', domain: null },
-              longitude: { value: lng.toFixed(6), fieldKey: 1, dataType: 'number', alias: 'Longitude', domain: null },
-              utmZone: { value: utmIdentifier, fieldKey: 2, dataType: 'string', alias: 'UTM Identifier', domain: null },
-              easting: { value: easting?.toFixed(2), fieldKey: 3, dataType: 'number', alias: 'Easting', domain: null },
-              northing: { value: northing?.toFixed(2), fieldKey: 4, dataType: 'number', alias: 'Northing', domain: null },
+              latitude: { value: lat.toFixed(6), fieldKey: 0, dataType: 'number', alias: 'Latitude' },
+              longitude: { value: lng.toFixed(6), fieldKey: 1, dataType: 'number', alias: 'Longitude' },
+              utmZone: { value: utmIdentifier, fieldKey: 2, dataType: 'string', alias: 'UTM Identifier' },
+              easting: { value: easting?.toFixed(2), fieldKey: 3, dataType: 'number', alias: 'Easting' },
+              northing: { value: northing?.toFixed(2), fieldKey: 4, dataType: 'number', alias: 'Northing' },
               ntsMapsheet: {
                 value: ntsData?.features
                   .filter((f) => f.properties.name !== '')
@@ -411,14 +373,12 @@ export class FeatureInfoEventProcessor extends AbstractEventProcessor {
                 fieldKey: 5,
                 dataType: 'string',
                 alias: 'NTS Mapsheets',
-                domain: null,
               },
               elevation: {
                 value: elevationData?.altitude ? `${elevationData.altitude} m` : undefined,
                 fieldKey: 6,
                 dataType: 'string',
                 alias: 'Elevation',
-                domain: null,
               },
             },
             extent: undefined,

@@ -22,8 +22,6 @@ import EventHelper from '@/api/events/event-helper';
 import type {
   TypeLayerStyleConfig,
   TypeFeatureInfoEntry,
-  codedValueType,
-  rangeDomainType,
   TypeLocation,
   QueryType,
   TypeStyleGeometry,
@@ -31,6 +29,8 @@ import type {
   TypeOutfields,
   TypeLayerStyleSettings,
   TypeFeatureInfoResult,
+  codedValueType,
+  rangeDomainType,
 } from '@/api/types/map-schema-types';
 import { type TypeLayerMetadataFields, type TypeGeoviewLayerType, type TypeMetadataEsriDynamicLayer } from '@/api/types/layer-schema-types';
 import type { GeoViewError } from '@/core/exceptions/geoview-exceptions';
@@ -468,29 +468,6 @@ export abstract class AbstractGVLayer extends AbstractBaseGVLayer {
   }
 
   /**
-   * Overridable function to return the domain of the specified field or null if the field has no domain.
-   * @param {string} fieldName - The field name for which we want to get the domain.
-   * @returns {null | codedValueType | rangeDomainType} The domain of the field.
-   */
-  // eslint-disable-next-line @typescript-eslint/class-methods-use-this, @typescript-eslint/no-unused-vars
-  protected onGetFieldDomain(fieldName: string): null | codedValueType | rangeDomainType {
-    // Log - REMOVED as it is trigger for every row of data table, just enable for debuggin purpose
-    // logger.logWarning(`getFieldDomain is not implemented for ${fieldName} on layer path ${this.getLayerPath()}`);
-    return null;
-  }
-
-  /**
-   * Overridable function to return the type of the specified field from the metadata. If the type can not be found, return 'string'.
-   * @param {string} fieldName - The field name for which we want to get the type.
-   * @returns {TypeOutfieldsType} The type of the field.
-   */
-  protected onGetFieldType(fieldName: string): TypeOutfieldsType {
-    // Log
-    logger.logWarning(`getFieldType is not implemented for ${fieldName} on layer path ${this.getLayerPath()}`);
-    return 'string';
-  }
-
-  /**
    * Overridable function set the style according to the fetched legend information
    * @param {TypeLegend} legend - The fetched legend information
    */
@@ -732,16 +709,6 @@ export abstract class AbstractGVLayer extends AbstractBaseGVLayer {
   }
 
   /**
-   * Gets the field type for the given field name.
-   * @param fieldName - The field name
-   * @returns The field type.
-   */
-  getFieldType(fieldName: string): TypeOutfieldsType {
-    // Redirect
-    return this.onGetFieldType(fieldName);
-  }
-
-  /**
    * Gets the layer filters associated to the layer.
    * @returns The filter associated to the layer or undefined.
    */
@@ -769,7 +736,6 @@ export abstract class AbstractGVLayer extends AbstractBaseGVLayer {
     }
 
     // Emit event
-    // TODO: LayerApi could listen to that event in case we need to update the store.
     this.emitLayerFilterApplied({
       filter: layerFilters,
     });
@@ -1057,8 +1023,6 @@ export abstract class AbstractGVLayer extends AbstractBaseGVLayer {
       serviceDateFormat,
       serviceDateIANA,
       serviceDateTemporalMode,
-      this.getFieldType.bind(this),
-      this.onGetFieldDomain.bind(this),
       AbstractGVLayer.helperGetFieldValue
     );
   }
@@ -1733,8 +1697,6 @@ export abstract class AbstractGVLayer extends AbstractBaseGVLayer {
    * @param {string | string[] | undefined} [inputFormat] - The format(s) to prioritize for string inputs. Defaults to an ISO-like format.
    * @param {TimeIANA | undefined} [inputTimezone] - The timezone IANA the dates are in.
    * @param {TemporalMode | undefined} [inputTemporalMode] - When `calendar`, treats the input as a calendar-date-only value (no timezones). When 'instant', treats the input as moment in time (timezones aware).
-   * @param {(fieldName: string) => TypeOutfieldsType} callbackGetFieldType - Callback that returns the field type for a given field name.
-   * @param {(fieldName: string) => codedValueType | rangeDomainType | null} callbackGetFieldDomain - Callback that returns the coded value or range domain for a given field name.
    * @param {GetFieldValueDelegate} callbackGetFieldValue - Callback that returns the value of a field for a feature, in the correct type.
    * @returns {TypeFeatureInfoEntry[]} Array of feature info entries representing each feature with enriched metadata.
    * @description
@@ -1752,16 +1714,12 @@ export abstract class AbstractGVLayer extends AbstractBaseGVLayer {
     inputFormat: string | string[] | undefined,
     inputTimezone: TimeIANA | undefined,
     inputTemporalMode: TemporalMode | undefined,
-    callbackGetFieldType: (fieldName: string) => TypeOutfieldsType,
-    callbackGetFieldDomain: (fieldName: string) => codedValueType | rangeDomainType | null,
     callbackGetFieldValue: GetFieldValueDelegate
   ): TypeFeatureInfoEntry[] {
     try {
       if (!features.length) return [];
 
       const aliasLookup = GVLayerUtilities.createAliasLookup(outFields);
-      const dictFieldDomains: Record<string, codedValueType | rangeDomainType | null> = {};
-      const dictFieldTypes: Record<string, TypeOutfieldsType> = {};
 
       let featureKeyCounter = 0;
       let fieldKeyCounter = 0;
@@ -1795,15 +1753,11 @@ export abstract class AbstractGVLayer extends AbstractBaseGVLayer {
         fieldKeyCounter = this.#helperFeatureFields(
           feature,
           outFields,
-          dictFieldDomains,
-          dictFieldTypes,
           featureInfoEntry,
           fieldKeyCounter,
           inputFormat,
           inputTimezone,
           inputTemporalMode,
-          callbackGetFieldType,
-          callbackGetFieldDomain,
           callbackGetFieldValue
         );
         queryResult.push(featureInfoEntry);
@@ -1831,23 +1785,17 @@ export abstract class AbstractGVLayer extends AbstractBaseGVLayer {
    * @param {string | string[] | undefined} [inputFormat] - The format(s) to prioritize for string inputs. Defaults to an ISO-like format.
    * @param {TimeIANA | undefined} inputTimezone - The timezone IANA the dates are in.
    * @param {TemporalMode | undefined} [inputTemporalMode] - When `calendar`, treats the input as a calendar-date-only value (no timezones). When 'instant', treats the input as moment in time (timezones aware).
-   * @param {(fieldName: string) => TypeOutfieldsType} callbackGetFieldType - Callback function that returns the type of a given field.
-   * @param {(fieldName: string) => codedValueType | rangeDomainType | null} callbackGetFieldDomain - Callback function that returns the domain metadata for a given field.
    * @param {GetFieldValueDelegate} callbackGetFieldValue - Callback function that returns the value of a given field for the feature, typed according to the field type.
    * @returns {number} The next field key counter value after processing, to be used for further fields or subsequent features.
    */
   static #helperFeatureFields(
     feature: Feature,
     outfields: TypeOutfields[] | undefined,
-    dictFieldDomains: Record<string, codedValueType | rangeDomainType | null>,
-    dictFieldTypes: Record<string, TypeOutfieldsType>,
     featureInfoEntry: TypeFeatureInfoEntry,
     fieldKeyCounterStart: number,
     inputFormat: string | string[] | undefined,
     inputTimezone: TimeIANA | undefined,
     inputTemporalMode: TemporalMode | undefined,
-    callbackGetFieldType: (fieldName: string) => TypeOutfieldsType,
-    callbackGetFieldDomain: (fieldName: string) => codedValueType | rangeDomainType | null,
     callbackGetFieldValue: GetFieldValueDelegate
   ): number {
     const featureFields = feature.getKeys();
@@ -1861,46 +1809,27 @@ export abstract class AbstractGVLayer extends AbstractBaseGVLayer {
       // eslint-disable-next-line no-continue
       if (fieldValue && typeof fieldValue === 'object' && !Array.isArray(fieldValue)) continue;
 
-      if (!(fieldName in dictFieldDomains)) {
-        // eslint-disable-next-line no-param-reassign
-        dictFieldDomains[fieldName] = callbackGetFieldDomain(fieldName);
-      }
-      const fieldDomain = dictFieldDomains[fieldName];
-
-      if (!(fieldName in dictFieldTypes)) {
-        // eslint-disable-next-line no-param-reassign
-        dictFieldTypes[fieldName] = callbackGetFieldType(fieldName);
-      }
-      const fieldType = dictFieldTypes[fieldName];
-
+      // Find the field entry corresponding to the feature field
       const fieldEntry = outfields?.find((outfield) => outfield.name === fieldName || outfield.alias === fieldName);
 
-      // TODO: CHECK - What's the deal with the dictFieldTypes vs outfields and complexity here? Shouldn't outfields be basically same as dictFieldTypes? Simplify?
-
+      // If the field entry was found
       if (fieldEntry) {
+        // Attach the fieldInfo property on the feature info entry
         // eslint-disable-next-line no-param-reassign
         featureInfoEntry.fieldInfo[fieldEntry.name] = {
           fieldKey: fieldKeyCounter++,
           value: callbackGetFieldValue(
             feature,
             fieldEntry.name,
-            fieldEntry.type as 'string' | 'number' | 'date',
+            fieldEntry.type,
+            fieldEntry.domain,
             inputFormat,
             inputTimezone,
             inputTemporalMode
           ),
           dataType: fieldEntry.type,
           alias: fieldEntry.alias,
-          domain: fieldDomain,
-        };
-      } else if (!outfields) {
-        // eslint-disable-next-line no-param-reassign
-        featureInfoEntry.fieldInfo[fieldName] = {
-          fieldKey: fieldKeyCounter++,
-          value: callbackGetFieldValue(feature, fieldName, fieldType, inputFormat, inputTimezone, inputTemporalMode),
-          dataType: fieldType,
-          alias: fieldName,
-          domain: fieldDomain,
+          domain: fieldEntry.domain,
         };
       }
     }
@@ -1911,22 +1840,29 @@ export abstract class AbstractGVLayer extends AbstractBaseGVLayer {
 
   /**
    * Retrieves and formats the value of a field from an OpenLayers feature.
-   * For fields of type `date`, the value is normalized and formatted using the
-   * date management utilities. Date values may be provided as epoch milliseconds
-   * or as date strings and are converted to a short ISO-like string.
-   * @param {Feature} feature - The OpenLayers feature containing the field values.
-   * @param {string} fieldName - The name of the field to retrieve.
-   * @param {TypeOutfieldsType} fieldType - The type of the field (e.g. `'string'`, `'number'`, `'date'`).
-   * @param {string | string[] | undefined} [inputFormat] - The format(s) to prioritize for string inputs. Defaults to an ISO-like format.
-   * @param {TimeIANA | undefined} [inputTimezone] - The IANA timezone to assume when interpreting input date values.
-   * @param {TemporalMode | undefined} [inputTemporalMode] - When `calendar`, treats the input as a calendar-date-only value (no timezones). When 'instant', treats the input as moment in time (timezones aware).
-   * @returns {unknown} The formatted field value. For date fields, this is a
-   * formatted date string; for other field types, the raw field value is returned.
+   * - For `date` fields, the raw value (epoch ms or date string) is normalized
+   *   via the date management utilities.
+   * - For fields with a `codedValue` domain, the raw code is resolved to its
+   *   human-readable name. If no matching code is found, the raw value is returned.
+   * - For all other fields, the raw value is returned as-is.
+   *
+   * @param feature - The OpenLayers feature containing the field values.
+   * @param fieldName - The name of the field to retrieve.
+   * @param fieldType - The data type of the field (e.g. `'string'`, `'number'`, `'date'`, `'oid'`).
+   * @param fieldDomain - Optional domain metadata. When present and of type `codedValue`,
+   * the raw field value is mapped to the corresponding coded-value name.
+   * @param inputFormat - Optional format(s) to prioritize when parsing date string inputs.
+   * @param inputTimezone - Optional IANA timezone to assume when interpreting date values.
+   * @param inputTemporalMode - Optional temporal mode. `'calendar'` treats dates as
+   * timezone-agnostic calendar dates; `'instant'` treats them as timezone-aware moments.
+   * @returns The processed field value: a formatted date for date fields, the decoded
+   * name for coded-value domains, or the raw value otherwise.
    */
   static helperGetFieldValue(
     feature: Feature,
     fieldName: string,
     fieldType: TypeOutfieldsType,
+    fieldDomain: codedValueType | rangeDomainType | undefined,
     inputFormat: string | string[] | undefined,
     inputTimezone: TimeIANA | undefined,
     inputTemporalMode: TemporalMode | undefined
@@ -1936,6 +1872,16 @@ export abstract class AbstractGVLayer extends AbstractBaseGVLayer {
       // Read the date
       return DateMgt.createDate(fieldValue, inputFormat, inputTimezone, inputTemporalMode);
     }
+
+    // If the field has a domain
+    if (fieldDomain && fieldDomain.type === 'codedValue') {
+      // Find the coded value corresponding to the value
+      const codedValue = fieldDomain.codedValues.find((cv) => cv.code === fieldValue);
+
+      // Read the value from the domain
+      return codedValue ? codedValue.name : fieldValue;
+    }
+
     return fieldValue;
   }
 
@@ -1948,6 +1894,7 @@ export type GetFieldValueDelegate = (
   feature: Feature,
   fieldName: string,
   fieldType: TypeOutfieldsType,
+  fieldDomain: codedValueType | rangeDomainType | undefined,
   inputFormat: string | string[] | undefined,
   inputTimezone: TimeIANA | undefined,
   inputTemporalMode: TemporalMode | undefined

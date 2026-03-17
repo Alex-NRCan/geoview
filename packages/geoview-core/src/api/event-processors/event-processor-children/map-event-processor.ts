@@ -906,6 +906,9 @@ export class MapEventProcessor extends AbstractEventProcessor {
       return '';
     }
 
+    // If the layer path is set to nothing, done
+    if (!layerPath) return '';
+
     // Redirect to layer to highlight
     MapEventProcessor.getMapViewerLayerAPI(mapId).highlightLayer(layerPath);
 
@@ -1674,8 +1677,8 @@ export class MapEventProcessor extends AbstractEventProcessor {
       },
       controls: layerEntryConfig.getInitialSettings()?.controls,
       bounds: layerEntryConfig.getInitialSettingsBounds(),
-      className: layerEntryConfig.getInitialSettingsClassName(),
       extent: layerEntryConfig.getInitialSettingsExtent(),
+      className: layerEntryConfig.getInitialSettingsClassName(),
       minZoom: layerEntryConfig.getInitialSettings()?.minZoom,
       maxZoom: layerEntryConfig.getInitialSettings()?.maxZoom,
     };
