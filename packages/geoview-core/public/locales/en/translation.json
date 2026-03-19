@@ -216,6 +216,11 @@
     "instructionsNoLayersBody": "Add visible layers on the map.",
     "moreInfo": "More Information",
     "lessInfo": "Less Information",
+    "layerInfoServiceInfo": "Service Information",
+    "layerInfoActiveFilters": "Active Filters",
+    "layerInfoTemporalSettings": "Temporal Settings",
+    "layerInfoTemporalDimension": "Temporal Dimension (Time Slider)",
+    "layerInfoInteraction": "Interaction",
     "layerType": "Type: ",
     "layerBounds": "Bounds (__param__)",
     "layerBounds4326": "Bounds (EPSG:4326)",
@@ -235,8 +240,8 @@
     "layerTimeDimension": "Temporal dimension (time-slider): ",
     "layerTimeDimensionField": "Field: ",
     "layerServiceProjection": "Service projection: ",
-    "layerHoverable": "Info on mouse over",
-    "layerQueryable": "Info on mouse click",
+    "layerHoverable": "Information on mouse over",
+    "layerQueryable": "Queryable on mouse click",
     "noSelection": "No selection",
     "showAllLayers": "Show all layers",
     "hideAllLayers": "Hide all layers",
@@ -274,7 +279,8 @@
       "mosaicOperationSum": "Sum",
       "orderAscending": "Oldest to Newest",
       "orderDescending": "Newest to Oldest",
-      "selectWmsStyle": "Select WMS style"
+      "selectWmsStyle": "Select WMS style",
+      "back": "Back to layer details"
     }
   },
   "details": {

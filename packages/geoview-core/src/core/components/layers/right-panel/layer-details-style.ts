@@ -18,11 +18,6 @@ export const getSxClasses = (theme: Theme): SxStyles => ({
   layerDetails: {
     padding: '16px',
   },
-  buttonDescriptionContainer: {
-    display: 'flex',
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
   itemsGrid: {
     width: '100%',
     '& .MuiGrid-container': {
@@ -73,10 +68,24 @@ export const getSxClasses = (theme: Theme): SxStyles => ({
       },
     },
   },
+  infoSection: {
+    marginBottom: theme.spacing(2),
+  },
+  infoSectionTitle: {
+    fontWeight: 600,
+    fontSize: theme.palette.geoViewFontSize.default,
+    color: theme.palette.geoViewColor.textColor.main,
+    marginBottom: theme.spacing(0.5),
+  },
+  infoSectionContent: {
+    paddingLeft: theme.spacing(1),
+  },
   verticalDivider: {
     width: '1px',
     height: '30px',
     backgroundColor: theme.palette.geoViewColor.bgColor.dark[300],
+    // Absorb flex gap so divider spacing equals half a normal gap on each side (7.5px + 1px + 7.5px)
+    margin: '0 -7.5px',
   },
   layerDetailsListGroup: {
     listStyleType: 'disc',

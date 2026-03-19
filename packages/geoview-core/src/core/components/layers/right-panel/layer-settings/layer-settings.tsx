@@ -1,185 +1,109 @@
-import { useState } from 'react';
+import { useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@mui/material/styles';
-import { Menu, MenuItem, ListItemIcon, ListItemText, IconButton } from '@/ui';
-import { SettingsIcon, FunctionsIcon, CollectionsIcon, PaletteIcon } from '@/ui';
 
-import { getSxClasses } from './layer-settings-style';
-import { useLayerStoreActions } from '@/core/stores/store-interface-and-intial-values/layer-state';
+import { Box, Divider, Typography } from '@/ui';
+import { Switch } from '@/ui/switch/switch';
 
-import { RasterFunctionSelector } from './raster-function-selector';
-import { MosaicRuleSelector } from './mosaic-rule-selector';
-import { WmsStyleSelector } from './wms-style-selector';
+import {
+  useLayerSelectorHasText,
+  useLayerSelectorTextVisibility,
+  useLayerStoreActions,
+} from '@/core/stores/store-interface-and-intial-values/layer-state';
+
+import { getSxClasses } from '../layer-details-style';
+import { RasterFunctionPanel } from './raster-function-selector';
+import { MosaicRulePanel } from './mosaic-rule-selector';
+import { WmsStylePanel } from './wms-style-selector';
 import type { TypeLegendLayer } from '../../types';
 import { logger } from '@/core/utils/logger';
 
-interface LayerSettingsProps {
+interface LayerSettingsPanelProps {
   layerDetails: TypeLegendLayer;
 }
 
-type LayerSettingsTypes = 'rasterFunction' | 'mosaicRule' | 'wmsStyles';
-
-export function LayerSettings({ layerDetails }: LayerSettingsProps): JSX.Element | null {
+/**
+ * Panel view for layer settings content.
+ *
+ * Displays available settings (raster function, mosaic rule, WMS styles,
+ * interaction toggles) as inline collapsible sections. The header and
+ * back navigation are handled by the parent.
+ *
+ * @param layerDetails - The legend layer to configure.
+ */
+export function LayerSettingsPanel({ layerDetails }: LayerSettingsPanelProps): JSX.Element {
   // Log
   logger.logTraceRender('components/layers/right-panel/layer-settings/layer-settings');
 
   // Hooks
+  const { t } = useTranslation<string>();
   const theme = useTheme();
   const sxClasses = getSxClasses(theme);
-  const { t } = useTranslation();
 
-  // Hooks
-  const { getLayerSettings } = useLayerStoreActions();
-  const [settingsAnchorEl, setSettingsAnchorEl] = useState<null | HTMLElement>(null);
-  const [openSettingsType, setOpenSettingsType] = useState<LayerSettingsTypes | null>(null);
-
-  // State
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  // Store
+  const { getLayerSettings, setLayerHoverable, setLayerQueryable, setLayerTextVisibility } = useLayerStoreActions();
   const availableSettings = getLayerSettings(layerDetails.layerPath);
+  const hasText = useLayerSelectorHasText(layerDetails.layerPath);
+  const textVisible = useLayerSelectorTextVisibility(layerDetails.layerPath);
 
-  // Don't render if no settings available
-  if (!availableSettings || availableSettings.length === 0) {
-    return null;
+  // Derived values
+  const isLayerHoverable = layerDetails.controls?.hover;
+  const isLayerQueryable = layerDetails.controls?.query;
+
+  // Stable handlers for hover/query toggles
+  const handleToggleHoverable = useCallback((): void => {
+    setLayerHoverable(layerDetails.layerPath, !layerDetails.hoverable!);
+  }, [layerDetails.layerPath, layerDetails.hoverable, setLayerHoverable]);
+
+  const handleToggleQueryable = useCallback((): void => {
+    setLayerQueryable(layerDetails.layerPath, !layerDetails.queryable!);
+  }, [layerDetails.layerPath, layerDetails.queryable, setLayerQueryable]);
+
+  const handleToggleText = useCallback((): void => {
+    setLayerTextVisibility(layerDetails.layerPath, !textVisible);
+  }, [layerDetails.layerPath, textVisible, setLayerTextVisibility]);
+
+  function renderToggleTextButton(): JSX.Element {
+    return (
+      <Switch
+        size="small"
+        onChange={handleToggleText}
+        label={textVisible ? t('legend.hideText') : t('legend.showText')}
+        checked={textVisible}
+      />
+    );
   }
 
-  const handleClick = (event: React.MouseEvent<HTMLElement>): void => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleClose = (event: {}, reason?: 'backdropClick' | 'escapeKeyDown'): void => {
-    if (reason === 'backdropClick' || reason === 'escapeKeyDown') {
-      setAnchorEl(null);
-      setSettingsAnchorEl(null);
+  function renderInteractionSection(): JSX.Element | null {
+    if (!(isLayerHoverable || isLayerQueryable || hasText)) {
+      return null;
     }
-  };
 
-  const handleKeyDown = (event: React.KeyboardEvent): void => {
-    if (event.key === 'Tab') {
-      event.preventDefault();
-
-      // Get all menu items
-      const menuItems = event.currentTarget.querySelectorAll('[role="menuitem"]');
-      const currentIndex = Array.from(menuItems).findIndex((item) => item === document.activeElement);
-
-      let nextIndex;
-      if (currentIndex === -1) {
-        // No item focused, focus first item
-        nextIndex = 0;
-      } else if (event.shiftKey) {
-        // Shift+Tab: move up
-        nextIndex = currentIndex > 0 ? currentIndex - 1 : menuItems.length - 1;
-      } else {
-        // Tab: move down
-        nextIndex = currentIndex < menuItems.length - 1 ? currentIndex + 1 : 0;
-      }
-
-      (menuItems[nextIndex] as HTMLElement)?.focus();
-    }
-  };
+    return (
+      <Box sx={sxClasses.infoSection}>
+        <Typography sx={sxClasses.infoSectionTitle}>{t('layers.layerInfoInteraction')}</Typography>
+        <Box sx={sxClasses.infoSectionContent}>
+          {isLayerHoverable && (
+            <Switch size="small" onChange={handleToggleHoverable} label={t('layers.layerHoverable')} checked={layerDetails.hoverable} />
+          )}
+          {isLayerQueryable && (
+            <Switch size="small" onChange={handleToggleQueryable} label={t('layers.layerQueryable')} checked={layerDetails.queryable} />
+          )}
+          {hasText && renderToggleTextButton()}
+        </Box>
+      </Box>
+    );
+  }
 
   return (
-    <>
-      <IconButton aria-label={t('layers.settings.title')} className="buttonOutline" onClick={handleClick} tooltipPlacement="bottom">
-        <SettingsIcon />
-      </IconButton>
+    <Box>
+      <Divider sx={{ height: 'auto', marginTop: '10px', marginBottom: '10px' }} variant="middle" />
 
-      <Menu
-        anchorEl={anchorEl}
-        open={Boolean(anchorEl)}
-        onClose={handleClose}
-        onKeyDown={handleKeyDown}
-        disableScrollLock
-        anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
-        transformOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-        sx={sxClasses.layerSettingsMenu}
-        slotProps={{
-          list: {
-            autoFocus: true,
-            autoFocusItem: true,
-          },
-        }}
-      >
-        {availableSettings.includes('rasterFunction') && (
-          <MenuItem
-            selected={Boolean(settingsAnchorEl)}
-            onClick={(event) => {
-              setSettingsAnchorEl(event.currentTarget);
-              setOpenSettingsType('rasterFunction');
-            }}
-          >
-            <ListItemIcon>
-              <FunctionsIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>{t('layers.settings.selectRasterFunction')}</ListItemText>
-          </MenuItem>
-        )}
+      {availableSettings?.includes('rasterFunction') && <RasterFunctionPanel layerDetails={layerDetails} />}
+      {availableSettings?.includes('mosaicRule') && <MosaicRulePanel layerDetails={layerDetails} />}
+      {availableSettings?.includes('wmsStyles') && <WmsStylePanel layerDetails={layerDetails} />}
 
-        {availableSettings.includes('mosaicRule') && (
-          <MenuItem
-            selected={Boolean(settingsAnchorEl)}
-            onClick={(event) => {
-              setSettingsAnchorEl(event.currentTarget);
-              setOpenSettingsType('mosaicRule');
-            }}
-          >
-            <ListItemIcon>
-              <CollectionsIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>{t('layers.settings.updateMosaicRule')}</ListItemText>
-          </MenuItem>
-        )}
-
-        {availableSettings.includes('wmsStyles') && (
-          <MenuItem
-            selected={Boolean(settingsAnchorEl)}
-            onClick={(event) => {
-              setSettingsAnchorEl(event.currentTarget);
-              setOpenSettingsType('wmsStyles');
-            }}
-          >
-            <ListItemIcon>
-              <PaletteIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>{t('layers.settings.selectWmsStyle')}</ListItemText>
-          </MenuItem>
-        )}
-      </Menu>
-
-      {openSettingsType === 'rasterFunction' && (
-        <RasterFunctionSelector
-          layerDetails={layerDetails}
-          anchorEl={settingsAnchorEl}
-          onClose={() => {
-            setSettingsAnchorEl(null);
-            setOpenSettingsType(null);
-          }}
-          onClickOutside={handleClose}
-        />
-      )}
-
-      {openSettingsType === 'mosaicRule' && (
-        <MosaicRuleSelector
-          layerDetails={layerDetails}
-          anchorEl={settingsAnchorEl}
-          onClose={() => {
-            setSettingsAnchorEl(null);
-            setOpenSettingsType(null);
-          }}
-          onClickOutside={handleClose}
-        />
-      )}
-
-      {openSettingsType === 'wmsStyles' && (
-        <WmsStyleSelector
-          layerDetails={layerDetails}
-          anchorEl={settingsAnchorEl}
-          onClose={() => {
-            setSettingsAnchorEl(null);
-            setOpenSettingsType(null);
-          }}
-          onClickOutside={handleClose}
-        />
-      )}
-    </>
+      {renderInteractionSection()}
+    </Box>
   );
 }
