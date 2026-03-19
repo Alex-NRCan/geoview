@@ -1424,15 +1424,13 @@ export class MapEventProcessor extends AbstractEventProcessor {
   /**
    * Set Z index for layers
    *
-   * @param {string} mapId - Id of map to set layer Z indices
-   * @returns {void}
-   * @static
+   * @param mapId - Id of map to set layer Z indices
    */
   static setLayerZIndices = (mapId: string): void => {
     const reversedLayers = [...this.getMapStateProtected(mapId).orderedLayerInfo].reverse();
     reversedLayers.forEach((orderedLayerInfo, index) => {
-      const olLayer = this.getMapViewerLayerAPI(mapId).getOLLayerIfExists(orderedLayerInfo.layerPath);
-      if (olLayer) olLayer?.setZIndex(index + 10);
+      const gvLayer = this.getMapViewerLayerAPI(mapId).getGeoviewLayerIfExists(orderedLayerInfo.layerPath);
+      gvLayer?.setZIndex(index + 10);
     });
   };
 
