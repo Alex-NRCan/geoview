@@ -23,16 +23,11 @@ export type DrawOptions = InteractionOptions & {
 };
 
 /**
- * Class used for drawing features on a map
- *
- * @class Draw
- * @extends {Interaction}
- * @exports
+ * Class used for drawing features on a map.
  */
 export class Draw extends Interaction {
   /** The embedded OpenLayers Draw component. */
-  // eslint-disable-next-line camelcase
-  #ol_draw: OLDraw;
+  #olDraw: OLDraw;
 
   /** Callback handlers for the drawstart event. */
   #onDrawStartHandlers: DrawDelegate[] = [];
@@ -48,7 +43,8 @@ export class Draw extends Interaction {
 
   /**
    * Initializes a Draw component.
-   * @param {DrawOptions} options - Object to configure the initialization of the Draw interaction.
+   *
+   * @param options - Object to configure the initialization of the Draw interaction
    */
   constructor(options: DrawOptions) {
     super(options);
@@ -68,17 +64,17 @@ export class Draw extends Interaction {
     };
 
     // Instantiate the OpenLayers Draw interaction
-    this.#ol_draw = new OLDraw(olOptions);
+    this.#olDraw = new OLDraw(olOptions);
 
     // Register handlers for draw events
-    this.#ol_draw.on('drawstart', this.#emitDrawStart.bind(this));
-    this.#ol_draw.on('drawend', this.#emitDrawEnd.bind(this));
-    this.#ol_draw.on('drawabort', this.#emitDrawAbort.bind(this));
+    this.#olDraw.on('drawstart', this.#emitDrawStart.bind(this));
+    this.#olDraw.on('drawend', this.#emitDrawEnd.bind(this));
+    this.#olDraw.on('drawabort', this.#emitDrawAbort.bind(this));
 
     // Create and store the keyboard handler
     this.#keyboardHandler = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && this.#ol_draw.getActive()) {
-        this.#ol_draw.abortDrawing();
+      if (event.key === 'Escape' && this.#olDraw.getActive()) {
+        this.#olDraw.abortDrawing();
       }
     };
 
@@ -87,30 +83,28 @@ export class Draw extends Interaction {
   }
 
   /**
-   * Starts the interaction on the map
-   * @override
+   * Starts the interaction on the map.
    */
   override startInteraction(): void {
     // Redirect to super method to start interaction
-    super.startInteraction(this.#ol_draw);
+    super.startInteraction(this.#olDraw);
   }
 
   /**
-   * Stops the interaction on the map
-   * @override
+   * Stops the interaction on the map.
    */
   override stopInteraction(): void {
     // Remove the keyboard event listener
     document.removeEventListener('keydown', this.#keyboardHandler);
 
     // Redirect to super method to stop interaction
-    super.stopInteraction(this.#ol_draw);
+    super.stopInteraction(this.#olDraw);
   }
 
   /**
-   * Emits the drawstart event the all registered handlers.
-   * @param {OLDrawEvent} event - The event to emit.
-   * @private
+   * Emits the drawstart event to all registered handlers.
+   *
+   * @param event - The event to emit
    */
   #emitDrawStart(event: OLDrawEvent): void {
     // Emit the drawstart event
@@ -119,7 +113,8 @@ export class Draw extends Interaction {
 
   /**
    * Registers a callback handler for the drawstart event.
-   * @param {DrawDelegate} callback - The callback to be executed whenever the event is emitted.
+   *
+   * @param callback - The callback to be executed whenever the event is emitted
    */
   onDrawStart(callback: DrawDelegate): void {
     // Register the drawstart event callback
@@ -128,7 +123,8 @@ export class Draw extends Interaction {
 
   /**
    * Unregisters a callback handler for the drawstart event.
-   * @param {DrawDelegate} callback - The callback to stop being called whenever the event is emitted.
+   *
+   * @param callback - The callback to stop being called whenever the event is emitted
    */
   offDrawStart(callback: DrawDelegate): void {
     // Unregister the drawstart event callback
@@ -136,9 +132,9 @@ export class Draw extends Interaction {
   }
 
   /**
-   * Emits the drawend event the all registered handlers.
-   * @param {OLDrawEvent} event - The event to emit.
-   * @private
+   * Emits the drawend event to all registered handlers.
+   *
+   * @param event - The event to emit
    */
   #emitDrawEnd(event: OLDrawEvent): void {
     // Emit the drawend event
@@ -147,7 +143,8 @@ export class Draw extends Interaction {
 
   /**
    * Registers a callback handler for the drawend event.
-   * @param {DrawDelegate} callback - The callback to be executed whenever the event is emitted.
+   *
+   * @param callback - The callback to be executed whenever the event is emitted
    */
   onDrawEnd(callback: DrawDelegate): void {
     // Register the drawend event callback
@@ -156,7 +153,8 @@ export class Draw extends Interaction {
 
   /**
    * Unregisters a callback handler for the drawend event.
-   * @param {DrawDelegate} callback - The callback to stop being called whenever the event is emitted.
+   *
+   * @param callback - The callback to stop being called whenever the event is emitted
    */
   offDrawEnd(callback: DrawDelegate): void {
     // Unregister the drawend event callback
@@ -164,9 +162,9 @@ export class Draw extends Interaction {
   }
 
   /**
-   * Emits the drawabort event the all registered handlers.
-   * @param {OLDrawEvent} event - The event to emit.
-   * @private
+   * Emits the drawabort event to all registered handlers.
+   *
+   * @param event - The event to emit
    */
   #emitDrawAbort(event: OLDrawEvent): void {
     // Emit the drawabort event
@@ -175,7 +173,8 @@ export class Draw extends Interaction {
 
   /**
    * Registers a callback handler for the drawabort event.
-   * @param {DrawDelegate} callback - The callback to be executed whenever the event is emitted.
+   *
+   * @param callback - The callback to be executed whenever the event is emitted
    */
   onDrawAbort(callback: DrawDelegate): void {
     // Register the drawabort event callback
@@ -184,7 +183,8 @@ export class Draw extends Interaction {
 
   /**
    * Unregisters a callback handler for the drawabort event.
-   * @param {DrawDelegate} callback - The callback to stop being called whenever the event is emitted.
+   *
+   * @param callback - The callback to stop being called whenever the event is emitted
    */
   offDrawAbort(callback: DrawDelegate): void {
     // Unregister the drawabort event callback
@@ -193,6 +193,6 @@ export class Draw extends Interaction {
 }
 
 /**
- * Define a delegate for the event handler function signature
+ * Delegate for the draw event handler function signature.
  */
 type DrawDelegate = EventDelegateBase<Draw, OLDrawEvent, void>;

@@ -132,6 +132,35 @@ import { MapEventProcessor } from "@/api/event-processors";
 ### Component Export Patterns
 
 - **Named exports** (not default exports): `export function MyComponent()` or `export const MyComponent = ...`
+### Class Property Comments
+
+All class properties (public, private, static, readonly) must use JSDoc-style `/** ... */` single-line comments — never `//` line comments:
+
+```typescript
+// ❌ Bad: line comment on class property
+// the id of the map
+mapId: string;
+
+// ✅ Good: JSDoc single-line comment
+/** The id of the map */
+mapId: string;
+```
+
+Each comment must be **specific** to the property it describes. Avoid generic/repeated descriptions:
+
+```typescript
+// ❌ Bad: generic, repeated across all handler arrays
+/** Keep all callback delegates references */
+#onMapInitHandlers: MapInitDelegate[] = [];
+/** Keep all callback delegates references */
+#onMapReadyHandlers: MapReadyDelegate[] = [];
+
+// ✅ Good: specific to each property
+/** Callback delegates for the map init event */
+#onMapInitHandlers: MapInitDelegate[] = [];
+/** Callback delegates for the map ready event */
+#onMapReadyHandlers: MapReadyDelegate[] = [];
+```
 
 ### Inheritance & Polymorphism
 
@@ -419,19 +448,86 @@ JSDoc should NOT:
 
 **Recommended Tags:**
 
-- `@param` - Parameter descriptions
+- `@param` - Parameter descriptions. Add **Optional** for optional parameter (e.g., `@param signal - Optional abort signal for request cancellation`)
 - `@returns` - Return value descriptions
-- `@throws` - Document thrown exceptions (@throws {TheErrorType} (description)  e.g. @throws {LayerNotGeoJsonError} When ...)
+  - For methods returning a `Promise`, `@returns` must start with **"A promise that resolves..."** (e.g., `@returns A promise that resolves with the parsed metadata`)
+  - When the return type includes `| undefined`, mention `undefined` in the `@returns` description
+- `@throws` - Document thrown exceptions. Description **must** start with **"When"** (e.g., `@throws {LayerNotGeoJsonError} When the layer type is not GeoJSON`)
 - `@example` - Usage examples
 - `@deprecated` - Mark deprecated APIs
 - `@see` - Reference related code
 
-**Tags to Avoid in TypeScript** (use TS keywords instead):
+**Tags to Avoid in TypeScript** (use TS keywords or omit entirely):
 
 - `@private`, `@protected`, `@public` - Use TS visibility modifiers
 - `@readonly` - Use TS `readonly` keyword
 - `@override` - Use TS `override` keyword
 - `@static` - Use TS `static` keyword
+- `@exports`, `@class` - Unnecessary, TypeScript `export` and `class` keywords are sufficient
+- `@abstract` - Use TS `abstract` keyword
+- `@async` - TypeScript already indicates async via `async` keyword and `Promise` return type
+- `@description` - Redundant, the JSDoc block description itself serves this purpose
+- `@fires` - Not used in this project
+- `@return` - Use `@returns` (with trailing "s") consistently
+
+**Additional `@returns` Rules:**
+
+- Use `@returns` (with trailing "s"), never `@return`
+- **No `@returns` for void methods** — omit the tag entirely
+- `@returns` should describe the **semantics** of the return value, not just mirror the TypeScript type:
+
+```typescript
+// ❌ Bad: mirrors the type
+/** @returns Map of string to promise of string */
+
+// ✅ Good: describes semantics
+/** @returns A map of raster function names to their preview image promises */
+```
+
+- No trailing periods on `@param` and `@returns` descriptions:
+
+```typescript
+// ❌ Bad: trailing period
+/** @param layerPath - Target layer path. */
+
+// ✅ Good: no trailing period
+/** @param layerPath - Target layer path */
+```
+
+**`@param` for AbortController:**
+
+When a parameter is an `AbortController`, use `{@link AbortController}` in the description:
+
+```typescript
+// ✅ Good: uses {@link}
+/** @param abortController - Optional {@link AbortController} to cancel the request */
+```
+
+**Override Methods Must Document All Parameters:**
+
+When overriding a parent method, document ALL parameters in the override's JSDoc, even if the parent already documents them. Each override should be self-contained:
+
+```typescript
+// ❌ Bad: only documents one of five params
+/**
+ * Formats feature info results.
+ *
+ * @param features - The features to format
+ */
+override formatFeatureInfoResult(features, layerConfig, dateFormat, timezone, mode) {}
+
+// ✅ Good: documents all params
+/**
+ * Formats feature info results.
+ *
+ * @param features - The features to format
+ * @param layerConfig - The layer configuration
+ * @param dateFormat - The date format string
+ * @param timezone - The service date timezone
+ * @param mode - The service date temporal mode
+ */
+override formatFeatureInfoResult(features, layerConfig, dateFormat, timezone, mode) {}
+```
 
 **Format Structure:**
 
@@ -443,15 +539,58 @@ JSDoc should NOT:
 6. `@returns` (if applicable)
 7. `@throws` (if applicable)
 
+**@param Best Practices:**
+
+- **Don't explode props from library wrappers:** When wrapping Material-UI components or other libraries, reference the interface instead of listing each property:
+
+```typescript
+/**
+ * AppBar with fade-in animation.
+ *
+ * Wraps Material-UI's AppBar with animations.
+ * All Material-UI AppBar props are supported.
+ *
+ * @param props - Material-UI AppBar properties (see MUI docs)
+ * @returns Animated AppBar element
+ */
+function AppBarUI(props: AppBarProps): JSX.Element {}
+```
+
+- **Do explode custom props for domain-specific interfaces:** When you define the interface and it has non-obvious behavior or constraints:
+
+```typescript
+/**
+ * Accordion with loading states.
+ *
+ * Manages section expansion and animation states.
+ *
+ * @param props - Accordion configuration (see AccordionProps interface)
+ * @returns Rendered accordion
+ */
+function Accordion(props: AccordionProps): JSX.Element {}
+```
+
+- **Single parameters:** Describe them individually when function signature is clear:
+
+```typescript
+/**
+ * Updates layer visibility state.
+ *
+ * @param layerPath - Target layer path
+ * @param visible - New visibility state
+ */
+function setLayerVisibility(layerPath: string, visible: boolean): void {}
+```
+
 **Examples:**
 
 ```typescript
 /**
  * Fetches layer metadata from GeoCore.
  *
- * @param geoviewLayerId - UUID of the GeoView layer.
- * @param signal - Optional abort signal for request cancellation.
- * @returns Parsed layer metadata object.
+ * @param geoviewLayerId - UUID of the GeoView layer
+ * @param signal - Optional abort signal for request cancellation
+ * @returns A promise that resolves with the parsed layer metadata object
  */
 async function fetchMetadata(
   geoviewLayerId: string,
@@ -465,11 +604,52 @@ async function fetchMetadata(
  * It dispatches an event to the EventProcessor, which
  * will trigger the appropriate GeoView API call.
  *
- * @param layerPath - Target layer path.
- * @param visible - New visibility state.
+ * @param layerPath - Target layer path
+ * @param visible - New visibility state
  */
 function setLayerVisibility(layerPath: string, visible: boolean): void {}
 ```
+
+**Handler Comment Pattern:**
+
+Event handlers in React components should use JSDoc-style comments with a single concise description. Handler comments should describe WHAT the handler does (the action) without documenting parameters/returns (parameters are self-documenting via event object property names).
+
+Use `#region Handlers` / `#endregion` to group related handlers for clarity.
+
+**Pattern Structure:**
+
+```typescript
+// #region Handlers
+
+/**
+ * Handles when the user clicks on the element
+ */
+const handleClick = useCallback(() => {
+  logger.logTraceUseCallback("COMPONENT_NAME - action");
+  // Implementation
+}, [dependencies]);
+
+/**
+ * Handles keyboard events on the element
+ */
+const handleKeyDown = useCallback(
+  (event: React.KeyboardEvent) => {
+    logger.logTraceUseCallback("COMPONENT_NAME - action");
+    // Implementation
+  },
+  [dependencies],
+);
+
+// #endregion
+```
+
+**Guidelines:**
+
+- **Comment format**: JSDoc block with single sentence describing what happens
+- **Naming**: Use verb-based names like `handleClick`, `handleToggle`, `handleMenuItemClick`, `handleClickAway`
+- **No @param/@returns tags**: Handler parameters are event objects with self-documenting property names
+- **Group with regions**: Use `#region Handlers` / `#endregion` comments to organize multiple handlers
+- **Logger pattern**: Include `logger.logTraceUseCallback()` with component name and action description
 
 **TypeDoc Generation:** Run `npm run doc` in geoview-core to generate API documentation.
 
