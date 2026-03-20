@@ -115,8 +115,21 @@ export abstract class AbstractGVVector extends AbstractGVLayer {
       };
 
       // Set declutterMode on layer options if specified
-      if (layerConfig.getLayerText()?.declutterMode) {
-        textLayerOptions.declutter = layerConfig.getLayerText()?.declutterMode;
+      const declutterMode = layerConfig.getLayerText()?.declutterMode;
+      if (declutterMode) {
+        textLayerOptions.declutter = declutterMode;
+      }
+
+      // Set minZoom for text layer if specified in layerText config
+      const textMinZoom = layerConfig.getLayerText()?.minZoomLevel;
+      if (textMinZoom) {
+        textLayerOptions.minZoom = textMinZoom;
+      }
+
+      // Set maxZoom for text layer if specified in layerText config
+      const textMaxZoom = layerConfig.getLayerText()?.maxZoomLevel;
+      if (textMaxZoom) {
+        textLayerOptions.maxZoom = textMaxZoom;
       }
 
       // Init the text layer options with initial settings
@@ -183,7 +196,7 @@ export abstract class AbstractGVVector extends AbstractGVLayer {
     // Call parent to handle geometry layer
     super.onSetOpacity(opacity, emitOpacityChanged);
 
-    // Sync text layer opacity if it exists
+    // Set opacity for text layer if it exists
     this.#textOLLayer?.setOpacity(opacity);
   }
 
