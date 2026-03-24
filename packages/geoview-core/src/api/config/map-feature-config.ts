@@ -28,22 +28,22 @@ import { deepMerge } from '@/core/utils/utilities';
  * The map feature configuration class.
  */
 export class MapFeatureConfig {
-  /** map configuration. */
+  /** Map configuration. */
   map: TypeMapConfig;
 
   /** Display theme, default = geo.ca. */
   theme?: TypeDisplayTheme;
 
-  /** Nav bar properies. */
+  /** Nav bar properties. */
   navBar?: TypeValidNavBarProps[];
 
-  /** Footer bar properies. */
+  /** Footer bar properties. */
   footerBar?: TypeFooterBarProps;
 
-  /** App bar properies. */
+  /** App bar properties. */
   appBar?: TypeAppBarProps;
 
-  /** Overview map properies. */
+  /** Overview map properties. */
   overviewMap?: TypeOverviewMapProps;
 
   /** Map components. */
@@ -58,7 +58,7 @@ export class MapFeatureConfig {
   /** List of external packages. */
   externalPackages?: TypeExternalPackagesProps[];
 
-  /** Global map settings */
+  /** Global map settings. */
   globalSettings: TypeGlobalSettings;
 
   /** Service URLs. */
@@ -71,13 +71,12 @@ export class MapFeatureConfig {
   schemaVersionUsed?: TypeValidVersions;
 
   /**
-   * The class constructor
+   * Creates an instance of MapFeatureConfig.
    *
    * All properties at this inheritance level have no values provided in the metadata. They are therefore initialized
    * from the configuration passed as a parameter or from the default values.
    *
-   * @param {TypeMapFeaturesInstance} userMapFeatureConfig - The map feature configuration to instantiate.
-   * @constructor
+   * @param userMapFeatureConfig - The map feature configuration to instantiate
    */
   constructor(userMapFeatureConfig: TypeMapFeaturesInstance) {
     // Clone the map config as received by the user
@@ -118,10 +117,10 @@ export class MapFeatureConfig {
   }
 
   /**
-   * Get the default values for the mapFeatureConfig.map using the projection code.
-   * @param {TypeValidMapProjectionCodes?} projection - The projection code.
-   * @returns {TypeMapConfig} The default map configuration associated to the projection.
-   * @static @private
+   * Gets the default values for the mapFeatureConfig.map using the projection code.
+   *
+   * @param projection - Optional projection code
+   * @returns The default map configuration associated to the projection
    */
   static #getDefaultMapConfig(projection?: TypeValidMapProjectionCodes): TypeMapConfig {
     // Clone the default config, because we want to start from it and modify it
