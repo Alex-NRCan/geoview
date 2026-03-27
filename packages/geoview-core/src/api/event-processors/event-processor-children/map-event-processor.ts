@@ -72,6 +72,7 @@ import { ConfigBaseClass } from '@/api/config/validation-classes/config-base-cla
 import { InvalidExtentError, NoBoundsError, PluginError } from '@/core/exceptions/geoview-exceptions';
 import { AbstractGVVectorTile } from '@/geo/layer/gv-layers/vector/abstract-gv-vector-tile';
 import { AbstractBaseLayerEntryConfig } from '@/api/config/validation-classes/abstract-base-layer-entry-config';
+import { VectorLayerEntryConfig } from '@/api/config/validation-classes/vector-layer-entry-config';
 import { GroupLayerEntryConfig } from '@/api/config/validation-classes/group-layer-entry-config';
 import type { TypeTimeSliderProps } from '@/core/stores/store-interface-and-intial-values/time-slider-state';
 import { Fetch } from '@/core/utils/fetch-helper';
@@ -1756,6 +1757,8 @@ export class MapEventProcessor extends AbstractEventProcessor {
     const layerStyle =
       legendLayerInfo!.styleConfig && (!isGeocore || overrideGeocoreServiceNames === true) ? legendLayerInfo!.styleConfig : undefined;
 
+    const layerText = layerEntryConfig instanceof VectorLayerEntryConfig ? layerEntryConfig.getLayerText() : undefined;
+
     // Construct layer entry config
     const newLayerEntryConfig = {
       layerId: layerEntryConfig.layerId,
@@ -1763,6 +1766,7 @@ export class MapEventProcessor extends AbstractEventProcessor {
       layerFilter: AbstractBaseLayerEntryConfig.getClassOrTypeLayerFilter(configLayerEntryConfig),
       initialSettings,
       layerStyle,
+      layerText,
       entryType: listOfLayerEntryConfig.length ? 'group' : undefined,
       source: listOfLayerEntryConfig.length ? undefined : source,
       listOfLayerEntryConfig: listOfLayerEntryConfig.length ? listOfLayerEntryConfig : undefined,
