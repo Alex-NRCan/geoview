@@ -10,7 +10,7 @@ import { animated } from '@react-spring/web';
 import { UseHtmlToReact } from '@/core/components/common/hooks/use-html-to-react';
 
 import { IconButton } from '@/ui/icon-button/icon-button';
-import { CloseIcon } from '@/ui/icons/index';
+import { CloseIcon } from '@/ui/icons';
 import { getSxClasses } from '@/ui/modal/modal-style';
 import { useFadeIn } from '@/core/utils/useSpringAnimations';
 import { logger } from '@/core/utils/logger';
@@ -225,8 +225,8 @@ function ModalUI(props: DialogPropsExtend): JSX.Element {
   /**
    * to return the updated / newly-created modal
    *
-   * @param { TypeModalProps } modal the object with modal properties
-   * @returns { JSX.Element } JSX for the newly created / updated modal
+   * @param modal the object with modal properties
+   * @returns JSX for the newly created / updated modal
    */
   const createdModal = (modal: TypeModalProps): JSX.Element => {
     // eslint-disable-next-line react/no-unstable-nested-components

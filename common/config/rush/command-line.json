@@ -23,7 +23,15 @@
       "commandKind": "bulk",
       "name": "build",
       "summary": "Build the packages and move them to the dist directory",
-      "enableParallelism": false,
+      "enableParallelism": true,
+      "ignoreMissingScript": true,
+      "allowWarningsInSuccessfulBuild": true
+    },
+    {
+      "commandKind": "bulk",
+      "name": "build-dev",
+      "summary": "Fast development build: skips formatting, linting, typedoc, minification, bundle analysis, and compression",
+      "enableParallelism": true,
       "ignoreMissingScript": true,
       "allowWarningsInSuccessfulBuild": true
     }

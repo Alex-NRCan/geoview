@@ -5,18 +5,16 @@ import type { SelectChangeEvent } from '@mui/material';
 import type { ButtonPropsLayerPanel } from '@/ui';
 import { Box, Button, IconButton, ButtonGroup, CircularProgressBase, FileUploadIcon, Paper, Select, Stepper, TextField } from '@/ui';
 import { useGeoViewMapId } from '@/core/stores/geoview-store';
-import { useLayerStoreActions } from '@/core/stores/store-interface-and-intial-values/layer-state';
+import { setStoreLayerDisplayState } from '@/core/stores/store-interface-and-intial-values/layer-state';
 import {
   useAppDisabledLayerTypes,
   useAppDisplayLanguage,
   useAppShellContainer,
-  useAppStoreActions,
 } from '@/core/stores/store-interface-and-intial-values/app-state';
 import { ConfigApi } from '@/api/config/config-api';
 import { logger } from '@/core/utils/logger';
 import { generateId, getLocalizedMessage, isValidUUID, validateAndPingUrl } from '@/core/utils/utilities';
 import { Config } from '@/api/config/config';
-import { MapEventProcessor } from '@/api/event-processors/event-processor-children/map-event-processor';
 import type { AbstractGeoViewLayer } from '@/geo/layer/geoview-layers/abstract-geoview-layers';
 import type {
   GeoPackageLayerConfig,
@@ -33,8 +31,10 @@ import { UtilAddLayer } from '@/core/components/layers/left-panel/add-new-layer/
 import { AddLayerTree } from '@/core/components/layers/left-panel/add-new-layer/add-layer-tree';
 import { ShapefileReader } from '@/api/config/reader/shapefile-reader';
 import { GeoPackageReader } from '@/api/config/reader/geopackage-reader';
-import type { GeoViewLayerAddedResult } from '@/geo/layer/layer';
+import { useLayerCreatorController, type GeoViewLayerAddedResult } from '@/core/controllers/layer-creator-controller';
 import type { GeoViewError } from '@/core/exceptions/geoview-exceptions';
+import { useUIController } from '@/core/controllers/ui-controller';
+import { useMapController } from '@/core/controllers/map-controller';
 
 const sxClasses = {
   buttonGroup: {
@@ -56,12 +56,12 @@ interface FileUploadSectionProps {
 /**
  * A component that handles file uploads through drag-and-drop or file input
  * @component
- * @param {object} props - Component props
- * @param {function} props.onFileSelected - Callback when a file is selected, receives (file, fileURL, fileName)
- * @param {function} props.onUrlChanged - Callback when the URL input changes, receives the new URL
- * @param {string} props.displayURL - The URL to display in the text field
- * @param {string[]} props.disabledLayerTypes - Array of layer types that are disabled
- * @returns {JSX.Element} The rendered component
+ * @param props - Component props
+ * @param props.onFileSelected - Callback when a file is selected, receives (file, fileURL, fileName)
+ * @param props.onUrlChanged - Callback when the URL input changes, receives the new URL
+ * @param props.displayURL - The URL to display in the text field
+ * @param props.disabledLayerTypes - Array of layer types that are disabled
+ * @returns The rendered component
  */
 function FileUploadSection({
   onFileSelected,
@@ -75,7 +75,7 @@ function FileUploadSection({
 
   // Hook
   const { t } = useTranslation<string>();
-  const { addMessage } = useAppStoreActions();
+  const uiController = useUIController();
 
   // State
   const [localDisplayURL, setLocalDisplayURL] = useState(displayURL);
@@ -88,9 +88,8 @@ function FileUploadSection({
   /**
    * Process a file for upload and notify the parent component
    *
-   * @param {File} file - The file to process (JSON, GeoJSON, ZIP, SHP or CSV)
-   * @returns {void}
-   * @throws {Error} Shows an error notification if file type is not supported
+   * @param file - The file to process (JSON, GeoJSON, ZIP, SHP or CSV)
+   * @throws {Error} When file type is not supported
    */
   const processFile = (file: File): void => {
     const upFilename = file.name.toUpperCase();
@@ -114,15 +113,14 @@ function FileUploadSection({
       onFileSelected(file, fileURL, fileName);
     } else {
       // Handle error
-      addMessage('error', 'layers.errorFile', [], true);
+      uiController.addMessage('error', 'layers.errorFile', [], true);
     }
   };
 
   /**
    * Handle file selection from the file input element
    *
-   * @param {ChangeEvent<HTMLInputElement>} event - The change event from the file input
-   * @returns {void}
+   * @param event - The change event from the file input
    */
   const handleChange = (event: ChangeEvent<HTMLInputElement>): void => {
     if (event.target.files && event.target.files.length > 0) {
@@ -133,8 +131,7 @@ function FileUploadSection({
   /**
    * Handle URL input changes in the text field
    *
-   * @param {ChangeEvent<HTMLInputElement>} event - The change event from the text input
-   * @returns {void}
+   * @param event - The change event from the text input
    */
   const handleInput = (event: ChangeEvent<HTMLInputElement>): void => {
     const url = event.target.value.trim();
@@ -145,8 +142,7 @@ function FileUploadSection({
   /**
    * Handle file drop events in the dropzone
    *
-   * @param {React.DragEvent<HTMLDivElement>} event - The drag event containing dropped files
-   * @returns {void}
+   * @param event - The drag event containing dropped files
    */
 
   const handleDrop = (event: React.DragEvent<HTMLDivElement>): void => {
@@ -250,7 +246,7 @@ function FileUploadSection({
  * including uploading files (JSON, GeoJSON, CSV, ZIP, SHP), entering URLs, selecting layer types,
  * and configuring layer options. It uses a stepper UI to break the process into manageable steps.
  *
- * @returns {JSX.Element} The rendered component with a multi-step form for adding layers
+ * @returns The rendered component with a multi-step form for adding layers
  */
 export function AddNewLayer(): JSX.Element {
   // Log
@@ -284,11 +280,12 @@ export function AddNewLayer(): JSX.Element {
 
   // Store
   const mapId = useGeoViewMapId();
-  const { addMessage } = useAppStoreActions();
+  const uiController = useUIController();
   const disabledLayerTypes = useAppDisabledLayerTypes();
-  const { setDisplayState } = useLayerStoreActions();
   const language = useAppDisplayLanguage();
   const shellContainer = useAppShellContainer();
+  const mapController = useMapController();
+  const layerCreatorController = useLayerCreatorController();
 
   // List of layer types and labels (Step 2)
   const layerOptions = UtilAddLayer.getLocalizeLayerType(language, false);
@@ -302,7 +299,7 @@ export function AddNewLayer(): JSX.Element {
    */
   const emitErrorEmpty = (textField: string): void => {
     setIsLoading(false);
-    addMessage('error', 'layers.errorEmpty', [textField], false);
+    uiController.addMessage('error', 'layers.errorEmpty', [textField], false);
   };
 
   /**
@@ -312,7 +309,7 @@ export function AddNewLayer(): JSX.Element {
    */
   const emitErrorNone = (): void => {
     setIsLoading(false);
-    addMessage('error', 'layers.errorNone', [], false);
+    uiController.addMessage('error', 'layers.errorNone', [], false);
   };
 
   /**
@@ -322,7 +319,7 @@ export function AddNewLayer(): JSX.Element {
    */
   const emitErrorDisabled = (disabledType: string): void => {
     setIsLoading(false);
-    addMessage('error', 'layers.errorDisabled', [disabledType], false);
+    uiController.addMessage('error', 'layers.errorDisabled', [disabledType], false);
   };
 
   /**
@@ -332,7 +329,7 @@ export function AddNewLayer(): JSX.Element {
    */
   const emitErrorServer = (serviceName: string): void => {
     setIsLoading(false);
-    addMessage('error', 'layers.errorServer', [serviceName], false);
+    uiController.addMessage('error', 'layers.errorServer', [serviceName], false);
   };
 
   // #endregion
@@ -352,14 +349,16 @@ export function AddNewLayer(): JSX.Element {
   const doneAdding = (): void => {
     // Done adding
     setIsLoading(false);
-    setDisplayState('view');
-    MapEventProcessor.setLayerZIndices(mapId);
+    setStoreLayerDisplayState(mapId, 'view');
+    mapController.setLayerZIndices();
   };
 
   const doneAddedShowMessage = (layerBeingAdded: AbstractGeoViewLayer): void => {
-    if (layerBeingAdded.allLayerStatusAreGreaterThanOrEqualTo('error')) addMessage('error', 'layers.layerAddedWithError', [layerName]);
-    else if (layerBeingAdded?.allLayerStatusAreGreaterThanOrEqualTo('loaded')) addMessage('info', 'layers.layerAdded', [layerName]);
-    else addMessage('info', 'layers.layerAddedAndLoading', [layerName]);
+    if (layerBeingAdded.allLayerStatusAreGreaterThanOrEqualTo('error'))
+      uiController.addMessage('error', 'layers.layerAddedWithError', [layerName]);
+    else if (layerBeingAdded?.allLayerStatusAreGreaterThanOrEqualTo('loaded'))
+      uiController.addMessage('info', 'layers.layerAdded', [layerName]);
+    else uiController.addMessage('info', 'layers.layerAddedAndLoading', [layerName]);
   };
 
   // #region HANDLERS FOR THE STEPS
@@ -368,7 +367,6 @@ export function AddNewLayer(): JSX.Element {
    * Handle the first step of the layer addition process
    * Validates the layer URL and attempts to guess the layer type.
    * If valid, advances to the next step.
-   * @returns {void}
    */
   const handleStep1 = (): void => {
     // If we return here after step 2, URL/UUID and type will be out of sync
@@ -395,7 +393,6 @@ export function AddNewLayer(): JSX.Element {
    *
    * @description Loads metadata for the selected layer type and URL,
    * populates the layer list, and prepares for layer selection.
-   * @returns {void}
    */
   const handleStep2 = (): void => {
     setIsLoading(true);
@@ -508,7 +505,6 @@ export function AddNewLayer(): JSX.Element {
    * @description Validates layer selection and name,
    * and either advances to the final step or completes the process
    * depending on whether multiple layers are selected.
-   * @returns {void}
    */
   const handleStep3 = (): void => {
     let valid = true;
@@ -531,8 +527,8 @@ export function AddNewLayer(): JSX.Element {
 
   /**
    * Creates a full geoview config from the basic one supplied, modifies it and adds it to map.
-   * @param {MapConfigLayerEntry} newGeoViewLayer - The config of the layer to add.
-   * @returns {Promise<void>}
+   * @param newGeoViewLayer - The config of the layer to add
+   * @returns A Promise that resolves when the layer is added
    */
   const addGeoviewLayer = async (newGeoViewLayer: MapConfigLayerEntry): Promise<void> => {
     // Create new abort controller to handle canceling of this step.
@@ -563,7 +559,7 @@ export function AddNewLayer(): JSX.Element {
       logger.logWarning(`- Map ${mapId}: ${message}`);
 
       // Show the error using its key (which will get translated)
-      addMessage('error', gvError.messageKey, gvError.messageParams);
+      uiController.addMessage('error', gvError.messageKey, gvError.messageParams);
     });
 
     if (configObj?.length) {
@@ -572,9 +568,8 @@ export function AddNewLayer(): JSX.Element {
 
       logger.logDebug('newGeoViewLayer to add', configObj[0]);
 
-      // TODO: REFACTOR - Add the layer using the proper function - use a state action
-      const addedLayer: GeoViewLayerAddedResult = MapEventProcessor.addGeoviewLayer(
-        mapId,
+      // Add the layer through the controller
+      const addedLayer: GeoViewLayerAddedResult = layerCreatorController.addGeoviewLayer(
         configObj[0] as TypeGeoviewLayerConfig,
         abortController.signal
       );
@@ -600,7 +595,6 @@ export function AddNewLayer(): JSX.Element {
    *
    * @description Creates and adds the configured layer to the map,
    * shows appropriate notifications, and returns to the layer panel.
-   * @returns {void}
    */
   const handleStepLast = (): void => {
     setIsLoading(true);
@@ -620,7 +614,7 @@ export function AddNewLayer(): JSX.Element {
     else {
       // Remove spinning circle if failed.
       doneAdding();
-      addMessage('error', 'layers.errorNotLoaded', [layerName]);
+      uiController.addMessage('error', 'layers.errorNotLoaded', [layerName]);
       logger.logError('Unable to load layer');
     }
   };
@@ -647,7 +641,7 @@ export function AddNewLayer(): JSX.Element {
   /**
    * Set layerType from form input (Step 2)
    *
-   * @param {SelectChangeEvent<unknown>} event - TextField event
+   * @param event - TextField event
    */
   const handleSelectType = (event: SelectChangeEvent<unknown>): void => {
     setLayerType(event.target.value as TypeInitialGeoviewLayerType);
@@ -661,7 +655,7 @@ export function AddNewLayer(): JSX.Element {
   /**
    * Set the layer name from form input (Step 3)
    *
-   * @param {ChangeEvent<HTMLInputElement>} event - TextField event
+   * @param event - TextField event
    */
   const handleNameLayer = (event: ChangeEvent<HTMLInputElement>): void => {
     setStepButtonEnabled(true);
@@ -671,7 +665,7 @@ export function AddNewLayer(): JSX.Element {
   /**
    * Handle keydowns on back button
    *
-   * @param {KeyboardEvent<HTMLButtonElement>} event - Keyboard event
+   * @param event - Keyboard event
    */
   const handleBackKeyDown = (event: KeyboardEvent<HTMLButtonElement>): void => {
     if (event.key === 'Enter') {
@@ -682,7 +676,7 @@ export function AddNewLayer(): JSX.Element {
 
   /**
    * Handle keydowns on continue/finish button
-   * @param {KeyboardEvent<HTMLButtonElement>} event - Keyboard event
+   * @param event - Keyboard event
    */
   const handleNextKeyDown = (event: KeyboardEvent<HTMLButtonElement> | KeyboardEvent<HTMLDivElement>): void => {
     if (event.key === 'Enter' && stepButtonEnabled) {
@@ -709,10 +703,9 @@ export function AddNewLayer(): JSX.Element {
   /**
    * Handle file selection from the FileUploadSection component
    *
-   * @param {File} file - The selected file object
-   * @param {string} fileURL - The blob URL created for the file
-   * @param {string} fileName - The name of the file without extension
-   * @returns {void}
+   * @param file - The selected file object
+   * @param fileURL - The blob URL created for the file
+   * @param fileName - The name of the file without extension
    * @description Updates state with file information and enables the continue button
    */
   const handleFileSelected = (file: File, fileURL: string, fileName: string): void => {
@@ -729,8 +722,7 @@ export function AddNewLayer(): JSX.Element {
   /**
    * Handle URL input changes from the FileUploadSection component
    *
-   * @param {string} url - The URL entered by the user
-   * @returns {void}
+   * @param url - The URL entered by the user
    * @description Updates state with the new URL and resets related fields
    */
   const handleUrlChanged = (url: string): void => {
@@ -764,9 +756,9 @@ export function AddNewLayer(): JSX.Element {
             const isOk = check.isValid && check.isReachable;
             setStepButtonEnabled(isOk);
             if (!isOk && check.error) {
-              addMessage('error', 'layers.errorUrlUnreachable', [], false);
+              uiController.addMessage('error', 'layers.errorUrlUnreachable', [], false);
             } else if (!isOk && !check.isValid) {
-              addMessage('error', 'layers.errorUrlInvalid', [], false);
+              uiController.addMessage('error', 'layers.errorUrlInvalid', [], false);
             }
           } finally {
             setIsLoading(false);
@@ -778,9 +770,9 @@ export function AddNewLayer(): JSX.Element {
             const trimmedUrl = layerURL.trim();
             if (!isValidUUID(trimmedUrl) && !trimmedUrl.includes('.') && !trimmedUrl.includes('/')) {
               // No dots or slashes means it's not a URL — likely a malformed UUID
-              addMessage('error', 'layers.errorUrlInvalidUUID', [], false);
+              uiController.addMessage('error', 'layers.errorUrlInvalidUUID', [], false);
             } else {
-              addMessage('error', 'layers.errorUrlHttps', [], false);
+              uiController.addMessage('error', 'layers.errorUrlHttps', [], false);
             }
           }
         }
@@ -789,7 +781,7 @@ export function AddNewLayer(): JSX.Element {
       validateUrl().catch((error: unknown) => {
         logger.logError('URL validation failed', error);
         setStepButtonEnabled(false);
-        addMessage('error', 'layers.errorUrlUnreachable', [], false);
+        uiController.addMessage('error', 'layers.errorUrlUnreachable', [], false);
       });
     }
     if (activeStep === 1) {
@@ -798,7 +790,7 @@ export function AddNewLayer(): JSX.Element {
     }
     if (activeStep === 2 && layerIdsToAdd.length > 0) setStepButtonEnabled(true);
     if (activeStep === 2 && !layerIdsToAdd.length) setStepButtonEnabled(false);
-  }, [layerURL, activeStep, layerIdsToAdd, layerType, addMessage]);
+  }, [layerURL, activeStep, layerIdsToAdd, layerType, uiController]);
 
   useEffect(() => {
     if (activeStep === 1) {
@@ -827,7 +819,7 @@ export function AddNewLayer(): JSX.Element {
    * Creates a set of Continue / Back buttons
    *
    * @param param0 specify if button is first or last in the list
-   * @returns {JSX.Element} React component
+   * @returns React component
    */
   // TODO: refactor - remove the unstable nested component
   // eslint-disable-next-line react/no-unstable-nested-components
@@ -865,7 +857,13 @@ export function AddNewLayer(): JSX.Element {
           </Button>
         )}
         {isFirst && (
-          <Button variant="contained" className="buttonOutlineFilled" size="small" type="text" onClick={() => setDisplayState('view')}>
+          <Button
+            variant="contained"
+            className="buttonOutlineFilled"
+            size="small"
+            type="text"
+            onClick={() => setStoreLayerDisplayState(mapId, 'view')}
+          >
             {t('general.cancel')}
           </Button>
         )}

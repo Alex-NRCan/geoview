@@ -7,13 +7,13 @@ import {
   useLayerSelectorCanToggle,
   useLayerSelectorControls,
   useLayerSelectorStyleConfig,
-  useLayerStoreActions,
 } from '@/core/stores/store-interface-and-intial-values/layer-state';
 import { getSxClasses } from './legend-styles';
 import { logger } from '@/core/utils/logger';
 import { generateId } from '@/core/utils/utilities';
 import { useMapSelectorIsLayerHiddenOnMap } from '@/core/stores/store-interface-and-intial-values/map-state';
 import { useGeoViewMapId } from '@/core/stores/geoview-store';
+import { useLayerController } from '@/core/controllers/layer-controller';
 
 interface ItemsListProps {
   items: TypeLegendItem[];
@@ -106,12 +106,12 @@ export const ItemsList = memo(function ItemsList({ items, layerPath }: ItemsList
   const lastToggledRef = useRef<string | null>(null);
   const itemIdMapRef = useRef<Map<string, string>>(new Map());
 
-  const { toggleItemVisibility } = useLayerStoreActions();
   const layerControls = useLayerSelectorControls(layerPath);
   const layerHidden = useMapSelectorIsLayerHiddenOnMap(layerPath);
   const canToggle = useLayerSelectorCanToggle(layerPath);
   const canToggleItemVisibility = canToggle && layerControls?.visibility !== false;
   const styleConfig = useLayerSelectorStyleConfig(layerPath);
+  const layerController = useLayerController();
 
   /**
    * Generates or retrieves a stable HTML ID for a legend item.
@@ -132,15 +132,15 @@ export const ItemsList = memo(function ItemsList({ items, layerPath }: ItemsList
 
   /**
    * Handles toggling of class visibility when the legend item is clicked.
-   * @param {TypeLegendItem} item - the item to change the visibility of
-   * @param {string} itemId - The HTML ID of the item for focus restoration
+   * @param item - The item to change the visibility of
+   * @param itemId - The HTML ID of the item for focus restoration
    */
   const handleToggleItemVisibility = useCallback(
     (item: TypeLegendItem, itemId: string): void => {
       lastToggledRef.current = itemId;
-      toggleItemVisibility(layerPath, item);
+      layerController.toggleItemVisibilityAndForget(layerPath, item);
     },
-    [layerPath, toggleItemVisibility]
+    [layerPath, layerController]
   );
 
   // Keep focus on layers when they are toggled using keyboard

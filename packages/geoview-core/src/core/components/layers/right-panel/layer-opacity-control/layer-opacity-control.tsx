@@ -5,9 +5,9 @@ import type { Mark } from '@mui/base';
 import { getSxClasses } from './layer-opacity-control-styles';
 import { Box, Slider, Typography } from '@/ui';
 import type { TypeLegendLayer } from '@/core/components/layers/types';
-import { useLayerStoreActions } from '@/core/stores/store-interface-and-intial-values/layer-state';
 import { useMapSelectorIsLayerHiddenOnMap } from '@/core/stores/store-interface-and-intial-values/map-state';
 import { logger } from '@/core/utils/logger';
+import { useLayerController } from '@/core/controllers/layer-controller';
 
 interface LayerOpacityControlProps {
   layerDetails: TypeLegendLayer;
@@ -25,11 +25,8 @@ export function LayerOpacityControl(props: LayerOpacityControlProps): JSX.Elemen
   const { t } = useTranslation<string>();
   const theme = useTheme();
   const sxClasses = getSxClasses(theme);
-
-  // Store actions
-  const { setLayerOpacity } = useLayerStoreActions();
-
   const layerHidden = useMapSelectorIsLayerHiddenOnMap(layerDetails.layerPath);
+  const layerController = useLayerController();
 
   // State
   const [marks, setMarks] = useState<Mark[]>([]);
@@ -60,9 +57,9 @@ export function LayerOpacityControl(props: LayerOpacityControlProps): JSX.Elemen
 
   /**
    * Updates the opacity of the layer on the map, optionally updating the store
-   * @param {number | number[]} value - The opacity to set.
-   * @param {number} activeThumb - Provided by onChange, but not used.
-   * @param {boolean} updateStore - Should the store be updated.
+   * @param value - The opacity to set.
+   * @param activeThumb - Provided by onChange, but not used.
+   * @param updateStore - Should the store be updated.
    */
   const handleSliderChange = useCallback(
     (value: number | number[], activeThumb: number, updateStore: boolean = false): void => {
@@ -71,9 +68,9 @@ export function LayerOpacityControl(props: LayerOpacityControlProps): JSX.Elemen
 
       // Necessary to keep the handle from exceeding the max from parent
       setLocalOpacity(newValue);
-      setLayerOpacity(layerDetails.layerPath, newValue, updateStore);
+      layerController.setLayerOpacity(layerDetails.layerPath, newValue, updateStore);
     },
-    [layerDetails.layerPath, layerParentOpacity, setLayerOpacity]
+    [layerDetails.layerPath, layerParentOpacity, layerController]
   );
 
   return (
