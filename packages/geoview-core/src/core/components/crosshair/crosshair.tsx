@@ -1,15 +1,15 @@
-import { memo, useCallback, useMemo, useRef } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useTheme } from '@mui/material/styles';
 import { useTranslation } from 'react-i18next';
 import { Box, Fade, Typography } from '@/ui';
 
 import { getSxClasses } from './crosshair-style';
 import { CrosshairIcon } from './crosshair-icon';
-import { useAppCrosshairsActive } from '@/core/stores/store-interface-and-intial-values/app-state';
+import { useStoreAppIsCrosshairsActive } from '@/core/stores/store-interface-and-intial-values/app-state';
 import { getStoreMapPointerPosition } from '@/core/stores/store-interface-and-intial-values/map-state';
 import { logger } from '@/core/utils/logger';
 import { useEventListener } from '@/core/components/common/hooks/use-event-listener';
-import { useGeoViewMapId } from '@/core/stores/geoview-store';
+import { useStoreGeoViewMapId } from '@/core/stores/geoview-store';
 import { useUIController } from '@/core/controllers/ui-controller';
 import { useMapController } from '@/core/controllers/map-controller';
 
@@ -38,10 +38,13 @@ export const Crosshair = memo(function Crosshair({ mapTargetElement }: Crosshair
   const panDelta = useRef(128);
 
   //  Store
-  const isCrosshairsActive = useAppCrosshairsActive();
-  const mapId = useGeoViewMapId();
+  const mapId = useStoreGeoViewMapId();
+  const isCrosshairsActive = useStoreAppIsCrosshairsActive();
   const uiController = useUIController();
   const mapController = useMapController();
+
+  // AbortController ref - aborts any in-flight coordinate info fetch on re-click
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   /**
    * Simulates a map mouse click to trigger the details panel.
@@ -55,7 +58,15 @@ export const Crosshair = memo(function Crosshair({ mapTargetElement }: Crosshair
       // Use store getter, we do not subcribe to modification
       const currentPointerPosition = getStoreMapPointerPosition(mapId);
       if (currentPointerPosition) {
-        mapController.setClickCoordinates(currentPointerPosition);
+        // Abort any previous in-flight request
+        abortControllerRef.current?.abort();
+
+        // Create a new AbortController for this click
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+
+        // Set the click coordinates
+        mapController.setClickCoordinates(currentPointerPosition, controller.signal);
       }
     },
     [isCrosshairsActive, mapId, mapController]
@@ -78,6 +89,15 @@ export const Crosshair = memo(function Crosshair({ mapTargetElement }: Crosshair
     },
     [isCrosshairsActive, uiController]
   );
+
+  /**
+   * Aborts any in-flight coordinate info request on unmount.
+   */
+  useEffect(() => {
+    return (): void => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
 
   // Use custom hook for event listeners
   useEventListener<HTMLElement>('keydown', simulateClick, mapTargetElement, isCrosshairsActive);

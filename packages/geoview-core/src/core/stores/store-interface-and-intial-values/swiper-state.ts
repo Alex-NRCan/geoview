@@ -35,6 +35,7 @@ export interface ISwiperState {
 
 /**
  * Initializes a Swiper state object.
+ *
  * @param set - The store set callback function
  * @param get - The store get callback function
  * @returns The Swiper state object
@@ -45,6 +46,11 @@ export function initializeSwiperState(set: TypeSetStore, get: TypeGetStore): ISw
     orientation: 'vertical',
 
     actions: {
+      /**
+       * Sets the layer paths for the swiper.
+       *
+       * @param layerPaths - The array of layer paths
+       */
       setLayerPaths(layerPaths: string[]) {
         set({
           swiperState: {
@@ -53,6 +59,11 @@ export function initializeSwiperState(set: TypeSetStore, get: TypeGetStore): ISw
           },
         });
       },
+      /**
+       * Sets the swiper orientation.
+       *
+       * @param orientation - The swipe orientation
+       */
       setOrientation(orientation: SwipeOrientation) {
         set({
           swiperState: {
@@ -69,18 +80,10 @@ export function initializeSwiperState(set: TypeSetStore, get: TypeGetStore): ISw
 
 // #endregion STATE INITIALIZATION
 
-// #region STATE HOOKS
-// GV To be used by React components
-
-/** Hooks the swiper layer paths from the store. */
-export const useSwiperLayerPaths = (): string[] => useStore(useGeoViewStore(), (state) => state.swiperState.layerPaths);
-
-/** Hooks the swiper orientation from the store. */
-export const useSwiperOrientation = (): string => useStore(useGeoViewStore(), (state) => state.swiperState.orientation);
-
-// #endregion STATE HOOKS
-
-// #region STATE SELECTORS
+// #region STATE GETTERS & HOOKS
+// GV Getters should be used to get the values at a moment in time.
+// GV Hooks should be used to attach to values and trigger UI components when they change.
+// GV Typically they are listed in couples (getter + hook) for the same value.
 
 /**
  * Returns the full swiper state slice for the given map.
@@ -127,7 +130,25 @@ export const getStoreSwiperLayerPaths = (mapId: string): string[] => {
   return getStoreSwiperState(mapId).layerPaths;
 };
 
-// #endregion STATE SELECTORS
+/** Hooks the swiper layer paths from the store. */
+export const useStoreSwiperLayerPaths = (): string[] => useStore(useGeoViewStore(), (state) => state.swiperState.layerPaths);
+
+/**
+ * Gets the swiper orientation from the store.
+ *
+ * @param mapId - The map id to read swiper layer paths from.
+ * @returns The array of layer paths participating in the swiper.
+ * @throws {PluginStateUninitializedError} When the Swiper plugin is uninitialized.
+ */
+export const getStoreSwiperOrientation = (mapId: string): SwipeOrientation => {
+  // Return the layer paths from the state
+  return getStoreSwiperState(mapId).orientation;
+};
+
+/** Hooks the swiper orientation from the store. */
+export const useStoreSwiperOrientation = (): SwipeOrientation => useStore(useGeoViewStore(), (state) => state.swiperState.orientation);
+
+// #endregion STATE GETTERS & HOOKS
 
 // #region STATE ADAPTORS
 // GV These methods should be called from a State Adaptor class listening on domain events triggered by controllers.

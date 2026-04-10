@@ -6,16 +6,16 @@ import { useTheme } from '@mui/material';
 
 import { ToggleAll } from '@/core/components/toggle-all/toggle-all';
 import { Box, List, Typography } from '@/ui';
-import { useGeoViewMapId, useUIActiveAppBarTab, useUIActiveFooterBarTab, useLayerLegendLayers } from '@/core/stores/';
 import { logger } from '@/core/utils/logger';
 
 import { getSxClassesMain, getSxClasses } from './legend-styles';
 import { LegendLayer } from './legend-layer';
 import { LegendFullscreen, LegendFullscreenButton } from './legend-fullscreen';
-import type { TypeLegendLayer } from '@/core/components/layers/types';
 import { CONTAINER_TYPE } from '@/core/utils/constant';
 import type { TypeContainerBox } from '@/core/types/global-types';
 import { useEventListener } from '@/core/components/common/hooks/use-event-listener';
+import { useStoreGeoViewMapId } from '@/core/stores/geoview-store';
+import { useStoreLayerLayerPaths } from '@/core/stores/store-interface-and-intial-values/layer-state';
 
 interface LegendType {
   containerType: TypeContainerBox;
@@ -59,15 +59,13 @@ export function Legend({ containerType }: LegendType): JSX.Element | null {
   const sxClasses = useMemo(() => getSxClasses(theme), [theme]);
 
   // State
-  const [formattedLegendLayerList, setFormattedLegendLayersList] = useState<TypeLegendLayer[][]>([]);
+  const [formattedLegendLayerList, setFormattedLegendLayersList] = useState<string[][]>([]);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const fullScreenBtnRef = useRef<HTMLButtonElement>(null);
 
   // Store
-  const mapId = useGeoViewMapId();
-  const activeFooterBarTab = useUIActiveFooterBarTab();
-  const activeAppBarTab = useUIActiveAppBarTab();
-  const layersList = useLayerLegendLayers();
+  const mapId = useStoreGeoViewMapId();
+  const layerPaths = useStoreLayerLayerPaths();
 
   // Memoize breakpoint values
   const breakpoints = useMemo(() => {
@@ -98,20 +96,20 @@ export function Legend({ containerType }: LegendType): JSX.Element | null {
    * Transform the list of the legends into subsets of lists.
    * it will return subsets of lists with pattern:- [[0,4,8],[1,5,9],[2,6],[3,7] ]
    * This way we can layout the legends into column wraps.
-   * @param layers - Array of layers.
-   * @returns List of array of layers
+   * @param paths - Array of layer paths.
+   * @returns List of array of layer paths
    */
   const updateLegendLayerListByWindowSize = useCallback(
-    (layers: TypeLegendLayer[]): void => {
+    (paths: string[]): void => {
       const arrSize = getLegendLayerListSize();
-      const list = Array.from({ length: arrSize }, () => []) as Array<TypeLegendLayer[]>;
+      const list = Array.from({ length: arrSize }, () => []) as Array<string[]>;
 
-      layers.forEach((layer, index) => {
-        list[index % arrSize].push(layer);
+      paths.forEach((layerPath, index) => {
+        list[index % arrSize].push(layerPath);
       });
 
       // Format the list only if there is layers
-      setFormattedLegendLayersList(layers.length === 0 ? [] : list);
+      setFormattedLegendLayersList(paths.length === 0 ? [] : list);
     },
     [getLegendLayerListSize]
   );
@@ -119,8 +117,8 @@ export function Legend({ containerType }: LegendType): JSX.Element | null {
   // Memoize the window resize handler and use the hook to add listener to avoid many creation
   const handleWindowResize = useCallback(() => {
     // Update the layer list based on window size
-    updateLegendLayerListByWindowSize(layersList);
-  }, [layersList, updateLegendLayerListByWindowSize]);
+    updateLegendLayerListByWindowSize(layerPaths);
+  }, [layerPaths, updateLegendLayerListByWindowSize]);
 
   // Wire a handler using a custom hook on the window resize event
   useEventListener<Window>('resize', handleWindowResize, window);
@@ -128,11 +126,11 @@ export function Legend({ containerType }: LegendType): JSX.Element | null {
   // Handle initial layer setup
   useEffect(() => {
     // Log
-    logger.logTraceUseEffect('LEGEND - layer setup', layersList);
+    logger.logTraceUseEffect('LEGEND - layer setup', layerPaths);
 
     // Update the layer list based on window size
-    updateLegendLayerListByWindowSize(layersList);
-  }, [layersList, updateLegendLayerListByWindowSize]);
+    updateLegendLayerListByWindowSize(layerPaths);
+  }, [layerPaths, updateLegendLayerListByWindowSize]);
 
   // Memoize the no layers content
   const noLayersContent = useMemo(() => {
@@ -161,7 +159,7 @@ export function Legend({ containerType }: LegendType): JSX.Element | null {
       return noLayersContent;
     }
 
-    return formattedLegendLayerList.map((layers, idx) => (
+    return formattedLegendLayerList.map((paths, idx) => (
       <List
         className="legendList"
         // eslint-disable-next-line react/no-array-index-key
@@ -171,21 +169,22 @@ export function Legend({ containerType }: LegendType): JSX.Element | null {
           ...sxClasses.legendList,
         }}
       >
-        {layers.map((layer) => (
-          <LegendLayer layerPath={layer.layerPath} key={layer.layerPath} showControls={true} containerType={containerType} />
+        {paths.map((layerPath) => (
+          <LegendLayer layerPath={layerPath} key={layerPath} showControls={true} containerType={containerType} />
         ))}
       </List>
     ));
     // eslint-disable-next-line react-hooks/exhaustive-deps -- sxClasses is memoized from theme which is stable
   }, [formattedLegendLayerList, noLayersContent, containerType]);
 
+  // TODO: CLEANUP - Remove the commented code, we're trying to not unmount the Legend panel anymore to check performance 2026-04-07
   // Early return with empty fragment if not the active tab
-  if (activeFooterBarTab.tabId !== 'legend' && activeAppBarTab.tabId !== 'legend') return null;
+  // if (activeFooterBarTab.tabId !== 'legend' && activeAppBarTab.tabId !== 'legend') return null;
 
   return (
     <>
       <LegendFullscreen
-        layersList={layersList}
+        layerPaths={layerPaths}
         mapId={mapId}
         containerType={containerType}
         isOpen={isFullScreen}

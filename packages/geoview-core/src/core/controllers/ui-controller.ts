@@ -1,10 +1,9 @@
-import { type TypeDisplayLanguage, type TypeDisplayTheme } from '@/api/types/map-schema-types';
+import type { TypeDisplayLanguage, TypeDisplayTheme } from '@/api/types/map-schema-types';
 import { useControllers } from '@/core/controllers/base/controller-manager';
 import { AbstractMapViewerController } from '@/core/controllers/base/abstract-map-viewer-controller';
 import {
   disableStoreFocusTrap,
   enableStoreFocusTrap,
-  getStoreActiveAppBarTab,
   hideStoreTabButton,
   setStoreActiveAppBarTab,
   setStoreActiveFooterBarTab,
@@ -12,12 +11,11 @@ import {
   setStoreFooterBarIsOpen,
   setStoreFooterPanelResizeValue,
   showStoreTabButton,
-  type ActiveAppBarTabType,
   type FocusItemProps,
 } from '@/core/stores/store-interface-and-intial-values/ui-state';
 import {
   addStoreNotification,
-  getStoreGeoviewAssetsURL,
+  getStoreAppGeoviewAssetsURL,
   removeStoreAllNotifications,
   removeStoreNotification,
   setStoreCircularProgress,
@@ -46,10 +44,10 @@ import KeyboardZoom from 'ol/interaction/KeyboardZoom';
  * Extends AbstractMapViewerController and delegates state mutations to the UIStateAdaptor.
  */
 export class UIController extends AbstractMapViewerController {
-  /** The UI Domain instance associated with this controller */
+  /** The UI Domain instance associated with this controller. */
   #uiDomain: UIDomain;
 
-  /** The bounded reference to the handle display language changed */
+  /** The bounded reference to the display language changed handler. */
   #boundedHandleDisplayLanguageChanged: DomainLanguageChangedDelegate;
 
   /**
@@ -127,15 +125,6 @@ export class UIController extends AbstractMapViewerController {
   setActiveFooterBarTab(tab: string | undefined): void {
     // Save in store
     setStoreActiveFooterBarTab(this.getMapId(), tab);
-  }
-
-  /**
-   * Gets the active app bar tab from the store.
-   *
-   * @returns The active app bar tab info.
-   */
-  getActiveAppBarTab(): ActiveAppBarTabType {
-    return getStoreActiveAppBarTab(this.getMapId());
   }
 
   /**
@@ -434,7 +423,7 @@ export class UIController extends AbstractMapViewerController {
 
     try {
       // Create the guide
-      const guide = await createGuideObject(language, getStoreGeoviewAssetsURL(mapId));
+      const guide = await createGuideObject(language, getStoreAppGeoviewAssetsURL(mapId));
 
       // Save in store
       setStoreGuide(mapId, guide);
@@ -454,7 +443,10 @@ export class UIController extends AbstractMapViewerController {
   // GV.CONT but for now this allows us to keep domain-store interactions in one place and call application-level processes as needed during migration.
 
   /**
-   * TODO: JSDOC THIS
+   * Handles the display language changed event from the UI domain.
+   *
+   * @param sender - The UI domain that emitted the event
+   * @param event - The language changed event containing the new language
    */
   #handleDisplayLanguageChanged(sender: UIDomain, event: DomainLanguageChangedEvent): void {
     setStoreDisplayLanguage(this.getMapId(), event.language);

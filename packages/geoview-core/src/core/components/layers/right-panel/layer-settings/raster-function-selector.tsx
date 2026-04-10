@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useTheme } from '@mui/material/styles';
 import type { SxProps } from '@mui/material';
@@ -7,11 +7,7 @@ import { Box, CircularProgress, Collapse, Typography } from '@/ui';
 import { ImageNotSupportedIcon, FunctionsIcon, ExpandMoreIcon, ExpandLessIcon } from '@/ui';
 
 import { getSxClasses } from './layer-settings-style';
-import {
-  useLayerSelectorRasterFunctionInfos,
-  useLayerSelectorRasterFunction,
-} from '@/core/stores/store-interface-and-intial-values/layer-state';
-import type { TypeLegendLayer } from '@/core/components/layers/types';
+import { useStoreLayerRasterFunctionInfos, useStoreLayerRasterFunction } from '@/core/stores/store-interface-and-intial-values/layer-state';
 import type { TypeMetadataEsriRasterFunctionInfos } from '@/api/types/layer-schema-types';
 import { logger } from '@/core/utils/logger';
 import { useLayerController } from '@/core/controllers/layer-controller';
@@ -24,8 +20,12 @@ interface RasterFunctionItemProps {
 }
 
 interface RasterFunctionPanelProps {
-  layerDetails: TypeLegendLayer;
+  /** The layer path to configure raster functions for. */
+  layerPath: string;
 }
+
+/** Stable empty array reference to avoid re-renders when raster function infos are undefined. */
+const EMPTY_RASTER_FUNCTION_INFOS: TypeMetadataEsriRasterFunctionInfos[] = [];
 
 /**
  * Card component displaying a raster function option with image preview.
@@ -133,10 +133,10 @@ function RasterFunctionItem({ info, isSelected, previewPromise, onSelect }: Rast
  * Replaces the previous Menu-based approach with cards displayed
  * directly within the settings panel.
  *
- * @param layerDetails - The legend layer to configure raster functions for.
+ * @param layerPath - The layer path to configure raster functions for.
  * @returns A JSX element representing the RasterFunctionPanel component.
  */
-export function RasterFunctionPanel({ layerDetails }: RasterFunctionPanelProps): JSX.Element {
+export function RasterFunctionPanel({ layerPath }: RasterFunctionPanelProps): JSX.Element {
   // Log
   logger.logTraceRender('components/layers/right-panel/layer-settings/raster-function-selector > RasterFunctionPanel');
 
@@ -146,9 +146,8 @@ export function RasterFunctionPanel({ layerDetails }: RasterFunctionPanelProps):
   const sxClasses = getSxClasses(theme);
 
   // Store hooks
-  const storeRasterFunctionInfos = useLayerSelectorRasterFunctionInfos(layerDetails.layerPath);
-  const memoRasterFunctionInfos = useMemo(() => storeRasterFunctionInfos || [], [storeRasterFunctionInfos]);
-  const currentRasterFunction = useLayerSelectorRasterFunction(layerDetails.layerPath);
+  const rasterFunctionInfos = useStoreLayerRasterFunctionInfos(layerPath) ?? EMPTY_RASTER_FUNCTION_INFOS;
+  const currentRasterFunction = useStoreLayerRasterFunction(layerPath);
   const layerController = useLayerController();
 
   // State
@@ -157,20 +156,20 @@ export function RasterFunctionPanel({ layerDetails }: RasterFunctionPanelProps):
 
   useEffect(() => {
     // Log
-    logger.logTraceUseEffect('RASTER FUNCTION PANEL - Layer Raster Function Infos sync', memoRasterFunctionInfos);
+    logger.logTraceUseEffect('RASTER FUNCTION PANEL - Layer Raster Function Infos sync', rasterFunctionInfos);
 
-    if (memoRasterFunctionInfos.length > 0) {
+    if (rasterFunctionInfos.length > 0) {
       // TODO: CHECK - Verify if that's the intent here? - Use a hook?
-      const promises = layerController.getLayerRasterFunctionPreviews(layerDetails.layerPath);
+      const promises = layerController.getLayerRasterFunctionPreviews(layerPath);
       setPreviewPromises(promises);
     }
-  }, [layerDetails.layerPath, memoRasterFunctionInfos, layerController]);
+  }, [layerPath, rasterFunctionInfos, layerController]);
 
   const handleSelect = useCallback(
     (rasterFunctionName: string): void => {
-      layerController.setLayerRasterFunction(layerDetails.layerPath, rasterFunctionName);
+      layerController.setLayerRasterFunction(layerPath, rasterFunctionName);
     },
-    [layerDetails.layerPath, layerController]
+    [layerPath, layerController]
   );
 
   const handleToggle = useCallback((): void => {
@@ -203,7 +202,7 @@ export function RasterFunctionPanel({ layerDetails }: RasterFunctionPanelProps):
       </Box>
       <Collapse in={expanded} sx={{ marginTop: expanded ? '12px' : 0 }}>
         <Box sx={sxClasses.settingsCardList}>
-          {memoRasterFunctionInfos.map((info) => (
+          {rasterFunctionInfos.map((info) => (
             <RasterFunctionItem
               key={info.name}
               info={info}

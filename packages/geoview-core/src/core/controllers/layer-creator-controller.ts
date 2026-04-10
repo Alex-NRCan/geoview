@@ -39,7 +39,11 @@ import { formatError, NotSupportedError } from '@/core/exceptions/core-exception
 import { GeoViewError } from '@/core/exceptions/geoview-exceptions';
 import { LayerEntryConfigError } from '@/core/exceptions/layer-entry-config-exceptions';
 import { LayerCreatedTwiceError } from '@/core/exceptions/layer-exceptions';
-import { getStoreDisplayDateMode } from '@/core/stores/store-interface-and-intial-values/app-state';
+import { getStoreAppDisplayDateMode } from '@/core/stores/store-interface-and-intial-values/app-state';
+import {
+  getStoreLayerSelectedLayerPath,
+  setStoreLayerSelectedLayersTabLayer,
+} from '@/core/stores/store-interface-and-intial-values/layer-state';
 import {
   addStoreGeochartChart,
   isStoreGeochartInitialized,
@@ -348,7 +352,7 @@ export class LayerCreatorController extends AbstractMapViewerController {
   }
 
   /**
-   * Refreshes GeoCore Layers
+   * Refreshes GeoCore layers.
    */
   reloadGeocoreLayers(): void {
     const configs = this.getControllersRegistry().layerController.getLayerEntryConfigs();
@@ -465,7 +469,7 @@ export class LayerCreatorController extends AbstractMapViewerController {
   }
 
   /**
-   * Removes all geoview layers from the map
+   * Removes all geoview layers from the map.
    */
   removeAllGeoviewLayers(): void {
     this.getControllersRegistry()
@@ -584,6 +588,13 @@ export class LayerCreatorController extends AbstractMapViewerController {
       // Log
       logger.logInfo(`Layer removed for ${layerPath}`);
 
+      // Clear the selected path if it was set to it
+      const currentlySelectedLayerPath = getStoreLayerSelectedLayerPath(this.getMapId());
+      if (layerPath === currentlySelectedLayerPath) {
+        // Clear it
+        setStoreLayerSelectedLayersTabLayer(this.getMapId(), '');
+      }
+
       // Redirect to feature info delete
       deleteStoreDetailsFeatureInfo(this.getMapId(), layerPath);
     }
@@ -675,7 +686,7 @@ export class LayerCreatorController extends AbstractMapViewerController {
     const promiseLayer = new Promise<void>((resolve, reject) => {
       // Continue the addition process
       layerBeingAdded
-        .createGeoViewLayers(getStoreDisplayDateMode(this.getMapId()), this.getMapViewer().getProjection(), abortSignal)
+        .createGeoViewLayers(getStoreAppDisplayDateMode(this.getMapId()), this.getMapViewer().getProjection(), abortSignal)
         .then(() => {
           // Add the layer on the map
           this.#addToMap(layerBeingAdded, geoviewLayerConfig);
@@ -1083,7 +1094,7 @@ export class LayerCreatorController extends AbstractMapViewerController {
    * @param language - The language setting used for layer labels and metadata.
    * @param mapConfigLayerEntries - The array of layer entries to convert.
    * @param errorCallback - Callback invoked when an error occurs during layer processing.
-   * @returns An array of promises, each resolving to a `TypeGeoviewLayerConfig` object
+   * @returns An array of promises, each resolving to a TypeGeoviewLayerConfig object
    */
   static convertMapConfigsToGeoviewLayerConfig(
     mapId: string,
@@ -1110,7 +1121,7 @@ export class LayerCreatorController extends AbstractMapViewerController {
    * @param language - The language setting used for layer labels and metadata.
    * @param entry - The array of layer entry to convert.
    * @param errorCallback - Callback invoked when an error occurs during layer processing.
-   * @returns A promise that resolves to a `TypeGeoviewLayerConfig` object
+   * @returns A promise that resolves to a TypeGeoviewLayerConfig object
    */
   static convertMapConfigToGeoviewLayerConfig(
     mapId: string,
@@ -1357,8 +1368,11 @@ export class LayerCreatorController extends AbstractMapViewerController {
   // #endregion EVENTS
 }
 
+/** Represents the result of adding a GeoView layer. */
 export type GeoViewLayerAddedResult = {
+  /** The created GeoView layer instance. */
   layer: AbstractGeoViewLayer;
+  /** A promise that resolves when the layer is fully loaded. */
   promiseLayer: Promise<void>;
 };
 
@@ -1366,7 +1380,7 @@ export type GeoViewLayerAddedResult = {
  * Define an event for the delegate
  */
 export type LayerEvent = {
-  // The loaded layer
+  /** The loaded layer. */
   layer: AbstractGVLayer;
 };
 
@@ -1379,10 +1393,10 @@ export type LayerDelegate = EventDelegateBase<LayerCreatorController, LayerEvent
  * Define an event for the delegate
  */
 export type LayerPathEvent = {
-  // The layer path
+  /** The layer path. */
   layerPath: string;
 
-  // The layer name
+  /** The layer name. */
   layerName: string;
 };
 
@@ -1407,10 +1421,10 @@ export type LayerBuilderDelegate = EventDelegateBase<LayerCreatorController, Lay
  * Define an event for the delegate
  */
 export type LayerConfigErrorEvent = {
-  // The layer path (or the geoview layer id) depending when the error occurs in the process
+  /** The layer path (or the geoview layer id) depending when the error occurs in the process. */
   layerPath: string;
 
-  // The error
+  /** The error message. */
   error: string;
 };
 

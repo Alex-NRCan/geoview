@@ -4,28 +4,30 @@ import { useTheme } from '@mui/material/styles';
 import type { Mark } from '@mui/base';
 import { getSxClasses } from './layer-opacity-control-styles';
 import { Box, Slider, Typography } from '@/ui';
-import type { TypeLegendLayer } from '@/core/components/layers/types';
-import { useMapSelectorIsLayerHiddenOnMap } from '@/core/stores/store-interface-and-intial-values/map-state';
+import { useStoreLayerOpacity, useStoreLayerOpacityMaxFromParent } from '@/core/stores/store-interface-and-intial-values/layer-state';
+import { useStoreMapIsLayerHiddenOnMap } from '@/core/stores/store-interface-and-intial-values/map-state';
 import { logger } from '@/core/utils/logger';
 import { useLayerController } from '@/core/controllers/layer-controller';
 
 interface LayerOpacityControlProps {
-  layerDetails: TypeLegendLayer;
+  /** The layer path to control opacity for. */
+  layerPath: string;
 }
 
-export function LayerOpacityControl(props: LayerOpacityControlProps): JSX.Element {
+export function LayerOpacityControl({ layerPath }: LayerOpacityControlProps): JSX.Element {
   // Log
   logger.logTraceRender('components/layers/right-panel/layer-opacity-control/layer-opacity-control');
 
-  const { layerDetails } = props;
-  const layerOpacity = layerDetails.opacity ?? 1;
-  const layerParentOpacity = layerDetails.opacityMaxFromParent ?? 1;
+  const layerOpacity = useStoreLayerOpacity(layerPath) ?? 1;
+  const layerParentOpacity = useStoreLayerOpacityMaxFromParent(layerPath) ?? 1;
 
   // Hook
   const { t } = useTranslation<string>();
   const theme = useTheme();
   const sxClasses = getSxClasses(theme);
-  const layerHidden = useMapSelectorIsLayerHiddenOnMap(layerDetails.layerPath);
+
+  // Store
+  const layerHidden = useStoreMapIsLayerHiddenOnMap(layerPath);
   const layerController = useLayerController();
 
   // State
@@ -68,9 +70,9 @@ export function LayerOpacityControl(props: LayerOpacityControlProps): JSX.Elemen
 
       // Necessary to keep the handle from exceeding the max from parent
       setLocalOpacity(newValue);
-      layerController.setLayerOpacity(layerDetails.layerPath, newValue, updateStore);
+      layerController.setLayerOpacity(layerPath, newValue, updateStore);
     },
-    [layerDetails.layerPath, layerParentOpacity, layerController]
+    [layerPath, layerParentOpacity, layerController]
   );
 
   return (

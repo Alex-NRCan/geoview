@@ -65,7 +65,7 @@ import EventHelper from '@/api/events/event-helper';
 import { ModalApi } from '@/ui';
 import { delay, generateId, getLocalizedMessage, whenThisThen } from '@/core/utils/utilities';
 import { debounce } from '@/core/utils/debounce';
-import { type TimeIANA } from '@/core/utils/date-mgt';
+import type { TimeIANA } from '@/core/utils/date-mgt';
 import { logger } from '@/core/utils/logger';
 import { NORTH_POLE_POSITION, TIMEOUT } from '@/core/utils/constant';
 import type { TypeMapFeaturesConfig, TypeHTMLElement } from '@/core/types/global-types';
@@ -94,7 +94,7 @@ import {
   getStoreMapInteraction,
   setStoreMapInteraction,
 } from '@/core/stores/store-interface-and-intial-values/map-state';
-import { getStoreDisplayTheme } from '@/core/stores/store-interface-and-intial-values/app-state';
+import { getStoreAppDisplayTheme } from '@/core/stores/store-interface-and-intial-values/app-state';
 import { setStoreLayerSelectedLayersTabLayer, type TypeLegend } from '@/core/stores/store-interface-and-intial-values/layer-state';
 import { TIME_DELAY_BETWEEN_PROPAGATION_FOR_BATCH } from '@/core/stores/store-interface-and-intial-values/feature-info-state';
 import { GeoUtilities } from '@/geo/utils/utilities';
@@ -599,7 +599,7 @@ export class MapViewer {
    * @returns The display theme
    */
   getDisplayTheme(): TypeDisplayTheme {
-    return getStoreDisplayTheme(this.mapId);
+    return getStoreAppDisplayTheme(this.mapId);
   }
 
   /**
@@ -1242,6 +1242,23 @@ export class MapViewer {
   }
 
   /**
+   * Waits for the map to be ready before resolving the promise.
+   *
+   * This function checks if the map is already ready, and if not, it waits for the onMapReady event to be triggered.
+   *
+   * @returns A promise that resolves when the map is ready.
+   */
+  waitForMapReady(): Promise<void> {
+    // If already ready
+    if (this.#mapReady) return Promise.resolve();
+
+    // Wait for onMapReady to be triggered
+    return new Promise((resolve) => {
+      this.onMapReady(() => resolve());
+    });
+  }
+
+  /**
    * Waits until all GeoView layers reach the specified status before resolving the promise.
    *
    * This function repeatedly checks whether all layers have reached the given layerStatus.
@@ -1286,7 +1303,10 @@ export class MapViewer {
    *
    * @returns A promise that resolves with the number of layers that have reached the specified status
    */
-  waitForLayersLoaded(): Promise<number> {
+  async waitForLayersLoaded(): Promise<number> {
+    // First, wait for the map to be ready in case it's not ready yet. We need the layer configs to be registered at least!
+    await this.waitForMapReady();
+
     // Redirect
     return this.waitAllLayersStatus('loaded');
   }

@@ -6,12 +6,8 @@ import { Box, Checkbox, Collapse, FormControl, Select, Typography } from '@/ui';
 import { CollectionsIcon, ExpandMoreIcon, ExpandLessIcon } from '@/ui';
 
 import { getSxClasses } from './layer-settings-style';
-import {
-  useLayerSelectorMosaicRule,
-  useLayerSelectorAllowedMosaicMethods,
-} from '@/core/stores/store-interface-and-intial-values/layer-state';
+import { useStoreLayerMosaicRule, useStoreLayerAllowedMosaicMethods } from '@/core/stores/store-interface-and-intial-values/layer-state';
 
-import type { TypeLegendLayer } from '../../types';
 import type { TypeMosaicMethod, TypeMosaicOperation } from '@/api/types/layer-schema-types';
 import { logger } from '@/core/utils/logger';
 import { useLayerController } from '@/core/controllers/layer-controller';
@@ -40,7 +36,8 @@ const OPERATION_ENTRIES: Record<string, string> = {
 };
 
 interface MosaicRulePanelProps {
-  layerDetails: TypeLegendLayer;
+  /** The layer path to configure mosaic rules for. */
+  layerPath: string;
 }
 
 /**
@@ -55,10 +52,10 @@ interface MosaicRulePanelProps {
  * and how overlapping pixels are resolved (e.g., via blending, maximum, or minimum values).
  *
  * @see {@link https://developers.arcgis.com/javascript/latest/references/core/layers/support/MosaicRule}
- * @param layerDetails - The legend layer to configure mosaic rules for.
+ * @param layerPath - The layer path to configure mosaic rules for.
  * @returns A JSX element representing the MosaicRulePanel component.
  */
-export function MosaicRulePanel({ layerDetails }: MosaicRulePanelProps): JSX.Element {
+export function MosaicRulePanel({ layerPath }: MosaicRulePanelProps): JSX.Element {
   // Log
   logger.logTraceRender('components/layers/right-panel/layer-settings/mosaic-rule-selector > MosaicRulePanel');
 
@@ -68,8 +65,8 @@ export function MosaicRulePanel({ layerDetails }: MosaicRulePanelProps): JSX.Ele
   const { t } = useTranslation();
 
   // Store hooks
-  const mosaicRule = useLayerSelectorMosaicRule(layerDetails.layerPath);
-  const allowedMosaicMethods = useLayerSelectorAllowedMosaicMethods(layerDetails.layerPath);
+  const mosaicRule = useStoreLayerMosaicRule(layerPath);
+  const allowedMosaicMethods = useStoreLayerAllowedMosaicMethods(layerPath);
   const layerController = useLayerController();
 
   // State
@@ -90,23 +87,23 @@ export function MosaicRulePanel({ layerDetails }: MosaicRulePanelProps): JSX.Ele
   // Handlers with stable references
   const handleChangeMethod = useCallback(
     (event: React.ChangeEvent<HTMLInputElement> | (Event & { target: { value: unknown; name: string } })): void => {
-      layerController.setLayerMosaicRuleMethod(layerDetails.layerPath, event.target.value as TypeMosaicMethod);
+      layerController.setLayerMosaicRuleMethod(layerPath, event.target.value as TypeMosaicMethod);
     },
-    [layerDetails.layerPath, layerController]
+    [layerPath, layerController]
   );
 
   const handleChangeOperation = useCallback(
     (event: React.ChangeEvent<HTMLInputElement> | (Event & { target: { value: unknown; name: string } })): void => {
-      layerController.setLayerMosaicRuleOperation(layerDetails.layerPath, event.target.value as TypeMosaicOperation);
+      layerController.setLayerMosaicRuleOperation(layerPath, event.target.value as TypeMosaicOperation);
     },
-    [layerDetails.layerPath, layerController]
+    [layerPath, layerController]
   );
 
   const handleChangeAscending = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>): void => {
-      layerController.setLayerMosaicRuleAscending(layerDetails.layerPath, event.target.checked);
+      layerController.setLayerMosaicRuleAscending(layerPath, event.target.checked);
     },
-    [layerDetails.layerPath, layerController]
+    [layerPath, layerController]
   );
 
   // Menu items derived from the module-level entry maps

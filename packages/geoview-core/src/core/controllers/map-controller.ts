@@ -8,12 +8,16 @@ import {
   MAP_EXTENTS,
   MAX_EXTENTS_RESTRICTION,
   type Extent,
+  type TypeAltitudeResponse,
   type TypeBasemapOptions,
   type TypeFeatureInfoEntry,
   type TypeMapConfig,
   type TypeMapFeaturesInstance,
   type TypeMapMouseInfo,
+  type TypeNtsResponse,
   type TypePointMarker,
+  type TypeServiceUrls,
+  type TypeUtmZoneResponse,
   type TypeValidAppBarCoreProps,
   type TypeValidFooterBarTabsCoreProps,
   type TypeValidMapProjectionCodes,
@@ -33,6 +37,7 @@ import { AbstractMapViewerController } from '@/core/controllers/base/abstract-ma
 import { LayerCreatorController } from '@/core/controllers/layer-creator-controller';
 import { useControllers } from '@/core/controllers/base/controller-manager';
 import {
+  getStoreMapClickCoordinates,
   getStoreMapConfigAppBar,
   getStoreMapConfigComponents,
   getStoreMapConfigCorePackages,
@@ -78,28 +83,36 @@ import {
   type TypeOrderedLayerInfo,
 } from '@/core/stores/store-interface-and-intial-values/map-state';
 import { getStoreDataTableSelectedLayerPath, getStoreTableFilter } from '@/core/stores/store-interface-and-intial-values/data-table-state';
-import { getStoreActiveAppBarTab, getStoreActiveFooterBarTab } from '@/core/stores/store-interface-and-intial-values/ui-state';
+import { getStoreUIActiveAppBarTab, getStoreUIActiveFooterBarTab } from '@/core/stores/store-interface-and-intial-values/ui-state';
 import {
-  getStoreDisplayTheme,
-  getStoreIsCrosshairsActive,
+  getStoreAppDisplayTheme,
+  getStoreAppIsCrosshairsActive,
   getStoreShowLayerHighlightLayerBbox,
 } from '@/core/stores/store-interface-and-intial-values/app-state';
 import {
-  getStoreLayerStateHighlightedLayer,
-  getStoreLayerStateLayerBounds,
-  getStoreLayerStateLegendLayerByPath,
-  getStoreLayerStateSelectedLayerPath,
+  getStoreLayerHighlightedLayer,
+  getStoreLayerBounds,
+  getStoreLayerLegendLayerByPath,
+  getStoreLayerSelectedLayerPath,
 } from '@/core/stores/store-interface-and-intial-values/layer-state';
 import {
   getStoreTimeSliderFilter,
   getStoreTimeSliderLayers,
-  getStoreTimeSliderSelectedLayer,
+  getStoreTimeSliderSelectedLayerPath,
   isStoreTimeSliderInitialized,
   type TypeTimeSliderProps,
 } from '@/core/stores/store-interface-and-intial-values/time-slider-state';
-import { DEFAULT_OL_FITOPTIONS, OL_ZOOM_DURATION, OL_ZOOM_PADDING } from '@/core/utils/constant';
+import {
+  updateStoreCoordinateInfoLayer,
+  getStoreDetailsCoordinateInfoEnabled,
+  setStoreDetailsCoordinateInfoEnabled,
+  deleteStoreDetailsFeatureInfo,
+  LAYER_PATH_COORDINATE_INFO,
+} from '@/core/stores/store-interface-and-intial-values/feature-info-state';
+import { DEFAULT_OL_FITOPTIONS, OL_ZOOM_DURATION, OL_ZOOM_PADDING, TIMEOUT } from '@/core/utils/constant';
 import { DateMgt, type TimeDimension } from '@/core/utils/date-mgt';
-import { delay, isValidUUID } from '@/core/utils/utilities';
+import { delay, doTimeout, isValidUUID } from '@/core/utils/utilities';
+import { Fetch } from '@/core/utils/fetch-helper';
 import { logger } from '@/core/utils/logger';
 import { MapViewer } from '@/geo/map/map-viewer';
 import { LayerFilters } from '@/geo/layer/gv-layers/layer-filters';
@@ -299,7 +312,7 @@ export class MapController extends AbstractMapViewerController {
     const options: FitOptions = fitOptions ?? { padding: OL_ZOOM_PADDING, duration: OL_ZOOM_DURATION };
 
     // Get the layer bounds
-    const bounds = getStoreLayerStateLayerBounds(this.getMapId(), layerPath);
+    const bounds = getStoreLayerBounds(this.getMapId(), layerPath);
 
     // If found
     if (bounds) {
@@ -509,7 +522,7 @@ export class MapController extends AbstractMapViewerController {
     this.getControllersRegistry().layerController.highlightLayer(layerPath);
 
     // Get bounds and highlight a bounding box for the layer (if true in global settings)
-    const bounds = getStoreLayerStateLayerBounds(this.getMapId(), layerPath);
+    const bounds = getStoreLayerBounds(this.getMapId(), layerPath);
     if (bounds && getStoreShowLayerHighlightLayerBbox(this.getMapId())) this.highlightBBox(bounds, true);
 
     return layerPath;
@@ -661,7 +674,7 @@ export class MapController extends AbstractMapViewerController {
       this.getControllersRegistry().layerController.refreshLayers();
 
       // Remove layer highlight if present to avoid bad reprojection
-      const highlightName = getStoreLayerStateHighlightedLayer(this.getMapId());
+      const highlightName = getStoreLayerHighlightedLayer(this.getMapId());
       if (highlightName !== '') {
         this.changeOrRemoveLayerHighlight(highlightName, highlightName);
       }
@@ -715,13 +728,24 @@ export class MapController extends AbstractMapViewerController {
    *
    * @param clickCoordinates - The click coordinate information
    */
-  setClickCoordinates(clickCoordinates: TypeMapMouseInfo): void {
+  setClickCoordinates(clickCoordinates: TypeMapMouseInfo, abortSignal?: AbortSignal): void {
     // GV: We do not need to perform query, there is a handler on the map click in layer set.
     // Save in store
     setStoreMapClickCoordinates(this.getMapId(), clickCoordinates);
 
+    // If the coordinate info is enabled
+    if (getStoreDetailsCoordinateInfoEnabled(this.getMapId())) {
+      // Update the coordinate info with the new click coordinates
+      this.updateStoreCoordinateInfo(clickCoordinates, getStoreMapConfigServiceUrls(this.getMapId()), abortSignal).catch(
+        (error: unknown) => {
+          // Log
+          logger.logPromiseFailed('in updateStoreCoordinateInfo in mapController.setClickCoordinates', error);
+        }
+      );
+    }
+
     // If in WCAG mode, we need to emit the event
-    if (getStoreIsCrosshairsActive(this.getMapId())) this.getMapViewer().emitMapSingleClick(clickCoordinates);
+    if (getStoreAppIsCrosshairsActive(this.getMapId())) this.getMapViewer().emitMapSingleClick(clickCoordinates);
   }
 
   /**
@@ -856,6 +880,162 @@ export class MapController extends AbstractMapViewerController {
     // Do the actual view map rotation
     this.getMapViewer().map.getView().animate({ rotation });
     // GV No need to Save to the store, because this will trigger an event on MapViewer which will take care of updating the store
+  }
+
+  /**
+   * Toggles the coordinate info display on or off.
+   *
+   * When toggled on, clicking the map will display coordinate information such as UTM zone, NTS sheet, and altitude.
+   * When toggled off, any existing details coordinate info is removed from the details store.
+   * The clicked coordinates themselves remain in the map store.
+   *
+   * @param abortSignal - Optional AbortSignal to cancel the fetch requests if needed.
+   */
+  toggleCoordinateInfoEnabled(abortSignal: AbortSignal): void {
+    // Get the state value
+    const oldCoordinateInfoEnabledState = getStoreDetailsCoordinateInfoEnabled(this.getMapId());
+    const newCoordinateInfoEnabledState = !oldCoordinateInfoEnabledState;
+    setStoreDetailsCoordinateInfoEnabled(this.getMapId(), newCoordinateInfoEnabledState);
+
+    // If activating and there's coordinates stored already in the map store
+    const clickCoordinates = getStoreMapClickCoordinates(this.getMapId());
+    if (newCoordinateInfoEnabledState && clickCoordinates) {
+      // Refresh the coordinate info
+      this.updateStoreCoordinateInfo(clickCoordinates, getStoreMapConfigServiceUrls(this.getMapId()), abortSignal).catch(
+        (error: unknown) => {
+          // Log
+          logger.logPromiseFailed('in updateStoreCoordinateInfo in mapController.toggleCoordinateInfoEnabled', error);
+        }
+      );
+      return;
+    }
+
+    // If toggling it off
+    if (!newCoordinateInfoEnabledState) {
+      // Remove coordinate info layer when disabled
+      deleteStoreDetailsFeatureInfo(this.getMapId(), LAYER_PATH_COORDINATE_INFO);
+    }
+  }
+
+  /**
+   * Creates or deletes coordinate info based on the current enabled state.
+   *
+   * When coordinate info is enabled, fetches UTM zone, NTS sheet, and altitude
+   * data from the configured service URLs and creates a coordinate info layer
+   * entry in the store. When disabled, removes any existing coordinate info.
+   *
+   * @param coordinates - The map mouse info containing click coordinates.
+   * @param serviceUrls - Service URLs for UTM, NTS, and altitude lookups.
+   * @param abortSignal - Optional AbortSignal to cancel the fetch requests if needed.
+   */
+  async updateStoreCoordinateInfo(coordinates: TypeMapMouseInfo, serviceUrls: TypeServiceUrls, abortSignal?: AbortSignal): Promise<void> {
+    const [lng, lat] = coordinates.lonlat;
+    const { utmZoneUrl, ntsSheetUrl, altitudeUrl } = serviceUrls;
+
+    try {
+      // Reset it in the store
+      updateStoreCoordinateInfoLayer(this.getMapId(), [], 'processing');
+
+      // Query utm zone information
+      const promiseUtmZoneResponse = Fetch.fetchJson<TypeUtmZoneResponse>(`${utmZoneUrl}?bbox=${lng}%2C${lat}%2C${lng}%2C${lat}`, {
+        signal: abortSignal,
+      });
+
+      // Query Nts information
+      const promiseNtsResponse = Fetch.fetchJson<TypeNtsResponse>(`${ntsSheetUrl}?bbox=${lng}%2C${lat}%2C${lng}%2C${lat}`, {
+        signal: abortSignal,
+      });
+
+      // Query altitude information
+      const promiseAltitudeResponse = Fetch.fetchJson<TypeAltitudeResponse>(`${altitudeUrl}?lat=${lat}&lon=${lng}`, {
+        signal: abortSignal,
+      });
+
+      // Start a timer to warn the user if fetches take too long
+      const slowWarningTimer = doTimeout(TIMEOUT.delayBeforeShowingSlowCoordinateInfoWarning);
+      slowWarningTimer.promise
+        .then((timeoutResult) => {
+          // If the signal has been aborted, it means we don't care about the fetch result anymore, so ignore
+          if (abortSignal?.aborted) return;
+
+          // If the slow warning timer was cancelled, it means the fetches completed in time, so ignore
+          if (timeoutResult === 'cancelled') return;
+
+          // It took too long
+          this.getMapViewer().notifications.showWarning('warning.layer.slowCoordinateInfo');
+        })
+        .catch((error: unknown) => {
+          // Log
+          logger.logPromiseFailed('in slowWarningTimer in mapController.updateStoreCoordinateInfo', error);
+        });
+
+      // Await all promises are settled
+      const [utmResult, ntsResult, elevationResult] = await Promise.allSettled([
+        promiseUtmZoneResponse,
+        promiseNtsResponse,
+        promiseAltitudeResponse,
+      ]);
+
+      // Cancel the warning timer, because we got a response
+      slowWarningTimer.cancel();
+
+      const utmData = utmResult.status === 'fulfilled' ? utmResult.value : undefined;
+      const ntsData = ntsResult.status === 'fulfilled' ? ntsResult.value : undefined;
+      const elevationData = elevationResult.status === 'fulfilled' ? elevationResult.value : undefined;
+
+      const utmIdentifier = utmData?.features[0].properties.identifier;
+      const [easting, northing] = utmIdentifier
+        ? Projection.transformToUTMNorthingEasting(coordinates.lonlat, utmIdentifier)
+        : [undefined, undefined];
+
+      // Create coordinate info layer entry
+      const coordinateFeature: TypeFeatureInfoEntry[] = [
+        {
+          uid: 'coordinate-info-feature',
+          fieldInfo: {
+            latitude: { value: lat.toFixed(6), fieldKey: 0, dataType: 'number', alias: 'Latitude' },
+            longitude: { value: lng.toFixed(6), fieldKey: 1, dataType: 'number', alias: 'Longitude' },
+            utmZone: { value: utmIdentifier, fieldKey: 2, dataType: 'string', alias: 'UTM Identifier' },
+            easting: { value: easting?.toFixed(2), fieldKey: 3, dataType: 'number', alias: 'Easting' },
+            northing: { value: northing?.toFixed(2), fieldKey: 4, dataType: 'number', alias: 'Northing' },
+            ntsMapsheet: {
+              value: ntsData?.features
+                .filter((f) => f.properties.name !== '')
+                .sort((f) => f.properties.scale)
+                .map((f) => {
+                  const scale = `${f.properties.scale / 1000}K`;
+                  return `${f.properties.identifier} - ${f.properties.name} - ${scale}`;
+                })
+                .join('\n'),
+              fieldKey: 5,
+              dataType: 'string',
+              alias: 'NTS Mapsheets',
+            },
+            elevation: {
+              value: elevationData?.altitude ? `${elevationData.altitude} m` : undefined,
+              fieldKey: 6,
+              dataType: 'string',
+              alias: 'Elevation',
+            },
+          },
+          extent: undefined,
+          geometry: undefined,
+          featureKey: 0,
+          geoviewLayerType: 'CSV',
+          supportZoomTo: true,
+          layerPath: LAYER_PATH_COORDINATE_INFO,
+        },
+      ];
+
+      // Update it in the store
+      updateStoreCoordinateInfoLayer(this.getMapId(), coordinateFeature, 'processed');
+    } catch (error: unknown) {
+      // Update it in the store
+      updateStoreCoordinateInfoLayer(this.getMapId(), [], 'error');
+
+      // Keep throwing
+      throw error;
+    }
   }
 
   // #endregion PUBLIC METHODS - OTHERS
@@ -1230,7 +1410,7 @@ export class MapController extends AbstractMapViewerController {
       // Construct map config
       const newMapConfig: TypeMapFeaturesInstance = {
         map,
-        theme: getStoreDisplayTheme(mapId),
+        theme: getStoreAppDisplayTheme(mapId),
         navBar: getStoreMapConfigNavBar(mapId),
         footerBar: getStoreMapConfigFooterBar(mapId),
         appBar: getStoreMapConfigAppBar(mapId),
@@ -1246,27 +1426,27 @@ export class MapController extends AbstractMapViewerController {
 
       // Set app bar tab settings
       if (newMapConfig.appBar) {
-        newMapConfig.appBar.selectedTab = getStoreActiveAppBarTab(mapId).tabId as TypeValidAppBarCoreProps;
+        newMapConfig.appBar.selectedTab = getStoreUIActiveAppBarTab(mapId).tabId as TypeValidAppBarCoreProps;
 
         const selectedDataTableLayerPath = getStoreDataTableSelectedLayerPath(mapId);
         if (selectedDataTableLayerPath) newMapConfig.appBar.selectedDataTableLayerPath = selectedDataTableLayerPath;
-        const selectedLayerPath = getStoreLayerStateSelectedLayerPath(mapId);
+        const selectedLayerPath = getStoreLayerSelectedLayerPath(mapId);
         if (selectedLayerPath) newMapConfig.appBar.selectedLayersLayerPath = selectedLayerPath;
       }
 
       // Set footer bar tab settings
       if (newMapConfig.footerBar) {
-        newMapConfig.footerBar.selectedTab = getStoreActiveFooterBarTab(mapId).tabId as TypeValidFooterBarTabsCoreProps;
+        newMapConfig.footerBar.selectedTab = getStoreUIActiveFooterBarTab(mapId).tabId as TypeValidFooterBarTabsCoreProps;
 
         const selectedDataTableLayerPath = getStoreDataTableSelectedLayerPath(mapId);
         if (selectedDataTableLayerPath) newMapConfig.footerBar.selectedDataTableLayerPath = selectedDataTableLayerPath;
-        const selectedLayerLayerPath = getStoreLayerStateSelectedLayerPath(mapId);
+        const selectedLayerLayerPath = getStoreLayerSelectedLayerPath(mapId);
         if (selectedLayerLayerPath) newMapConfig.footerBar.selectedLayersLayerPath = selectedLayerLayerPath;
 
         // If the TimeSlider plugin is initialized
         if (isStoreTimeSliderInitialized(mapId)) {
           // Store it
-          newMapConfig.footerBar.selectedTimeSliderLayerPath = getStoreTimeSliderSelectedLayer(mapId);
+          newMapConfig.footerBar.selectedTimeSliderLayerPath = getStoreTimeSliderSelectedLayerPath(mapId);
         }
       }
 
@@ -1403,7 +1583,7 @@ export class MapController extends AbstractMapViewerController {
 
     // Get info
     const orderedLayerInfo = getStoreMapOrderedLayerInfoByPath(mapId, layerPath)!; // Should always find one, so use a '!', otherwise let it break (was like this before)
-    const legendLayerInfo = getStoreLayerStateLegendLayerByPath(mapId, layerPath);
+    const legendLayerInfo = getStoreLayerLegendLayerByPath(mapId, layerPath);
 
     // Check if the layer is a geocore layers
     const isGeocore = isValidUUID(layerPath.split('/')[0]);
@@ -1477,7 +1657,7 @@ export class MapController extends AbstractMapViewerController {
 
     const layerEntryConfig = this.getControllersRegistry().layerController.getLayerEntryConfig(layerPath);
     const orderedLayerInfo = getStoreMapOrderedLayerInfoByPath(mapId, layerPath)!; // Should always find one, so use a '!', otherwise let it break (was like this before)
-    const legendLayerInfo = getStoreLayerStateLegendLayerByPath(mapId, layerPath);
+    const legendLayerInfo = getStoreLayerLegendLayerByPath(mapId, layerPath);
 
     // Get original layerEntryConfig from map config
     const pathArray = layerPath.split('/');

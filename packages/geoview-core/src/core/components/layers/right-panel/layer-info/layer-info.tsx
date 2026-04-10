@@ -6,29 +6,27 @@ import { Box, Divider, List, ListItem, Typography } from '@/ui';
 import { ListItemText } from '@/ui/list';
 
 import { getSxClasses } from '../layer-details-style';
-import type { TypeLegendLayer } from '@/core/components/layers/types';
 import { logger } from '@/core/utils/logger';
 import { getLocalizedMessage, isValidUUID } from '@/core/utils/utilities';
 import { CONST_LAYER_TYPES } from '@/api/types/layer-schema-types';
 import { UtilAddLayer } from '@/core/components/layers/left-panel/add-new-layer/add-layer-utils';
-import { useAppDisplayLanguage, useAppMetadataServiceURL } from '@/core/stores/store-interface-and-intial-values/app-state';
-import { useMapProjectionEPSG } from '@/core/stores/store-interface-and-intial-values/map-state';
-import { useDataTableFilterSelector } from '@/core/stores/store-interface-and-intial-values/data-table-state';
+import { useStoreAppDisplayLanguage, useStoreAppMetadataServiceURL } from '@/core/stores/store-interface-and-intial-values/app-state';
+import { useStoreMapCurrentProjectionEPSG } from '@/core/stores/store-interface-and-intial-values/map-state';
+import { useStoreTableFilter } from '@/core/stores/store-interface-and-intial-values/data-table-state';
 import {
-  useLayerDateTemporalMode,
-  useLayerDisplayDateFormat,
-  useLayerDisplayDateFormatShort,
-  useLayerDisplayDateTimezone,
-  useLayerSelectorBounds,
-  useLayerSelectorBounds4326,
-  useLayerSelectorFilter,
-  useLayerSelectorFilterClass,
-  useLayerTimeDimension,
+  useStoreLayerDateTemporalMode,
+  useStoreLayerDisplayDateFormat,
+  useStoreLayerDisplayDateFormatShort,
+  useStoreLayerDisplayDateTimezone,
+  useStoreLayerBounds,
+  useStoreLayerBounds4326,
+  useStoreLayerFilter,
+  useStoreLayerFilterClass,
+  useStoreLayerTimeDimension,
+  useStoreLayerSchemaTag,
+  useStoreLayerUrl,
 } from '@/core/stores/store-interface-and-intial-values/layer-state';
-import {
-  useTimeSliderFiltersSelector,
-  useTimeSliderLayersSelector,
-} from '@/core/stores/store-interface-and-intial-values/time-slider-state';
+import { useStoreTimeSliderFilter, useStoreTimeSliderLayer } from '@/core/stores/store-interface-and-intial-values/time-slider-state';
 import { useLayerController } from '@/core/controllers/layer-controller';
 
 // OGC/ESRI service capability request suffixes
@@ -36,7 +34,8 @@ const WFS_PARAMS = '?service=WFS&version=2.0.0&request=GetCapabilities';
 const WMS_PARAMS = '?service=WMS&version=1.3.0&request=GetCapabilities';
 
 interface LayerInfoPanelProps {
-  layerDetails: TypeLegendLayer;
+  /** The layer path to display information for. */
+  layerPath: string;
 }
 
 /**
@@ -46,9 +45,9 @@ interface LayerInfoPanelProps {
  * resource links, and metadata links. The header and back navigation are
  * handled by the parent.
  *
- * @param layerDetails - The legend layer to display information for.
+ * @param layerPath - The layer path to display information for.
  */
-export function LayerInfoPanel({ layerDetails }: LayerInfoPanelProps): JSX.Element | null {
+export function LayerInfoPanel({ layerPath }: LayerInfoPanelProps): JSX.Element | null {
   // Log
   logger.logTraceRender('components/layers/right-panel/layer-info/layer-info');
 
@@ -58,33 +57,32 @@ export function LayerInfoPanel({ layerDetails }: LayerInfoPanelProps): JSX.Eleme
   const sxClasses = getSxClasses(theme);
 
   // Store hooks
-  const language = useAppDisplayLanguage();
-  const metadataUrl = useAppMetadataServiceURL();
-  const mapProjectionEPSG = useMapProjectionEPSG();
-  const layerFilter = useLayerSelectorFilter(layerDetails.layerPath);
-  const classFilter = useLayerSelectorFilterClass(layerDetails.layerPath);
-  const dataFilter = useDataTableFilterSelector(layerDetails.layerPath);
-  const timeFilter = useTimeSliderFiltersSelector(layerDetails.layerPath);
-  const bounds = useLayerSelectorBounds(layerDetails.layerPath);
-  const bounds4326 = useLayerSelectorBounds4326(layerDetails.layerPath);
-  const layerDisplayDateFormat = useLayerDisplayDateFormat(layerDetails.layerPath);
-  const layerDisplayDateFormatShort = useLayerDisplayDateFormatShort(layerDetails.layerPath);
-  const layerDateTemporalMode = useLayerDateTemporalMode(layerDetails.layerPath);
-  const layerDisplayDateTimezone = useLayerDisplayDateTimezone(layerDetails.layerPath);
-  const layerTimeDimension = useLayerTimeDimension(layerDetails.layerPath);
-  const timeSliderDimension = useTimeSliderLayersSelector(layerDetails.layerPath);
+  const language = useStoreAppDisplayLanguage();
+  const metadataUrl = useStoreAppMetadataServiceURL();
+  const mapProjectionEPSG = useStoreMapCurrentProjectionEPSG();
+  const layerFilter = useStoreLayerFilter(layerPath);
+  const classFilter = useStoreLayerFilterClass(layerPath);
+  const dataFilter = useStoreTableFilter(layerPath);
+  const timeFilter = useStoreTimeSliderFilter(layerPath);
+  const schemaTag = useStoreLayerSchemaTag(layerPath);
+  const url = useStoreLayerUrl(layerPath);
+  const bounds = useStoreLayerBounds(layerPath);
+  const bounds4326 = useStoreLayerBounds4326(layerPath);
+  const layerDisplayDateFormat = useStoreLayerDisplayDateFormat(layerPath);
+  const layerDisplayDateFormatShort = useStoreLayerDisplayDateFormatShort(layerPath);
+  const layerDateTemporalMode = useStoreLayerDateTemporalMode(layerPath);
+  const layerDisplayDateTimezone = useStoreLayerDisplayDateTimezone(layerPath);
+  const layerTimeDimension = useStoreLayerTimeDimension(layerPath);
+  const timeSliderDimension = useStoreTimeSliderLayer(layerPath);
   const layerController = useLayerController();
 
   // TODO: CHECK - This should probably be a Zustand store hook instead of a controller getter?
-  const layerNativeProjection = layerController.getLayerMetatadaProjectionEPSG(layerDetails.layerPath);
+  const layerNativeProjection = layerController.getLayerMetatadaProjectionEPSG(layerPath);
 
   // Derived values
   const memoLocalizedLayerType = useMemo(() => UtilAddLayer.getLocalizeLayerType(language, true), [language]);
   const boundsRounded = bounds?.map((value) => Math.round(value));
   const boundsRounded4326 = bounds4326?.map((value) => Math.round(value * 100) / 100);
-
-  // Props
-  const { schemaTag, url, layerPath } = layerDetails;
 
   // Build resource URL based on layer type
   const memoResources = useMemo((): string => {
@@ -115,7 +113,7 @@ export function LayerInfoPanel({ layerDetails }: LayerInfoPanelProps): JSX.Eleme
   }, [url, schemaTag, layerPath]);
 
   // Check if we can set the metadata from layerPath
-  const id = layerDetails.layerPath.split('/')[0].split(':')[0];
+  const id = layerPath.split('/')[0].split(':')[0];
   const validId = isValidUUID(id) && metadataUrl !== '';
 
   // Find the localized name for the current layer type
@@ -124,11 +122,11 @@ export function LayerInfoPanel({ layerDetails }: LayerInfoPanelProps): JSX.Eleme
     let name = localizedTypeEntry ? localizedTypeEntry[1] : t('layers.serviceGroup');
 
     // Special case if type is GeoJSON and url end by zip or shp. It is a GeoJSON format derived from a shapefile
-    if (name === CONST_LAYER_TYPES.GEOJSON && (layerDetails.url?.includes('.zip') || layerDetails.url?.includes('.shp'))) {
+    if (name === CONST_LAYER_TYPES.GEOJSON && (url?.includes('.zip') || url?.includes('.shp'))) {
       name = `${name} - ${t('layers.serviceEsriShapefile')}`;
     }
     return name;
-  }, [memoLocalizedLayerType, schemaTag, layerDetails.url, t]);
+  }, [memoLocalizedLayerType, schemaTag, url, t]);
 
   return (
     <Box sx={sxClasses.layerInfo}>
