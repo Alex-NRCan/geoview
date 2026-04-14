@@ -15,7 +15,7 @@ import type { EventDelegateBase } from '@/api/events/event-helper';
 import EventHelper from '@/api/events/event-helper';
 import { logger } from '@/core/utils/logger';
 import type { VectorLayerEntryConfig } from '@/api/config/validation-classes/vector-layer-entry-config';
-import type { TypeFeatureInfoResult } from '@/api/types/map-schema-types';
+import type { TypeFeatureInfoResult, TypeLayerStyleConfig } from '@/api/types/map-schema-types';
 import type { FilterNodeType } from '@/geo/utils/renderer/geoview-renderer-types';
 import { GeoviewRenderer } from '@/geo/utils/renderer/geoview-renderer';
 import { GVLayerUtilities } from '@/geo/layer/gv-layers/utils';
@@ -46,6 +46,12 @@ export abstract class AbstractGVVector extends AbstractGVLayer {
   /** Callback delegates for the text visible changed event */
   #onTextVisibleChangedHandlers: TextVisibleChangedDelegate[] = [];
 
+  /** Cache for feature styles keyed by feature ID */
+  #styleCache: Map<string, Style | undefined> = new Map();
+
+  /** Maximum number of styles to cache */
+  static readonly STYLE_CACHE_SIZE_LIMIT = 1000;
+
   /**
    * Constructs a GeoView Vector layer to manage an OpenLayer layer.
    *
@@ -63,14 +69,8 @@ export abstract class AbstractGVVector extends AbstractGVLayer {
       properties: { layerConfig },
       source: olSource,
       style: (feature, resolution) => {
-        // Calculate the style for the feature
-        const style = AbstractGVVector.calculateStyleForFeature(
-          this as AbstractGVLayer,
-          feature,
-          resolution,
-          label,
-          this.getLayerFilters()?.getFilterEquation()
-        );
+        // Get or create cached style
+        const style = this.#getOrCreateCachedStyle(feature, resolution, label);
 
         // Set the style applied, throwing a style applied event in the process
         this.setStyleApplied(true);
@@ -90,13 +90,11 @@ export abstract class AbstractGVVector extends AbstractGVLayer {
     // Init the layer options with initial settings
     AbstractGVVector.initOptionsWithInitialSettings(layerOptions, layerConfig);
 
-    // If the layer is initially not visible, make it visible until the style is set so we have a style for the legend
-    this.onLayerFirstLoaded(() => {
-      if (!this.getStyle() && !this.getVisible()) {
-        this.onLayerStyleChanged(() => this.setVisible(false));
-        this.setVisible(true);
-      }
-    });
+    // Clear cache when filters are updated.
+    this.onLayerFilterApplied(() => this.#clearStyleCache());
+
+    // Keep the subscription clean and readable
+    this.onLayerFirstLoaded(this.#handleLayerFirstLoaded.bind(this));
 
     // Create and set the OpenLayer layer
     this.setOLLayer(new VectorLayer<VectorSource<Feature<Geometry>>>(layerOptions));
@@ -423,6 +421,79 @@ export abstract class AbstractGVVector extends AbstractGVLayer {
   // #region METHODS
 
   /**
+   * Gets or creates a cached style for a feature at a given resolution.
+   *
+   * Resolution is rounded to 2 decimal places to prevent cache thrashing during smooth zoom animations.
+   * This avoids recreating Style objects for every tiny resolution change.
+   *
+   * @param feature - The feature to calculate style for.
+   * @param resolution - The current map resolution.
+   * @param label - Style label for fallback styling.
+   * @returns The cached or newly calculated style.
+   */
+  #getOrCreateCachedStyle(feature: FeatureLike, resolution: number, label: string): Style | undefined {
+    // Round resolution to 1 decimal place as cache key component to reduce style churn at zoom boundaries.
+    const roundedResolution = Math.round(resolution * 10) / 10;
+
+    // Calculate new style and cache it
+    const featureStyle = AbstractGVVector.calculateStyleForFeature(
+      this as AbstractGVLayer,
+      feature,
+      resolution,
+      label,
+      this.getLayerFilters()?.getFilterEquation()
+    );
+
+    // If no feature style generated
+    if (!featureStyle) {
+      // No style
+      return undefined;
+    }
+
+    // Clone the style
+    const styleClone = featureStyle.clone();
+    // Eliminate geometry from the style clone to prevent cache misses due to different geometries on features
+    styleClone.setGeometry('');
+    // Create a cache key based on the rounded resolution and the stringified style (without geometry)
+    const styleKey = `${roundedResolution}${JSON.stringify(styleClone)}`;
+
+    // Cache the style if not already cached
+    if (!this.#styleCache.has(styleKey)) {
+      this.#styleCache.set(styleKey, featureStyle);
+
+      // Limit cache size to prevent memory bloat
+      if (this.#styleCache.size > AbstractGVVector.STYLE_CACHE_SIZE_LIMIT) {
+        const firstKey = this.#styleCache.keys().next().value;
+        if (firstKey) {
+          this.#styleCache.delete(firstKey);
+        }
+      }
+    }
+
+    return this.#styleCache.get(styleKey);
+  }
+
+  /**
+   * Clears the style cache. Call this when layer style, filters, or visibility changes to ensure fresh styles are recalculated.
+   */
+  #clearStyleCache(): void {
+    this.#styleCache.clear();
+  }
+
+  /**
+   * Sets the layer style.
+   *
+   * @param style - The layer style
+   */
+  override setStyle(style: TypeLayerStyleConfig): void {
+    // Clear the style cache to ensure new styles are calculated with the updated style configuration
+    this.#clearStyleCache();
+    super.setStyle(style);
+    // Trigger a refresh to apply the new style to all features
+    this.refresh(undefined);
+  }
+
+  /**
    * Sets the style applied flag indicating when a style has been applied for the AbstractGVVector via the style callback function.
    *
    * @param styleApplied - Indicates if the style has been applied on the AbstractGVVector.
@@ -475,6 +546,49 @@ export abstract class AbstractGVVector extends AbstractGVLayer {
    */
   getTextLayerVisible(): boolean {
     return this.#textOLLayer?.getVisible() ?? false;
+  }
+
+  /**
+   * Handles the first loaded event for the layer.
+   *
+   * If the layer starts with no style and is initially invisible, it temporarily sets the layer to visible
+   * to allow the style to be applied, then restores the original visibility state after the style is applied.
+   */
+  #handleLayerFirstLoaded(): void {
+    // Capture the initial visibility state so we can restore it later
+    const initialVisible = this.getVisible();
+
+    // If the layer has no style yet and is initially invisible
+    if (!this.getStyle() && !initialVisible) {
+      this.#ensureStyleWithTemporaryVisibility(initialVisible);
+    }
+  }
+
+  /**
+   * Ensures that the layer style is applied even if the layer is initially invisible.
+   *
+   * Temporarily sets the layer to visible to allow the style to be applied, then restores the original visibility state.
+   *
+   * @param initialVisible - Whether the layer is visible intially
+   */
+  #ensureStyleWithTemporaryVisibility(initialVisible: boolean): void {
+    // Subscribe to style changes
+    const hook = this.onLayerStyleChanged(() => {
+      // Unsubscribe after the first style change to avoid repeated triggers
+      this.offLayerStyleChanged(hook);
+
+      // Restore the original visibility state
+      this.setVisible(initialVisible);
+    });
+
+    // Handle race condition: style may already be set
+    if (this.getStyle()) {
+      this.offLayerStyleChanged(hook);
+      return;
+    }
+
+    // Temporarily make the layer visible so the style can be computed/applied
+    this.setVisible(true);
   }
 
   // #endregion METHODS
