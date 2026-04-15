@@ -7,7 +7,7 @@ import { MapEventProcessor } from '@/api/event-processors/event-processor-childr
 
 import type { TypeDisplayLanguage } from '@/api/types/map-schema-types';
 import { DEFAULT_MAP_FEATURE_CONFIG } from '@/api/types/map-schema-types';
-import type { GeoCoreLayerConfig, RCSLayerConfig, TypeGeoviewLayerConfig } from '@/api/types/layer-schema-types';
+import type { GeoCoreLayerConfig, TypeGeoviewLayerConfig } from '@/api/types/layer-schema-types';
 import type { GeoViewError } from '@/core/exceptions/geoview-exceptions';
 
 /** Class used to add GeoCore layers to the map. */
@@ -106,7 +106,6 @@ export class GeoCore {
    * @param uuid - The UUID of the layer
    * @param language - The language
    * @param mapId - The map identifier
-   * @param layerConfig - Optional layer configuration
    * @param abortSignal - Optional {@link AbortSignal} used to handle cancelling of fetch
    * @returns A promise that resolves with the layer configuration to add to the map
    */
@@ -114,7 +113,6 @@ export class GeoCore {
     uuid: string,
     language: TypeDisplayLanguage,
     mapId: string,
-    layerConfig?: RCSLayerConfig,
     abortSignal?: AbortSignal
   ): Promise<TypeGeoviewLayerConfig> {
     // Get the map config and rcsUrl if it overrides the default
