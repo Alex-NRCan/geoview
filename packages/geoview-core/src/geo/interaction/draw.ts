@@ -104,6 +104,30 @@ export class Draw extends Interaction {
   }
 
   /**
+   * Finishes the current drawing, triggering the drawend event.
+   * This is equivalent to double-clicking or pressing Enter to complete a drawing.
+   */
+  finishDrawing(): void {
+    this.#olDraw.finishDrawing();
+  }
+
+  /**
+   * Removes the last point added to the current drawing, allowing the user to undo the last step while drawing.
+   *
+   * @returns True if a point was removed, false if there were no points to remove
+   */
+  undo(): boolean {
+    const sketch = this.#olDraw.getOverlay()?.getSource()?.getFeatures()[0];
+    // LineString and Polygons will change to 'Point' (the cursor point overlay) if no features in array
+    if (sketch.getGeometry()?.getType() === 'Point') {
+      return false; // No points to remove
+    }
+
+    this.#olDraw.removeLastPoint();
+    return true;
+  }
+
+  /**
    * Emits the drawstart event to all registered handlers.
    *
    * @param event - The event to emit

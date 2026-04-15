@@ -1,15 +1,30 @@
-import type { DrawEvent } from 'ol/interaction/Draw';
-import GeoJSON from 'ol/format/GeoJSON';
-import { createBox, type GeometryFunction, type SketchCoordType } from 'ol/interaction/Draw';
-import type SimpleGeometry from 'ol/geom/SimpleGeometry';
-import Polygon, { fromCircle } from 'ol/geom/Polygon';
-import { Text, Fill, Icon as OLIcon, Stroke, Style } from 'ol/style';
-import Point from 'ol/geom/Point';
+import Collection from 'ol/Collection';
 import Feature from 'ol/Feature';
-import type Geometry from 'ol/geom/Geometry';
-import type { StyleLike } from 'ol/style/Style';
+import GeoJSON from 'ol/format/GeoJSON';
 import { Circle as CircleGeom, LineString } from 'ol/geom';
+import type Geometry from 'ol/geom/Geometry';
+import Point from 'ol/geom/Point';
+import Polygon, { fromCircle } from 'ol/geom/Polygon';
+import type SimpleGeometry from 'ol/geom/SimpleGeometry';
+import type { DrawEvent, GeometryFunction, SketchCoordType } from 'ol/interaction/Draw';
+import { createBox } from 'ol/interaction/Draw';
 import Overlay from 'ol/Overlay';
+import { getArea, getLength } from 'ol/sphere';
+import { Text, Fill, Icon as OLIcon, Stroke, Style } from 'ol/style';
+import type { StyleLike } from 'ol/style/Style';
+
+import type { MapViewer } from '@/geo/map/map-viewer';
+import type {
+  Transform,
+  TransformDeleteFeatureEvent,
+  TransformEvent,
+  TransformSelectionEvent,
+} from '@/geo/interaction/transform/transform';
+import type { Draw } from '@/geo/interaction/draw';
+import type { Snap } from '@/geo/interaction/snap';
+import type { GeometryApi } from '@/geo/layer/geometry/geometry';
+import { Projection } from '@/geo/utils/projection';
+import { GeoUtilities } from '@/geo/utils/utilities';
 
 import { AbstractMapViewerController } from '@/core/controllers/base/abstract-map-viewer-controller';
 import { getGeoViewStore } from '@/core/stores/stores-managers';
@@ -17,27 +32,18 @@ import {
   DEFAULT_TEXT_VALUES,
   isStoreDrawerInitialized,
   getStoreDrawerActiveGeom,
-  getStoreDrawerDrawInstance,
   getStoreDrawerHideMeasurements,
   getStoreDrawerIconSrc,
   getStoreDrawerIsDrawing,
   getStoreDrawerIsEditing,
   getStoreDrawerIsSnapping,
-  getStoreDrawerSelectedDrawing,
-  getStoreDrawerSnapInstance,
   getStoreDrawerStyle,
-  getStoreDrawerTransformInstance,
-  removeStoreDrawInstance,
-  removeStoreSnapInstance,
-  removeStoreTransformInstance,
   setStoreActiveGeom,
   setStoreDrawerIconSize,
-  setStoreDrawInstance,
   setStoreFillColor,
   setStoreHideMeasurements,
   setStoreRedoDisabled,
-  setStoreSelectedDrawing,
-  setStoreSnapInstance,
+  setStoreSelectedDrawingType,
   setStoreStrokeColor,
   setStoreStrokeWidth,
   setStoreTextBold,
@@ -49,30 +55,20 @@ import {
   setStoreTextRotation,
   setStoreTextSize,
   setStoreTextValue,
-  setStoreTransformInstance,
   setStoreUndoDisabled,
   updateStoreStateStyle,
   type StyleProps,
+  setStoreIsDrawing,
+  setStoreIsEditing,
+  setStoreIsSnapping,
 } from '@/core/stores/store-interface-and-intial-values/drawer-state';
 import type { DomainLanguageChangedDelegate, DomainLanguageChangedEvent, UIDomain } from '@/core/domains/ui-domain';
-import type { MapViewer } from '@/geo/map/map-viewer';
-import type {
-  Transform,
-  TransformDeleteFeatureEvent,
-  TransformEvent,
-  TransformSelectionEvent,
-} from '@/geo/interaction/transform/transform';
-import type { Draw } from '@/geo/interaction/draw';
 import { formatArea, formatLength, generateId } from '@/core/utils/utilities';
-import { GeoUtilities } from '@/geo/utils/utilities';
-import type { TypeDisplayLanguage, TypeValidMapProjectionCodes } from '@/api/types/map-schema-types';
 import { getStoreAppDisplayLanguage } from '@/core/stores/store-interface-and-intial-values/app-state';
-import Collection from 'ol/Collection';
-import { Projection } from '@/geo/utils/projection';
-import { getArea, getLength } from 'ol/sphere';
 import { getStoreMapCurrentProjection } from '@/core/stores/store-interface-and-intial-values/map-state';
 import { logger } from '@/core/utils/logger';
-import type { GeometryApi } from '@/geo/layer/geometry/geometry';
+
+import type { TypeDisplayLanguage, TypeValidMapProjectionCodes } from '@/api/types/map-schema-types';
 
 /**
  * Controller responsible for drawer interactions, keyboard shortcuts, and
@@ -85,30 +81,39 @@ export class DrawerController extends AbstractMapViewerController {
   /** Maximum history size */
   static readonly MAX_HISTORY_SIZE = 50;
 
+  /** Tolerance for comparing style values */
+  static readonly STYLE_TOLERANCE = 0.1;
+
   /** Keyboard event handlers for each map keyed by map id. */
-  static #keyboardHandlers: Map<string, (event: KeyboardEvent) => void> = new Map();
+  #keyboardHandler?: (event: KeyboardEvent) => void;
+
+  /** The current draw interaction instance */
+  #drawInstance?: Draw;
+
+  /** The current transform interaction instance */
+  #transformInstance?: Transform;
+
+  /** The current snap interaction instance */
+  #snapInstance?: Snap;
 
   /** Keep track of the temporary transform instances for new text drawings */
-  static #tempTransformInstances = new Map<string, Transform>();
+  #tempTextTransformInstance?: Transform;
 
   /** Track features that were selected and their original geometries */
   // GV The Map was because the transform COULD select multiple features
   // GV It may not be necessary as I'm not sure we should support that
-  static #selectedFeatureState: Map<
-    string,
-    {
-      feature: Feature;
-      originalGeometry: Geometry;
-      originalStyle?: StyleLike | undefined;
-      originalStyleStored?: boolean;
-    }
-  > = new Map();
+  #selectedFeatureState?: {
+    feature: Feature;
+    originalGeometry: Geometry;
+    originalStyle?: StyleLike | undefined;
+    originalStyleStored?: boolean;
+  };
 
   /** History stack for undo/redo functionality */
-  static #drawerHistory: Map<string, DrawerHistoryAction[]> = new Map();
+  #drawerHistory: DrawerHistoryAction[] = [];
 
   /** Current position in history stack for each map */
-  static #historyIndex: Map<string, number> = new Map();
+  #historyIndex: number = -1;
 
   /** The default icon source as a base64-encoded SVG data URI */
   static readonly DEFAULT_ICON_SOURCE =
@@ -182,10 +187,10 @@ export class DrawerController extends AbstractMapViewerController {
     }
 
     // Remove keyboard handler
-    const handler = DrawerController.#keyboardHandlers.get(this.getMapId());
+    const handler = this.#keyboardHandler;
     if (handler) {
       document.removeEventListener('keydown', handler);
-      DrawerController.#keyboardHandlers.delete(this.getMapId());
+      this.#keyboardHandler = undefined;
     }
   }
 
@@ -229,7 +234,7 @@ export class DrawerController extends AbstractMapViewerController {
     currentStyle.textRotation = 0;
 
     // If drawing already, stop and restart as it's likely a style change
-    if (getStoreDrawerDrawInstance(mapId)) {
+    if (this.#drawInstance) {
       this.stopDrawing();
     }
 
@@ -257,7 +262,7 @@ export class DrawerController extends AbstractMapViewerController {
     draw.onDrawEnd(this.#handleDrawEnd());
 
     // Update state
-    setStoreDrawInstance(mapId, draw);
+    this.#setDrawInstance(draw);
     if (geomType) {
       this.setActiveGeom(geomType);
     }
@@ -285,10 +290,10 @@ export class DrawerController extends AbstractMapViewerController {
       viewer.registerMapPointerHandlers(viewer.map);
     }
 
-    getStoreDrawerDrawInstance(mapId)?.stopInteraction();
+    this.#drawInstance?.stopInteraction();
 
     // Update state
-    removeStoreDrawInstance(mapId);
+    this.#setDrawInstance(undefined);
   }
 
   /**
@@ -331,12 +336,12 @@ export class DrawerController extends AbstractMapViewerController {
       viewer.unregisterMapPointerHandlers(viewer.map);
     }
 
-    const oldTransformInstance = getStoreDrawerTransformInstance(mapId);
+    const oldTransformInstance = this.#transformInstance;
 
     // If editing already, stop and restart as it's likely a style change
     if (oldTransformInstance) {
       oldTransformInstance.stopInteraction();
-      removeStoreTransformInstance(mapId);
+      this.#setTransformInstance(undefined);
     }
 
     // Only start editing if the drawing group exists
@@ -352,14 +357,14 @@ export class DrawerController extends AbstractMapViewerController {
       // Handle Selection Events (new selection, removed selection, or both)
       transformInstance.onSelectionChange(this.#handleTransformSelectionChange());
 
-      setStoreTransformInstance(mapId, transformInstance);
+      this.#setTransformInstance(transformInstance);
     } else {
       this.startDrawing();
       return;
     }
 
     // If we have an active drawing instance, stop it
-    const drawInstance = getStoreDrawerDrawInstance(mapId);
+    const drawInstance = this.#drawInstance;
     if (drawInstance) {
       this.stopDrawing();
     }
@@ -383,11 +388,11 @@ export class DrawerController extends AbstractMapViewerController {
       viewer.registerMapPointerHandlers(viewer.map);
     }
 
-    const transformInstance = getStoreDrawerTransformInstance(mapId);
+    const transformInstance = this.#transformInstance;
 
     if (!transformInstance) return;
     transformInstance.stopInteraction();
-    removeStoreTransformInstance(mapId);
+    this.#setTransformInstance(undefined);
   }
 
   /**
@@ -422,7 +427,7 @@ export class DrawerController extends AbstractMapViewerController {
     const snapInstance = viewer.initSnapInteractions(DrawerController.DRAW_GROUP_KEY);
     snapInstance.startInteraction();
 
-    setStoreSnapInstance(mapId, snapInstance);
+    this.#setSnapInstance(snapInstance);
   }
 
   /**
@@ -434,10 +439,10 @@ export class DrawerController extends AbstractMapViewerController {
 
     if (!isStoreDrawerInitialized(mapId)) return;
 
-    const snapInstance = getStoreDrawerSnapInstance(mapId);
+    const snapInstance = this.#snapInstance;
     snapInstance?.stopInteraction();
 
-    removeStoreSnapInstance(mapId);
+    this.#setSnapInstance(undefined);
   }
 
   /**
@@ -475,12 +480,15 @@ export class DrawerController extends AbstractMapViewerController {
   /**
    * Clears all drawings from the map.
    *
+   * @param saveHistory - Optional flag to determine whether to save this action to history (default: true)
    */
   clearDrawings(saveHistory: boolean = true): void {
     // Get the map id
     const mapId = this.getMapId();
 
     if (!isStoreDrawerInitialized(mapId)) return;
+
+    this.#stopAllInteractions();
 
     // Get all geometries for each type
     const features = this.#getDrawingFeatures();
@@ -489,7 +497,7 @@ export class DrawerController extends AbstractMapViewerController {
     if (saveHistory && features.length > 0) {
       this.#saveToHistory({
         type: 'clear',
-        features: features.map((ftr) => ftr.clone()),
+        features: features,
       });
     }
 
@@ -557,12 +565,15 @@ export class DrawerController extends AbstractMapViewerController {
     if (!isStoreDrawerInitialized(mapId)) return;
 
     const hideMeasurements = getStoreDrawerHideMeasurements(mapId);
-    const selectedDrawingId = getStoreDrawerSelectedDrawing(mapId)?.getId();
+    const selectedFeature = this.#selectedFeatureState?.feature;
+    if (!selectedFeature) return;
+
+    const selectedDrawingId = selectedFeature?.get('featureId');
 
     // Get all overlays, ignoring currently selected features
     const features = this.#getDrawingFeatures();
     const measureOverlays = features
-      .filter((feature) => feature.getId() !== selectedDrawingId)
+      .filter((feature) => feature.get('featureId') !== selectedDrawingId)
       .map((feature) => feature.get('measureTooltip'));
 
     // Toggle the visibility of the measure tooltips
@@ -661,7 +672,7 @@ export class DrawerController extends AbstractMapViewerController {
    *
    * @param text - The text content
    */
-  setTextValue(text: string): void {
+  setTextValue(text: string | string[]): void {
     // Get the map id
     const mapId = this.getMapId();
 
@@ -808,7 +819,7 @@ export class DrawerController extends AbstractMapViewerController {
     const mapId = this.getMapId();
 
     // Refresh the draw instance with the new style
-    if (getStoreDrawerDrawInstance(mapId) !== undefined) {
+    if (this.#drawInstance !== undefined && !this.#tempTextTransformInstance) {
       this.startDrawing();
     }
 
@@ -826,21 +837,18 @@ export class DrawerController extends AbstractMapViewerController {
 
     if (!isStoreDrawerInitialized(mapId)) return;
 
-    const transformInstance = getStoreDrawerTransformInstance(mapId);
+    // Check both the main transform and the temp text transform
+    const transformInstance = this.#transformInstance || this.#tempTextTransformInstance;
     if (!transformInstance) return;
 
     const selectedFeature = transformInstance.getSelectedFeature();
     if (!selectedFeature) return;
 
-    // Get the current state for this feature
-    const stateKey = `${mapId}-${selectedFeature.getId()}`;
-    const savedState = DrawerController.#selectedFeatureState.get(stateKey);
-
     // Store original style if not already stored
-    if (savedState) {
-      if (!savedState.originalStyleStored) {
-        savedState.originalStyle = selectedFeature.getStyle();
-        savedState.originalStyleStored = true;
+    if (this.#selectedFeatureState) {
+      if (!this.#selectedFeatureState.originalStyleStored) {
+        this.#selectedFeatureState.originalStyle = selectedFeature.getStyle();
+        this.#selectedFeatureState.originalStyleStored = true;
       }
 
       // Apply the new style
@@ -861,13 +869,33 @@ export class DrawerController extends AbstractMapViewerController {
         });
       } else if (isTextFeature) {
         geomType = 'Text';
+
+        // New style values from the store
+        let currentTextSize = newStyle.textSize;
+        let currentRotation = newStyle.textRotation;
+
+        // Styles from the feature properties
+        const featureSize = selectedFeature.get('textSize') as number;
+        const featureRotation = selectedFeature.get('textRotation') as number;
+
+        // Size is different from store, so the handles were used. Update the style and properties
+        if (newStyle.textSize && Math.abs(newStyle.textSize - featureSize) < DrawerController.STYLE_TOLERANCE) {
+          currentTextSize = featureSize;
+        }
+
+        // Rotation is different from the store, so the handle was used. Update the style and properties
+        // GV Currently the only way to change the rotation is with the handle, but if a UI element is added, then this will be needed
+        if (newStyle.textRotation && Math.abs(newStyle.textRotation - featureRotation) < DrawerController.STYLE_TOLERANCE) {
+          currentRotation = featureRotation;
+        }
+
         featureStyle = new Style({
           text: new Text({
-            text: newStyle.text,
+            text: newStyle.text || selectedFeature.get('text'),
             fill: new Fill({ color: newStyle.textColor }),
             stroke: new Stroke({ color: newStyle.textHaloColor, width: newStyle.textHaloWidth }),
-            font: `${newStyle.textItalic ? 'italic ' : ''}${newStyle.textBold ? 'bold ' : ''}${newStyle.textSize}px ${newStyle.textFont}`,
-            rotation: newStyle.textRotation,
+            font: `${newStyle.textItalic ? 'italic ' : ''}${newStyle.textBold ? 'bold ' : ''}${currentTextSize}px ${newStyle.textFont}`,
+            rotation: currentRotation,
           }),
         });
       } else {
@@ -883,8 +911,10 @@ export class DrawerController extends AbstractMapViewerController {
         });
       }
 
-      // Set the new feature properties and style
+      // Update properties for point and other geometries
       DrawerController.#setFeatureProperties(selectedFeature, geomType, newStyle, getStoreDrawerIconSrc(mapId));
+
+      // Set the new feature properties and style
       selectedFeature.setStyle(featureStyle);
     }
   }
@@ -904,8 +934,22 @@ export class DrawerController extends AbstractMapViewerController {
 
     if (!isStoreDrawerInitialized(mapId)) return false;
 
+    // If drawing, use it's undo if possible
+    const drawInstance = this.#drawInstance;
+    if (drawInstance) {
+      const undoResult = drawInstance.undo();
+      if (undoResult) {
+        return true;
+      }
+
+      // If undo not possible, stop drawing
+      drawInstance.stopInteraction();
+      this.#setDrawInstance(undefined);
+      return true;
+    }
+
     // If editing, undo the transform instance
-    const transformInstance = getStoreDrawerTransformInstance(mapId);
+    const transformInstance = this.#transformInstance;
     if (transformInstance && transformInstance.getSelectedFeature()) {
       if (transformInstance.canUndo()) {
         return transformInstance.undo(() => {
@@ -914,8 +958,8 @@ export class DrawerController extends AbstractMapViewerController {
       }
     }
 
-    const history = DrawerController.#drawerHistory.get(mapId);
-    const currentIndex = DrawerController.#historyIndex.get(mapId);
+    const history = this.#drawerHistory;
+    const currentIndex = this.#historyIndex;
 
     if (!history || currentIndex === undefined || currentIndex < 0) return false;
 
@@ -945,7 +989,7 @@ export class DrawerController extends AbstractMapViewerController {
         return false;
     }
 
-    DrawerController.#historyIndex.set(mapId, currentIndex - 1);
+    this.#historyIndex = currentIndex - 1;
     this.#updateUndoRedoState();
     return true;
   }
@@ -962,7 +1006,7 @@ export class DrawerController extends AbstractMapViewerController {
     if (!isStoreDrawerInitialized(mapId)) return false;
 
     // If editing, redo the transform instance
-    const transformInstance = getStoreDrawerTransformInstance(mapId);
+    const transformInstance = this.#transformInstance;
     if (transformInstance && transformInstance.getSelectedFeature()) {
       if (transformInstance.canRedo()) {
         return transformInstance.redo(() => {
@@ -971,8 +1015,8 @@ export class DrawerController extends AbstractMapViewerController {
       }
     }
 
-    const history = DrawerController.#drawerHistory.get(mapId);
-    const currentIndex = DrawerController.#historyIndex.get(mapId);
+    const history = this.#drawerHistory;
+    const currentIndex = this.#historyIndex;
 
     if (!history || currentIndex === undefined || currentIndex >= history.length - 1) return false;
 
@@ -1013,7 +1057,7 @@ export class DrawerController extends AbstractMapViewerController {
 
     // Don't increase the index for 'select' actions
     if (action.type !== 'select') {
-      DrawerController.#historyIndex.set(mapId, nextIndex);
+      this.#historyIndex = nextIndex;
     }
     this.#updateUndoRedoState();
     return true;
@@ -1023,16 +1067,12 @@ export class DrawerController extends AbstractMapViewerController {
    * Cleans up resources for a map.
    */
   cleanup(): void {
-    // Get the map id
-    const mapId = this.getMapId();
-
     // Clear history
-    DrawerController.#drawerHistory.delete(mapId);
-    DrawerController.#historyIndex.delete(mapId);
+    this.#drawerHistory = [];
+    this.#historyIndex = -1;
 
     // Clean up selected feature states for this map
-    const keysToDelete = Array.from(DrawerController.#selectedFeatureState.keys()).filter((key) => key.startsWith(`${mapId}-`));
-    keysToDelete.forEach((key) => DrawerController.#selectedFeatureState.delete(key));
+    this.#selectedFeatureState = undefined;
   }
 
   // #endregion PUBLIC METHODS - HISTORY
@@ -1061,39 +1101,8 @@ export class DrawerController extends AbstractMapViewerController {
           const olStyle = feature.getStyle() as Style;
           const geometry = feature.getGeometry();
 
-          // Extract style properties
-          let styleProps: TypeGeoJSONStyleProps = {};
-          if (olStyle && geometry) {
-            if (geometry instanceof Point) {
-              const isTextFeature = feature.get('text') !== undefined;
-              if (isTextFeature) {
-                styleProps = {
-                  text: feature.get('text'),
-                  textSize: feature.get('textSize'),
-                  textFont: feature.get('textFont'),
-                  textColor: feature.get('textColor'),
-                  textHaloColor: feature.get('textHaloColor'),
-                  textHaloWidth: feature.get('textHaloWidth'),
-                  textBold: feature.get('textBold'),
-                  textItalic: feature.get('textItalic'),
-                  textRotation: feature.get('textRotation'),
-                };
-              } else {
-                // point style icon
-                styleProps.iconSrc = feature.get('iconSrc');
-                styleProps.iconSize = feature.get('iconSize');
-              }
-            } else {
-              // Handle polygon/line styles
-              const stroke = olStyle.getStroke?.();
-              const fill = olStyle.getFill?.();
-              styleProps = {
-                strokeColor: stroke?.getColor() as string,
-                strokeWidth: stroke?.getWidth() as number,
-                fillColor: fill?.getColor() as string,
-              };
-            }
-          }
+          // Extract style properties from feature style
+          const styleProps: TypeGeoJSONStyleProps = olStyle && geometry ? DrawerController.#getStyleProperties(olStyle) : {};
 
           if (!geometry) return undefined;
 
@@ -1105,7 +1114,7 @@ export class DrawerController extends AbstractMapViewerController {
             type: 'Feature',
             geometry: new GeoJSON().writeGeometryObject(clonedGeometry),
             properties: {
-              id: feature.getId(),
+              id: feature.get('featureId'),
               geometryGroup: feature.get('geometryGroup'),
               style: styleProps,
             },
@@ -1244,14 +1253,11 @@ export class DrawerController extends AbstractMapViewerController {
    * Cleans up the temporary text transform interaction.
    */
   #cleanupTempTransform(): void {
-    // Get the map id
-    const mapId = this.getMapId();
-
-    const tempTransform = DrawerController.#tempTransformInstances.get(mapId);
+    const tempTransform = this.#tempTextTransformInstance;
     if (tempTransform) {
       tempTransform.clearSelection();
       tempTransform.stopInteraction();
-      DrawerController.#tempTransformInstances.delete(mapId);
+      this.#tempTextTransformInstance = undefined;
     }
   }
 
@@ -1264,7 +1270,7 @@ export class DrawerController extends AbstractMapViewerController {
   #getFeatureById(featureId: string): Feature | undefined {
     const allDrawingFeatures = this.#getDrawingFeatures();
 
-    const foundFeature = allDrawingFeatures.find((feature) => feature.getId() === featureId);
+    const foundFeature = allDrawingFeatures.find((feature) => feature.get('featureId') === featureId);
 
     return foundFeature;
   }
@@ -1275,6 +1281,7 @@ export class DrawerController extends AbstractMapViewerController {
    * @param displayLanguage - The display language
    */
   #updateMeasurementTooltips(displayLanguage: TypeDisplayLanguage): void {
+    // TODO: Update measurements to use styles, similar to the measurement navbar tool, since overlays aren't exported
     const features = this.#getDrawingFeatures();
 
     features.forEach((feature) => {
@@ -1301,7 +1308,6 @@ export class DrawerController extends AbstractMapViewerController {
 
     // Check if state exist and if draw instance is enable, solve error when switch lang and no draw instance
     if (!isStoreDrawerInitialized(mapId)) return [];
-    if (!getStoreDrawerDrawInstance(mapId)) return [];
 
     // Get features from drawing group
     const geometryGroup = this.#geometryApi.getGeometryGroup(DrawerController.DRAW_GROUP_KEY);
@@ -1312,9 +1318,62 @@ export class DrawerController extends AbstractMapViewerController {
     return features;
   }
 
+  /**
+   * Stops all active interactions (drawing, editing)
+   */
+  #stopAllInteractions(): void {
+    const drawInstance = this.#drawInstance;
+    if (drawInstance) {
+      drawInstance.finishDrawing();
+      this.stopDrawing();
+    }
+
+    // End any active transform instance
+    const transformInstance = this.#transformInstance;
+    if (transformInstance) {
+      this.stopEditing();
+    }
+  }
+
   // #endregion PRIVATE METHODS - DRAWING
 
   // #region PRIVATE METHODS - HISTORY
+
+  /**
+   * Sets the draw instance for the drawer controller and updates the flag in the store
+   *
+   * @param drawInstance - The draw instance to set
+   */
+  #setDrawInstance(drawInstance: Draw | undefined): void {
+    const mapId = this.getMapId();
+
+    this.#drawInstance = drawInstance;
+    setStoreIsDrawing(mapId, !!drawInstance);
+  }
+
+  /**
+   * Sets the transform instance for the drawer controller and updates the flag in the store
+   *
+   * @param transformInstance - The transform instance to set
+   */
+  #setTransformInstance(transformInstance: Transform | undefined): void {
+    const mapId = this.getMapId();
+
+    this.#transformInstance = transformInstance;
+    setStoreIsEditing(mapId, !!transformInstance);
+  }
+
+  /**
+   * Sets the snap instance for the drawer controller and updates the flag in the store
+   *
+   * @param snapInstance - The snap instance to set
+   */
+  #setSnapInstance(snapInstance: Snap | undefined): void {
+    const mapId = this.getMapId();
+
+    this.#snapInstance = snapInstance;
+    setStoreIsSnapping(mapId, !!snapInstance);
+  }
 
   /**
    * Saves an action to the drawer history.
@@ -1323,28 +1382,26 @@ export class DrawerController extends AbstractMapViewerController {
    * @param insertAtCurrentIndex - Whether to create the action as the next action / as a redo
    */
   #saveToHistory(action: DrawerHistoryAction, insertAtCurrentIndex: boolean = false): void {
-    // Get the map id
-    const mapId = this.getMapId();
+    const history = this.#drawerHistory;
+    const currentIndex = this.#historyIndex;
 
-    if (!DrawerController.#drawerHistory.has(mapId)) {
-      DrawerController.#drawerHistory.set(mapId, []);
-      DrawerController.#historyIndex.set(mapId, -1);
-    }
-
-    const history = DrawerController.#drawerHistory.get(mapId)!;
-    const currentIndex = DrawerController.#historyIndex.get(mapId)!;
+    // Clone all features to prevent shared references with map features
+    const clonedAction: DrawerHistoryAction = {
+      ...action,
+      features: action.features.map((feature) => feature.clone()),
+    };
 
     if (insertAtCurrentIndex) {
       // Insert right after current index for redo capability
-      history.splice(currentIndex + 1, 0, action);
+      history.splice(currentIndex + 1, 0, clonedAction);
       // Don't update the index - stay at current position
     } else {
       // Remove any history after current index
       history.splice(currentIndex + 1);
 
       // Add new action
-      history.push(action);
-      DrawerController.#historyIndex.set(mapId, history.length - 1);
+      history.push(clonedAction);
+      this.#historyIndex = history.length - 1;
     }
 
     // Update undo/redo state
@@ -1354,7 +1411,7 @@ export class DrawerController extends AbstractMapViewerController {
     if (history.length > DrawerController.MAX_HISTORY_SIZE) {
       history.shift();
       if (!insertAtCurrentIndex) {
-        DrawerController.#historyIndex.set(mapId, DrawerController.#historyIndex.get(mapId)! - 1);
+        this.#historyIndex -= 1;
       }
     }
   }
@@ -1373,20 +1430,21 @@ export class DrawerController extends AbstractMapViewerController {
 
     // Re-add the features
     action.features.forEach((feature) => {
-      feature.setId(feature.get('featureId'));
-      this.getGeometryApi().geometries.push(feature);
-      this.getGeometryApi().addToGeometryGroup(feature, DrawerController.DRAW_GROUP_KEY);
+      const clonedFeature = feature.clone();
+      clonedFeature.setId(feature.get('featureId'));
+      this.getGeometryApi().geometries.push(clonedFeature);
+      this.getGeometryApi().addToGeometryGroup(clonedFeature, DrawerController.DRAW_GROUP_KEY);
 
       // Add to transform instance if editing is active
-      const transformInstance = getStoreDrawerTransformInstance(mapId);
+      const transformInstance = this.#transformInstance;
       if (transformInstance) {
-        transformInstance.addFeature(feature);
+        transformInstance.addFeature(clonedFeature);
       }
 
       // Recreate measurement overlay
-      const geom = feature.getGeometry();
+      const geom = clonedFeature.getGeometry();
       if (geom && !(geom instanceof Point)) {
-        const overlay = DrawerController.#createMeasureTooltip(feature, false, getStoreAppDisplayLanguage(mapId));
+        const overlay = DrawerController.#createMeasureTooltip(clonedFeature, false, getStoreAppDisplayLanguage(mapId));
         if (overlay) viewer.map.addOverlay(overlay);
       }
     });
@@ -1444,7 +1502,7 @@ export class DrawerController extends AbstractMapViewerController {
     if (!viewer) return;
 
     action.features.forEach((feature, index) => {
-      const currentFeature = this.#getFeatureById(feature.getId() as string);
+      const currentFeature = this.#getFeatureById(feature.get('featureId'));
       if (currentFeature) {
         // Restore modified geometry if it exists
         if (action.modifiedGeometries && action.modifiedGeometries[index]) {
@@ -1460,7 +1518,10 @@ export class DrawerController extends AbstractMapViewerController {
 
         // Restore modified style if it exists
         if (action.modifiedStyles && action.modifiedStyles[index]) {
-          currentFeature.setStyle(action.modifiedStyles[index]);
+          const modifiedStyle = action.modifiedStyles[index];
+          if (modifiedStyle && modifiedStyle instanceof Style) {
+            currentFeature.setStyle(modifiedStyle);
+          }
         }
       }
     });
@@ -1479,7 +1540,7 @@ export class DrawerController extends AbstractMapViewerController {
     if (!viewer) return;
 
     action.features.forEach((feature, index) => {
-      const currentFeature = this.#getFeatureById(feature.getId() as string);
+      const currentFeature = this.#getFeatureById(feature.get('featureId'));
       if (currentFeature) {
         if (action.originalGeometries && action.originalGeometries[index]) {
           // Restore geometry
@@ -1495,7 +1556,10 @@ export class DrawerController extends AbstractMapViewerController {
 
         // Restore style
         if (action.originalStyles && action.originalStyles[index]) {
-          currentFeature.setStyle(action.originalStyles[index]);
+          const originalStyle = action.originalStyles[index];
+          if (originalStyle && originalStyle instanceof Style) {
+            currentFeature.setStyle(originalStyle);
+          }
         }
       }
     });
@@ -1514,7 +1578,7 @@ export class DrawerController extends AbstractMapViewerController {
 
     if (!isStoreDrawerInitialized(mapId)) return;
 
-    const transformInstance = getStoreDrawerTransformInstance(mapId);
+    const transformInstance = this.#transformInstance;
     if (transformInstance) {
       transformInstance.selectFeature(action.features[0], false);
     }
@@ -1530,8 +1594,8 @@ export class DrawerController extends AbstractMapViewerController {
 
     if (!isStoreDrawerInitialized(mapId)) return;
 
-    const transformInstance = getStoreDrawerTransformInstance(mapId);
-    if (transformInstance && getStoreDrawerSelectedDrawing(mapId)) {
+    const transformInstance = this.#transformInstance;
+    if (transformInstance && transformInstance.getSelectedFeature()) {
       const undoDisabled = !transformInstance.canUndo();
       const redoDisabled = !transformInstance.canRedo();
 
@@ -1540,8 +1604,8 @@ export class DrawerController extends AbstractMapViewerController {
       return;
     }
 
-    const history = DrawerController.#drawerHistory.get(mapId) || [];
-    const currentIndex = DrawerController.#historyIndex.get(mapId) ?? -1;
+    const history = this.#drawerHistory;
+    const currentIndex = this.#historyIndex;
 
     // Can't undo if no history or at the beginning
     const undoDisabled = history.length === 0 || currentIndex < 0;
@@ -1586,14 +1650,44 @@ export class DrawerController extends AbstractMapViewerController {
     displayLanguage: TypeDisplayLanguage
   ): void {
     if (previousProjection) {
+      this.#stopAllInteractions();
+
+      const fromProjection = Projection.PROJECTIONS[previousProjection];
+      const toProjection = Projection.PROJECTIONS[currentProjection];
+
       const features = this.#getDrawingFeatures();
       features.forEach((feature) => {
         const geometry = feature.getGeometry();
         if (!geometry) return;
 
-        geometry.transform(Projection.PROJECTIONS[previousProjection], Projection.PROJECTIONS[currentProjection]);
-        this.#updateMeasurementTooltips(displayLanguage);
+        geometry.transform(fromProjection, toProjection);
       });
+
+      // Update tooltips once
+      this.#updateMeasurementTooltips(displayLanguage);
+
+      // Reproject all geometries in the history
+      if (this.#drawerHistory) {
+        this.#drawerHistory.forEach((action) => {
+          // Reproject feature geometries
+          action.features.forEach((feature) => {
+            const geometry = feature.getGeometry();
+            if (geometry) {
+              geometry.transform(fromProjection, toProjection);
+            }
+          });
+
+          // Reproject original geometries (for modify actions)
+          action.originalGeometries?.forEach((geometry) => {
+            geometry.transform(fromProjection, toProjection);
+          });
+
+          // Reproject modified geometries (for modify actions)
+          action.modifiedGeometries?.forEach((geometry) => {
+            geometry.transform(fromProjection, toProjection);
+          });
+        });
+      }
     }
   }
 
@@ -1680,14 +1774,17 @@ export class DrawerController extends AbstractMapViewerController {
       this.getGeometryApi().geometries.push(feature);
       this.getGeometryApi().addToGeometryGroup(feature, DrawerController.DRAW_GROUP_KEY);
 
-      this.#saveToHistory({
-        type: 'add',
-        features: [feature],
-      });
+      // For non-text features, save to history immediately
+      if (currentGeomType !== 'Text') {
+        this.#saveToHistory({
+          type: 'add',
+          features: [feature],
+        });
+      }
 
       // For text features, create a temporary transform for immediate editing
       if (currentGeomType === 'Text') {
-        const drawInstance = getStoreDrawerDrawInstance(mapId);
+        const drawInstance = this.#drawInstance;
         drawInstance?.stopInteraction();
 
         const featureCollection = new Collection([feature]); // Only select this specific feature
@@ -1697,40 +1794,53 @@ export class DrawerController extends AbstractMapViewerController {
         });
 
         // Keep track of this temp transform instance for cleanup
-        DrawerController.#tempTransformInstances.set(mapId, tempTransform);
+        this.#tempTextTransformInstance = tempTransform;
+
+        // Set the selected drawing type to Text so the style panel shows the correct options
+        setStoreSelectedDrawingType(mapId, 'Text');
+
+        // Initialize the selected feature state for the temp transform
+        const currentGeometry = feature.getGeometry();
+        if (currentGeometry) {
+          this.#selectedFeatureState = {
+            feature,
+            originalGeometry: currentGeometry.clone(),
+            originalStyleStored: false,
+          };
+        }
 
         let isDeselected = false;
-        // Handle when the temporary editing is done
 
+        // Handle when the temporary editing is done
         tempTransform.onSelectionChange((_textSender, textEvent) => {
           const { previousFeature, newFeature } = textEvent;
           if (!newFeature && previousFeature && !isDeselected) {
             isDeselected = true;
-            // User deselected - Set the style
-            const finalStyle = new Style({
-              text: new Text({
-                text: previousFeature.get('text'),
-                fill: new Fill({ color: previousFeature.get('textColor') || '#000000' }),
-                stroke: new Stroke({
-                  color: previousFeature.get('textHaloColor') || 'rgba(255,255,255,0.7)',
-                  width: previousFeature.get('textHaloWidth') || 3,
-                }),
-                font: `${previousFeature.get('textItalic') ? 'italic ' : ''}${previousFeature.get('textBold') ? 'bold ' : ''}${previousFeature.get('textSize')}px ${previousFeature.get('textFont') || 'Arial'}`,
-                rotation: previousFeature.get('textRotation') || 0, // <-- Make sure this is included
-              }),
-            });
 
-            previousFeature.setStyle(finalStyle);
+            // Save text to history
+            this.#saveToHistory({
+              type: 'add',
+              features: [previousFeature],
+            });
 
             // Cleanup the temporary transform
             this.#cleanupTempTransform();
+
+            // Reset the selected drawing type
+            setStoreSelectedDrawingType(mapId, getStoreDrawerActiveGeom(mapId));
 
             // Resume drawing
             if (drawInstance) {
               drawInstance.startInteraction();
             }
+
+            // Reset text rotation to 0. Can be removed in the future if added to UI
+            this.setTextRotation(0);
           }
         });
+
+        tempTransform.onTransformEnd(this.#handleTransformEnd());
+        tempTransform.onDeleteFeature(this.#handleTransformDeleteFeature());
 
         // Immediately select the new text feature
         tempTransform.selectFeature(feature);
@@ -1755,19 +1865,17 @@ export class DrawerController extends AbstractMapViewerController {
       const isTextFeature = feature.get('text') !== undefined;
       // Update Text Styles
       if (isTextFeature) {
-        const textValue = feature.get('text');
-        const finalSize = feature.get('textSize') as number;
-        const isBold = feature.get('textBold') as boolean;
-        const isItalic = feature.get('textItalic') as boolean;
-        const rotation = feature.get('textRotation') as number;
+        const currentStyle = feature.getStyle();
+        if (currentStyle instanceof Style && isStoreDrawerInitialized(mapId)) {
+          const styleProps = DrawerController.#getStyleProperties(currentStyle);
 
-        if (!isStoreDrawerInitialized(mapId)) return;
-
-        this.setTextValue(textValue);
-        this.setTextSize(finalSize);
-        this.setTextBold(isBold);
-        this.setTextItalic(isItalic);
-        this.setTextRotation(rotation);
+          // Update store
+          setStoreTextSize(mapId, styleProps.textSize || 18);
+          setStoreTextRotation(mapId, styleProps.textRotation || 0);
+          setStoreTextValue(mapId, styleProps.text || '');
+          setStoreTextBold(mapId, styleProps.textBold || false);
+          setStoreTextItalic(mapId, styleProps.textItalic || false);
+        }
       }
 
       const geom = feature.getGeometry();
@@ -1787,9 +1895,6 @@ export class DrawerController extends AbstractMapViewerController {
    *
    */
   #handleTransformDeleteFeature() {
-    // Get the map id
-    const mapId = this.getMapId();
-
     return (_sender: unknown, event: TransformDeleteFeatureEvent) => {
       const { feature } = event;
 
@@ -1799,12 +1904,11 @@ export class DrawerController extends AbstractMapViewerController {
         features: [feature],
       });
 
-      const featureId = feature.getId();
+      const featureId = feature.get('featureId');
       if (featureId) {
         this.deleteSingleDrawing(featureId as string);
       }
 
-      setStoreSelectedDrawing(mapId, undefined);
       this.#updateUndoRedoState();
     };
   }
@@ -1836,8 +1940,7 @@ export class DrawerController extends AbstractMapViewerController {
             true
           );
         } else {
-          const stateKey = `${mapId}-${previousFeature.getId()}`;
-          const savedState = DrawerController.#selectedFeatureState.get(stateKey);
+          const savedState = this.#selectedFeatureState;
 
           if (savedState) {
             const currentGeometry = previousFeature.getGeometry();
@@ -1845,7 +1948,9 @@ export class DrawerController extends AbstractMapViewerController {
             // Check for changes
             const geometryChanged = currentGeometry && !GeoUtilities.geometriesAreEqual(savedState.originalGeometry, currentGeometry);
             const styleChanged =
-              savedState.originalStyleStored && savedState.originalStyle && savedState.originalStyle !== previousFeature.getStyle();
+              savedState.originalStyleStored &&
+              savedState.originalStyle &&
+              DrawerController.#stylesAreDifferent(savedState.originalStyle, previousFeature.getStyle() as Style);
 
             if (geometryChanged || styleChanged) {
               // Save modify action - include geometry and style only if it was changed
@@ -1868,15 +1973,15 @@ export class DrawerController extends AbstractMapViewerController {
 
       // If we have a new feature selected, save its current state
       if (newFeature) {
-        const stateKey = `${mapId}-${newFeature.getId()}`;
         const currentGeometry = newFeature.getGeometry();
 
         if (currentGeometry) {
-          DrawerController.#selectedFeatureState.set(stateKey, {
+          this.#selectedFeatureState = {
             feature: newFeature,
             originalGeometry: currentGeometry.clone(),
-            originalStyleStored: false,
-          });
+            originalStyle: newFeature.getStyle(),
+            originalStyleStored: true,
+          };
         }
       }
 
@@ -1896,11 +2001,12 @@ export class DrawerController extends AbstractMapViewerController {
 
         if (!isStoreDrawerInitialized(mapId)) return;
 
-        const featureProperties = DrawerController.#getFeatureProperties(newFeature, getStoreDrawerStyle(mapId));
+        const featureProperties = DrawerController.#getFeatureStyleProperties(newFeature);
         updateStoreStateStyle(mapId, featureProperties);
       }
 
-      setStoreSelectedDrawing(mapId, newFeature);
+      const geomType = newFeature?.get('text') ? 'Text' : newFeature?.getGeometry()?.getType() || undefined;
+      setStoreSelectedDrawingType(mapId, geomType);
 
       // Update the undo redo state
       this.#updateUndoRedoState();
@@ -1911,10 +2017,7 @@ export class DrawerController extends AbstractMapViewerController {
    * Sets up keyboard event handling for undo (Ctrl+Z) and redo (Ctrl+Shift+Z / Ctrl+Y).
    */
   #hookKeyboardHandlers(): void {
-    // Get the map id
-    const mapId = this.getMapId();
-
-    if (DrawerController.#keyboardHandlers.has(mapId)) return;
+    if (this.#keyboardHandler) return;
 
     const handler = (event: KeyboardEvent): void => {
       if (event.ctrlKey || event.metaKey) {
@@ -1935,7 +2038,7 @@ export class DrawerController extends AbstractMapViewerController {
       }
     };
 
-    DrawerController.#keyboardHandlers.set(mapId, handler);
+    this.#keyboardHandler = handler;
     document.addEventListener('keydown', handler);
   }
 
@@ -1947,42 +2050,80 @@ export class DrawerController extends AbstractMapViewerController {
    * Extracts style properties from a feature.
    *
    * @param feature - The feature to extract properties from
-   * @param currentStyle - The current style properties to update
    * @returns The extracted style properties
    */
-  static #getFeatureProperties(feature: Feature, currentStyle: StyleProps): StyleProps {
-    const style: StyleProps = currentStyle;
+  static #getFeatureStyleProperties(feature: Feature): StyleProps {
+    return this.#getStyleProperties(feature.getStyle() as Style);
+  }
 
-    // Extract text properties if they exist
-    if (feature.get('text') !== undefined) {
-      style.text = feature.get('text');
-      style.textSize = feature.get('textSize');
-      style.textFont = feature.get('textFont');
-      style.textColor = feature.get('textColor');
-      style.textHaloColor = feature.get('textHaloColor');
-      style.textHaloWidth = feature.get('textHaloWidth');
-      style.textBold = feature.get('textBold');
-      style.textItalic = feature.get('textItalic');
-      style.textRotation = feature.get('textRotation');
-    }
+  /**
+   * Extracts style properties from a style object.
+   *
+   * @param style - The style object to extract properties from
+   * @returns The extracted style properties
+   */
+  static #getStyleProperties(style: Style): StyleProps {
+    const styleProps: StyleProps = {} as StyleProps;
 
     // Extract stroke/fill properties from the feature's style
-    const featureStyle = feature.getStyle();
-    if (featureStyle instanceof Style) {
-      const stroke = featureStyle.getStroke();
-      const fill = featureStyle.getFill();
+    if (style) {
+      const stroke = style.getStroke();
+      const fill = style.getFill();
+      const text = style.getText();
+      const image = style.getImage();
 
       if (stroke) {
-        style.strokeColor = stroke.getColor() as string;
-        style.strokeWidth = stroke.getWidth() || 1.3;
+        styleProps.strokeColor = stroke.getColor() as string;
+        styleProps.strokeWidth = stroke.getWidth() || 1.3;
       }
 
       if (fill) {
-        style.fillColor = fill.getColor() as string;
+        styleProps.fillColor = fill.getColor() as string;
+      }
+
+      // Extract text properties from the Text style
+      if (text) {
+        styleProps.text = text.getText();
+        styleProps.textColor = text.getFill()?.getColor() as string;
+        styleProps.textHaloColor = text.getStroke()?.getColor() as string;
+        styleProps.textHaloWidth = text.getStroke()?.getWidth() || 0;
+        styleProps.textRotation = text.getRotation() || 0;
+
+        const font = text.getFont();
+        if (font) {
+          const fontParts = font.split(' ');
+          const sizeStr = fontParts.find((part) => part.endsWith('px'));
+          if (sizeStr) {
+            styleProps.textSize = parseFloat(sizeStr);
+          }
+
+          // Extract font family which comes after the size
+          const sizeIndex = fontParts.findIndex((part) => part.endsWith('px'));
+          if (sizeIndex !== -1 && sizeIndex < fontParts.length - 1) {
+            styleProps.textFont = fontParts.slice(sizeIndex + 1).join(' ');
+          }
+
+          styleProps.textBold = fontParts.includes('bold');
+          styleProps.textItalic = fontParts.includes('italic');
+        }
+      }
+
+      // Extract icon properties from the Image style
+      if (image instanceof OLIcon) {
+        styleProps.iconSrc = image.getSrc();
+        const scale = image.getScale();
+        if (scale !== undefined) {
+          // In our situation, it should always be a single number
+          if (typeof scale === 'number') {
+            styleProps.iconSize = scale * 24;
+          } else {
+            styleProps.iconSize = scale[0] * 24;
+          }
+        }
       }
     }
 
-    return style;
+    return styleProps;
   }
 
   /**
@@ -2075,7 +2216,7 @@ export class DrawerController extends AbstractMapViewerController {
     hideMeasurements: boolean,
     displayLanguage: TypeDisplayLanguage
   ): Overlay | undefined {
-    // Get the measureTooltip for the feature if one alrady exists
+    // Get the measureTooltip for the feature if one already exists
     let measureTooltip = (feature.get('measureTooltip') as Overlay) || undefined;
     if (measureTooltip) {
       measureTooltip.getElement()?.remove();
@@ -2238,6 +2379,30 @@ export class DrawerController extends AbstractMapViewerController {
     return coords.map((point) => [point[0] + center[0], point[1] + center[1]]);
   };
 
+  /**
+   * Compares two styles by their properties rather than reference equality.
+   *
+   * @param style1 - First style to compare
+   * @param style2 - Second style to compare
+   * @returns Whether the styles have different properties
+   */
+  static #stylesAreDifferent(style1: StyleLike | undefined, style2: StyleLike | undefined): boolean {
+    // If references are the same, styles are identical
+    if (style1 === style2) return false;
+
+    // If one is undefined/null and the other isn't, they're different
+    if (!style1 || !style2) return true;
+
+    // If either isn't a Style instance, can't compare
+    if (!(style1 instanceof Style) || !(style2 instanceof Style)) return true;
+
+    // Compare extracted properties
+    const props1 = this.#getStyleProperties(style1);
+    const props2 = this.#getStyleProperties(style2);
+
+    return JSON.stringify(props1) !== JSON.stringify(props2);
+  }
+
   // #endregion STATIC METHODS
 }
 
@@ -2298,7 +2463,7 @@ interface TypeGeoJSONStyleProps {
   iconSize?: number;
 
   /** The text content */
-  text?: string;
+  text?: string | string[];
 
   /** The text size in pixels */
   textSize?: number;

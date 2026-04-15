@@ -1,15 +1,9 @@
 import { useStore } from 'zustand';
 
-import type { Feature } from 'ol';
-import type { Geometry } from 'ol/geom';
-
 import { getGeoViewStore, useGeoViewStore } from '@/core/stores/stores-managers';
 import type { TypeGetStore, TypeSetStore } from '@/core/stores/geoview-store';
 import type { TypeMapFeaturesConfig } from '@/core/types/global-types';
 import { PluginStateUninitializedError } from '@/core/exceptions/geoview-exceptions';
-import type { Draw } from '@/geo/interaction/draw';
-import type { Snap } from '@/geo/interaction/snap';
-import type { Transform } from '@/geo/interaction/transform/transform';
 
 // #region INTERFACE DEFINITION
 
@@ -24,31 +18,17 @@ export interface IDrawerState {
   /** The current drawing style properties. */
   style: StyleProps;
 
-  /**
-   * The active Draw interaction instance, or undefined when not drawing.
-   *
-   * @deprecated This class instance shouldn't be in the store, remove this property
-   */
-  drawInstance: Draw | undefined;
+  /** Whether the drawer is currently drawing. */
+  isDrawing: boolean;
 
   /** Whether the drawer is in editing mode. */
   isEditing: boolean;
 
-  /**
-   * The active Transform interaction instance, or undefined when not editing.
-   *
-   * @deprecated This class instance shouldn't be in the store, remove this property
-   */
-  transformInstance: Transform | undefined;
+  /** Whether snapping is enabled. */
+  isSnapping: boolean;
 
-  /** The currently selected drawing feature, or undefined. */
-  selectedDrawing: Feature | undefined;
-
-  /** The active Snap interaction instance, or undefined when snapping is disabled.
-   *
-   * @deprecated This class instance shouldn't be in the store, remove this property
-   */
-  snapInstance: Snap | undefined;
+  /** The currently selected drawing type. */
+  selectedDrawingType: string | undefined;
 
   /** Whether measurement overlays are hidden. */
   hideMeasurements: boolean;
@@ -73,7 +53,7 @@ export interface IDrawerState {
     setStrokeColor: (strokeColor: string) => void;
     setStrokeWidth: (strokeWidth: number) => void;
     setIconSize: (iconSize: number) => void;
-    setTextValue: (text: string) => void;
+    setTextValue: (text: string | string[]) => void;
     setTextSize: (textSize: number) => void;
     setTextFont: (textFont: string) => void;
     setTextColor: (textColor: string) => void;
@@ -82,14 +62,10 @@ export interface IDrawerState {
     setTextBold: (textBold: boolean) => void;
     setTextItalic: (textItalic: boolean) => void;
     setTextRotation: (textRotation: number) => void;
-    setDrawInstance: (drawInstance: Draw) => void;
-    removeDrawInstance: () => void;
+    setIsDrawing: (isDrawing: boolean) => void;
     setIsEditing: (isEditing: boolean) => void;
-    setTransformInstance: (transformInstance: Transform) => void;
-    removeTransformInstance: () => void;
-    setSnapInstance: (snapInstance: Snap) => void;
-    removeSnapInstance: () => void;
-    setSelectedDrawing: (selectedDrawing: Feature | undefined) => void;
+    setIsSnapping: (isSnapping: boolean) => void;
+    setSelectedDrawingType: (drawingType: string | undefined) => void;
     setHideMeasurements: (hideMeasurements: boolean) => void;
     setIconSrc: (iconSrc: string) => void;
     setUndoDisabled: (undoDisabled: boolean) => void;
@@ -99,28 +75,6 @@ export interface IDrawerState {
 }
 
 // #endregion INTERFACE DEFINITIONS
-
-// #region UTIL FUNCTIONS (PRIVATE)
-
-/**
- * Reads the geometry type of a drawing feature.
- *
- * Returns 'Text' if the feature has a text property, otherwise returns the
- * OpenLayers geometry type. Point and LineString are returned as-is;
- * all other types are treated as polygons by consumers.
- *
- * @param feature - The feature to read the drawing type from
- * @returns The drawing type string, or undefined if no feature is provided
- */
-const utilReadDrawingType = (feature: Feature<Geometry> | undefined): string | undefined => {
-  if (!feature) return undefined;
-  if (feature.get('text')) return 'Text';
-  // Only Point and LineString matter. Everything else treated as polygon
-  const geometry = feature.getGeometry();
-  return geometry?.getType();
-};
-
-// #endregion UTIL FUNCTIONS (PRIVATE)
 
 // #region STATE INITIALIZATION
 
@@ -156,11 +110,10 @@ export function initializeDrawerState(set: TypeSetStore, get: TypeGetStore): IDr
       textItalic: false,
       textRotation: 0,
     },
-    drawInstance: undefined,
+    isDrawing: false,
     isEditing: false,
-    transformInstance: undefined,
-    selectedDrawing: undefined,
-    snapInstance: undefined,
+    isSnapping: false,
+    selectedDrawingType: undefined,
     hideMeasurements: true,
     iconSrc: '',
     undoDisabled: true,
@@ -200,7 +153,7 @@ export function initializeDrawerState(set: TypeSetStore, get: TypeGetStore): IDr
        *
        * @param geomType - The geometry type to set as active
        */
-      setActiveGeom: (geomType: string) => {
+      setActiveGeom: (geomType: string): void => {
         set({
           drawerState: {
             ...get().drawerState,
@@ -214,7 +167,7 @@ export function initializeDrawerState(set: TypeSetStore, get: TypeGetStore): IDr
        *
        * @param style - The style properties to apply
        */
-      setStyle: (style: StyleProps) => {
+      setStyle: (style: StyleProps): void => {
         set({
           drawerState: {
             ...get().drawerState,
@@ -228,7 +181,7 @@ export function initializeDrawerState(set: TypeSetStore, get: TypeGetStore): IDr
        *
        * @param fillColor - The fill color value
        */
-      setFillColor: (fillColor: string) => {
+      setFillColor: (fillColor: string): void => {
         set({
           drawerState: {
             ...get().drawerState,
@@ -245,7 +198,7 @@ export function initializeDrawerState(set: TypeSetStore, get: TypeGetStore): IDr
        *
        * @param strokeColor - The stroke color value
        */
-      setStrokeColor: (strokeColor: string) => {
+      setStrokeColor: (strokeColor: string): void => {
         set({
           drawerState: {
             ...get().drawerState,
@@ -262,7 +215,7 @@ export function initializeDrawerState(set: TypeSetStore, get: TypeGetStore): IDr
        *
        * @param strokeWidth - The stroke width value
        */
-      setStrokeWidth: (strokeWidth: number) => {
+      setStrokeWidth: (strokeWidth: number): void => {
         set({
           drawerState: {
             ...get().drawerState,
@@ -279,7 +232,7 @@ export function initializeDrawerState(set: TypeSetStore, get: TypeGetStore): IDr
        *
        * @param iconSize - The icon size value
        */
-      setIconSize: (iconSize: number) => {
+      setIconSize: (iconSize: number): void => {
         set({
           drawerState: {
             ...get().drawerState,
@@ -296,7 +249,7 @@ export function initializeDrawerState(set: TypeSetStore, get: TypeGetStore): IDr
        *
        * @param text - The text content
        */
-      setTextValue: (text: string) => {
+      setTextValue: (text: string | string[]): void => {
         set({
           drawerState: {
             ...get().drawerState,
@@ -313,7 +266,7 @@ export function initializeDrawerState(set: TypeSetStore, get: TypeGetStore): IDr
        *
        * @param textSize - The text size value
        */
-      setTextSize: (textSize: number) => {
+      setTextSize: (textSize: number): void => {
         set({
           drawerState: {
             ...get().drawerState,
@@ -330,7 +283,7 @@ export function initializeDrawerState(set: TypeSetStore, get: TypeGetStore): IDr
        *
        * @param textFont - The font family name
        */
-      setTextFont: (textFont: string) => {
+      setTextFont: (textFont: string): void => {
         set({
           drawerState: {
             ...get().drawerState,
@@ -347,7 +300,7 @@ export function initializeDrawerState(set: TypeSetStore, get: TypeGetStore): IDr
        *
        * @param textColor - The text color value
        */
-      setTextColor: (textColor: string) => {
+      setTextColor: (textColor: string): void => {
         set({
           drawerState: {
             ...get().drawerState,
@@ -364,7 +317,7 @@ export function initializeDrawerState(set: TypeSetStore, get: TypeGetStore): IDr
        *
        * @param textHaloColor - The text halo color value
        */
-      setTextHaloColor: (textHaloColor: string) => {
+      setTextHaloColor: (textHaloColor: string): void => {
         set({
           drawerState: {
             ...get().drawerState,
@@ -381,7 +334,7 @@ export function initializeDrawerState(set: TypeSetStore, get: TypeGetStore): IDr
        *
        * @param textHaloWidth - The text halo width value
        */
-      setTextHaloWidth: (textHaloWidth: number) => {
+      setTextHaloWidth: (textHaloWidth: number): void => {
         set({
           drawerState: {
             ...get().drawerState,
@@ -398,7 +351,7 @@ export function initializeDrawerState(set: TypeSetStore, get: TypeGetStore): IDr
        *
        * @param textBold - Whether text should be bold
        */
-      setTextBold: (textBold: boolean) => {
+      setTextBold: (textBold: boolean): void => {
         set({
           drawerState: {
             ...get().drawerState,
@@ -415,7 +368,7 @@ export function initializeDrawerState(set: TypeSetStore, get: TypeGetStore): IDr
        *
        * @param textItalic - Whether text should be italic
        */
-      setTextItalic: (textItalic: boolean) => {
+      setTextItalic: (textItalic: boolean): void => {
         set({
           drawerState: {
             ...get().drawerState,
@@ -432,7 +385,7 @@ export function initializeDrawerState(set: TypeSetStore, get: TypeGetStore): IDr
        *
        * @param textRotation - The rotation angle in degrees
        */
-      setTextRotation: (textRotation: number) => {
+      setTextRotation: (textRotation: number): void => {
         set({
           drawerState: {
             ...get().drawerState,
@@ -445,93 +398,57 @@ export function initializeDrawerState(set: TypeSetStore, get: TypeGetStore): IDr
       },
 
       /**
-       * Sets the draw interaction instance.
+       * Sets the isDrawing flag to indicate whether drawing mode is active.
        *
-       * @param drawInstance - The OpenLayers Draw interaction
+       * @param isDrawing - Whether drawing mode is active
        */
-      setDrawInstance: (drawInstance: Draw) => {
+      setIsDrawing: (isDrawing: boolean): void => {
         set({
           drawerState: {
             ...get().drawerState,
-            drawInstance,
+            isDrawing,
           },
         });
       },
 
       /**
-       * Removes the draw interaction instance.
-       */
-      removeDrawInstance: () => {
-        set({
-          drawerState: {
-            ...get().drawerState,
-            drawInstance: undefined,
-          },
-        });
-      },
-
-      /**
-       * Sets the transform interaction instance.
+       * Sets the isEditing flag to indicate whether editing mode is active.
        *
-       * @param transformInstance - The OpenLayers Transform interaction
+       * @param isEditing - Whether editing mode is active
        */
-      setTransformInstance: (transformInstance: Transform) => {
+      setIsEditing: (isEditing: boolean): void => {
         set({
           drawerState: {
             ...get().drawerState,
-            transformInstance,
+            isEditing,
           },
         });
       },
 
       /**
-       * Removes the transform interaction instance.
-       */
-      removeTransformInstance: () => {
-        set({
-          drawerState: {
-            ...get().drawerState,
-            transformInstance: undefined,
-          },
-        });
-      },
-
-      /**
-       * Sets the selected drawing feature.
+       * Sets the isSnapping flag to indicate whether snapping mode is active.
        *
-       * @param selectedDrawing - The selected feature
+       * @param isSnapping - Whether snapping mode is active
        */
-      setSelectedDrawing(selectedDrawing: Feature) {
+      setIsSnapping: (isSnapping: boolean): void => {
         set({
           drawerState: {
             ...get().drawerState,
-            selectedDrawing,
+            isSnapping,
           },
         });
       },
 
       /**
-       * Sets the snap interaction instance.
+       * Sets the currently selected drawing type.
        *
-       * @param snapInstance - The OpenLayers Snap interaction
+       * @param drawingType - The drawing type to set
        */
-      setSnapInstance(snapInstance: Snap) {
+      setSelectedDrawingType: (drawingType: string): void => {
         set({
           drawerState: {
             ...get().drawerState,
-            snapInstance,
-          },
-        });
-      },
-
-      /**
-       * Removes the snap interaction instance.
-       */
-      removeSnapInstance() {
-        set({
-          drawerState: {
-            ...get().drawerState,
-            snapInstance: undefined,
+            selectedDrawingType: drawingType,
           },
         });
       },
@@ -541,7 +458,7 @@ export function initializeDrawerState(set: TypeSetStore, get: TypeGetStore): IDr
        *
        * @param hideMeasurements - Whether to hide measurements
        */
-      setHideMeasurements: (hideMeasurements: boolean) => {
+      setHideMeasurements: (hideMeasurements: boolean): void => {
         set({
           drawerState: {
             ...get().drawerState,
@@ -555,7 +472,7 @@ export function initializeDrawerState(set: TypeSetStore, get: TypeGetStore): IDr
        *
        * @param iconSrc - The icon source path
        */
-      setIconSrc: (iconSrc: string) => {
+      setIconSrc: (iconSrc: string): void => {
         set({
           drawerState: {
             ...get().drawerState,
@@ -569,7 +486,7 @@ export function initializeDrawerState(set: TypeSetStore, get: TypeGetStore): IDr
        *
        * @param undoDisabled - Whether undo is disabled
        */
-      setUndoDisabled: (undoDisabled: boolean) => {
+      setUndoDisabled: (undoDisabled: boolean): void => {
         set({
           drawerState: {
             ...get().drawerState,
@@ -583,7 +500,7 @@ export function initializeDrawerState(set: TypeSetStore, get: TypeGetStore): IDr
        *
        * @param redoDisabled - Whether redo is disabled
        */
-      setRedoDisabled: (redoDisabled: boolean) => {
+      setRedoDisabled: (redoDisabled: boolean): void => {
         set({
           drawerState: {
             ...get().drawerState,
@@ -595,13 +512,20 @@ export function initializeDrawerState(set: TypeSetStore, get: TypeGetStore): IDr
       /**
        * Updates the drawing style state.
        *
+       * @description We merge / spread the new style so we keep a value for all the style properties.
+       * If any property is missing, it will throw an error in the geometry picker
+       * because it won't be able to find a style for all the geometry types
+       *
        * @param style - The new style properties
        */
-      updateStateStyle: (style: StyleProps) => {
+      updateStateStyle: (style: StyleProps): void => {
         set({
           drawerState: {
             ...get().drawerState,
-            style,
+            style: {
+              ...get().drawerState.style,
+              ...style,
+            },
           },
         });
       },
@@ -680,59 +604,55 @@ export const useStoreDrawerStyle = (): StyleProps => useStore(useGeoViewStore(),
  * Checks whether drawing mode is active.
  *
  * @param mapId - The map identifier
- * @returns True if a Draw instance is present
+ * @returns True if drawing mode is active
  */
 export const getStoreDrawerIsDrawing = (mapId: string): boolean => {
-  return getStoreDrawerState(mapId).drawInstance !== undefined;
+  return getStoreDrawerState(mapId).isDrawing;
 };
 
 /** Hooks whether drawing mode is active. */
-export const useStoreDrawerIsDrawing = (): boolean => useStore(useGeoViewStore(), (state) => state.drawerState.drawInstance !== undefined);
-
-/** Hooks the Draw interaction instance. */
-export const useStoreDrawerDrawInstance = (): Draw | undefined => useStore(useGeoViewStore(), (state) => state.drawerState.drawInstance);
+export const useStoreDrawerIsDrawing = (): boolean => useStore(useGeoViewStore(), (state) => state.drawerState.isDrawing);
 
 /**
  * Checks whether editing mode is active.
  *
  * @param mapId - The map identifier
- * @returns True if a Transform instance is present
+ * @returns True if editing mode is active
  */
 export const getStoreDrawerIsEditing = (mapId: string): boolean => {
-  return getStoreDrawerState(mapId).transformInstance !== undefined;
+  return getStoreDrawerState(mapId).isEditing;
 };
 
 /** Hooks whether editing mode is active. */
-export const useStoreDrawerIsEditing = (): boolean =>
-  useStore(useGeoViewStore(), (state) => state.drawerState.transformInstance !== undefined);
+export const useStoreDrawerIsEditing = (): boolean => useStore(useGeoViewStore(), (state) => state.drawerState.isEditing);
 
 /**
  * Checks whether snapping mode is active.
  *
  * @param mapId - The map identifier
- * @returns True if a Snap instance is present
+ * @returns True if snapping mode is active
  */
 export const getStoreDrawerIsSnapping = (mapId: string): boolean => {
-  return getStoreDrawerState(mapId).snapInstance !== undefined;
+  return getStoreDrawerState(mapId).isSnapping;
 };
 
 /** Hooks whether snapping mode is active. */
-export const useStoreDrawerIsSnapping = (): boolean => useStore(useGeoViewStore(), (state) => state.drawerState.snapInstance !== undefined);
+export const useStoreDrawerIsSnapping = (): boolean => useStore(useGeoViewStore(), (state) => state.drawerState.isSnapping);
 
 /**
- * Gets the currently selected drawing feature from the store.
+ * Gets the geometry type of the currently selected drawing.
  *
  * @param mapId - The map identifier
- * @returns The selected feature, or undefined
- * @deprecated This class instance shouldn't be in the store, remove this selector
+ * @returns The drawing type string, or undefined if no selection
  */
-export const getStoreDrawerSelectedDrawing = (mapId: string): Feature | undefined => {
-  return getStoreDrawerState(mapId).selectedDrawing;
+export const getStoreDrawerSelectedDrawingType = (mapId: string): string | undefined => {
+  return getStoreDrawerState(mapId).selectedDrawingType;
 };
 
 /** Hooks the geometry type of the currently selected drawing. */
-export const useStoreDrawerSelectedDrawing = (): string | undefined =>
-  useStore(useGeoViewStore(), (state) => utilReadDrawingType(state.drawerState.selectedDrawing));
+export const useStoreDrawerSelectedDrawingType = (): string | undefined => {
+  return useStore(useGeoViewStore(), (state) => state.drawerState.selectedDrawingType);
+};
 
 /**
  * Gets the hide measurements flag from the drawer store.
@@ -752,39 +672,6 @@ export const useStoreDrawerHideMeasurements = (): boolean => useStore(useGeoView
 // #region STATE GETTERS & HOOKS - OTHERS (no match between getter-hook)
 
 /**
- * Gets the Draw interaction instance from the store.
- *
- * @param mapId - The map identifier
- * @returns The Draw instance, or undefined
- * @deprecated This class instance shouldn't be in the store, remove this selector
- */
-export const getStoreDrawerDrawInstance = (mapId: string): Draw | undefined => {
-  return getStoreDrawerState(mapId).drawInstance;
-};
-
-/**
- * Gets the Transform interaction instance from the store.
- *
- * @param mapId - The map identifier
- * @returns The Transform instance, or undefined
- * @deprecated This class instance shouldn't be in the store, remove this selector
- */
-export const getStoreDrawerTransformInstance = (mapId: string): Transform | undefined => {
-  return getStoreDrawerState(mapId).transformInstance;
-};
-
-/**
- * Gets the Snap interaction instance from the store.
- *
- * @param mapId - The map identifier
- * @returns The Snap instance, or undefined
- * @deprecated This class instance shouldn't be in the store, remove this selector
- */
-export const getStoreDrawerSnapInstance = (mapId: string): Snap | undefined => {
-  return getStoreDrawerState(mapId).snapInstance;
-};
-
-/**
  * Gets the available geometry types from the drawer store.
  *
  * @param mapId - The map identifier
@@ -792,16 +679,6 @@ export const getStoreDrawerSnapInstance = (mapId: string): Snap | undefined => {
  */
 export const getStoreDrawerGeomTypes = (mapId: string): string[] => {
   return getStoreDrawerState(mapId).geomTypes;
-};
-
-/**
- * Gets the geometry type of the currently selected drawing.
- *
- * @param mapId - The map identifier
- * @returns The drawing type string, or undefined if no selection
- */
-export const getStoreDrawerSelectedDrawingType = (mapId: string): string | undefined => {
-  return utilReadDrawingType(getStoreDrawerSelectedDrawing(mapId));
 };
 
 /**
@@ -881,7 +758,7 @@ export const setStoreDrawerIconSize = (mapId: string, iconSize: number): void =>
  * @param mapId - The map identifier
  * @param text - The text value
  */
-export const setStoreTextValue = (mapId: string, text: string): void => {
+export const setStoreTextValue = (mapId: string, text: string | string[]): void => {
   getStoreDrawerState(mapId).actions.setTextValue(text);
 };
 
@@ -966,74 +843,43 @@ export const setStoreTextRotation = (mapId: string, textRotation: number): void 
 };
 
 /**
- * Sets the draw interaction instance in the drawer store.
+ * Sets the drawing state in the drawer store.
  *
  * @param mapId - The map identifier
- * @param drawInstance - The Draw interaction instance
- * @deprecated This function shouldn't exist
+ * @param isDrawing - Whether drawing is active
  */
-export const setStoreDrawInstance = (mapId: string, drawInstance: Draw): void => {
-  getStoreDrawerState(mapId).actions.setDrawInstance(drawInstance);
-};
-
-/** Removes the draw interaction instance from the drawer store.
- *
- * @param mapId - The map identifier
- * @deprecated This function shouldn't exist
- */
-export const removeStoreDrawInstance = (mapId: string): void => {
-  getStoreDrawerState(mapId).actions.removeDrawInstance();
+export const setStoreIsDrawing = (mapId: string, isDrawing: boolean): void => {
+  getStoreDrawerState(mapId).actions.setIsDrawing(isDrawing);
 };
 
 /**
- * Sets the transform interaction instance in the drawer store.
+ * Sets the editing state in the drawer store.
  *
  * @param mapId - The map identifier
- * @param transformInstance - The Transform interaction instance
- * @deprecated This function shouldn't exist
+ * @param isEditing - Whether editing is active
  */
-export const setStoreTransformInstance = (mapId: string, transformInstance: Transform): void => {
-  getStoreDrawerState(mapId).actions.setTransformInstance(transformInstance);
-};
-
-/** Removes the transform interaction instance from the drawer store.
- *
- * @param mapId - The map identifier
- * @deprecated This function shouldn't exist
- */
-export const removeStoreTransformInstance = (mapId: string): void => {
-  getStoreDrawerState(mapId).actions.removeTransformInstance();
+export const setStoreIsEditing = (mapId: string, isEditing: boolean): void => {
+  getStoreDrawerState(mapId).actions.setIsEditing(isEditing);
 };
 
 /**
- * Sets the selected drawing feature in the drawer store.
+ * Sets the snapping state in the drawer store.
  *
  * @param mapId - The map identifier
- * @param selectedDrawing - The selected feature, or undefined to clear selection
- * @deprecated This function shouldn't exist
+ * @param isSnapping - Whether snapping is active
  */
-export const setStoreSelectedDrawing = (mapId: string, selectedDrawing: Feature | undefined): void => {
-  getStoreDrawerState(mapId).actions.setSelectedDrawing(selectedDrawing);
+export const setStoreIsSnapping = (mapId: string, isSnapping: boolean): void => {
+  getStoreDrawerState(mapId).actions.setIsSnapping(isSnapping);
 };
 
 /**
- * Sets the snap interaction instance in the drawer store.
+ * Sets the selected drawing type in the drawer store.
  *
  * @param mapId - The map identifier
- * @param snapInstance - The Snap interaction instance
- * @deprecated This function shouldn't exist
+ * @param drawingType - The drawing type to set as selected
  */
-export const setStoreSnapInstance = (mapId: string, snapInstance: Snap): void => {
-  getStoreDrawerState(mapId).actions.setSnapInstance(snapInstance);
-};
-
-/** Removes the snap interaction instance from the drawer store.
- *
- * @param mapId - The map identifier
- * @deprecated This function shouldn't exist
- */
-export const removeStoreSnapInstance = (mapId: string): void => {
-  getStoreDrawerState(mapId).actions.removeSnapInstance();
+export const setStoreSelectedDrawingType = (mapId: string, drawingType: string | undefined): void => {
+  getStoreDrawerState(mapId).actions.setSelectedDrawingType(drawingType);
 };
 
 /**
@@ -1099,11 +945,14 @@ export type StyleProps = {
   /** The stroke width in pixels. */
   strokeWidth: number;
 
+  /** Optional icon source URL for point drawings. */
+  iconSrc?: string;
+
   /** Optional icon size in pixels. */
   iconSize?: number;
 
   /** Optional text content for text drawings. */
-  text?: string;
+  text?: string | string[];
 
   /** Optional text size in pixels. */
   textSize?: number;
