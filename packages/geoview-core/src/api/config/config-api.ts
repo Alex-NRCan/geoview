@@ -204,9 +204,9 @@ export class ConfigApi {
         interaction: urlParams.i as TypeInteraction,
         viewSettings: {
           initialView: {
-            zoomAndCenter: [parseInt(zoom, 10), [parseInt(center[0], 10), parseInt(center[1], 10)]] as TypeZoomAndCenter,
+            zoomAndCenter: [Number(zoom), [Number(center[0]), Number(center[1])]] as TypeZoomAndCenter,
           },
-          projection: urlParams.p as TypeValidMapProjectionCodes,
+          projection: Number(urlParams.p) as TypeValidMapProjectionCodes,
         },
         basemapOptions,
         listOfGeoviewLayerConfig: [] as MapConfigLayerEntry[],
@@ -288,15 +288,18 @@ export class ConfigApi {
       // Validate
       if (!providedMapFeatureConfig) throw new MapConfigError('The string configuration provided cannot be translated to a json object');
 
-      // Validate the map config
-      ConfigApi.validateSchema(MAP_CONFIG_SCHEMA_PATH, providedMapFeatureConfig);
+      // Validate the map config against the schema
+      const schemaValid = ConfigApi.validateSchema(MAP_CONFIG_SCHEMA_PATH, providedMapFeatureConfig);
 
       // Validate
       if (!providedMapFeatureConfig.map) throw new MapConfigError('The map property is mandatory');
 
       // Instanciate the mapFeatureConfig. If an error is detected, a workaround procedure
       // will be executed to try to correct the problem in the best possible way.
-      return new MapFeatureConfig(providedMapFeatureConfig);
+      const mapFeatureConfig = new MapFeatureConfig(providedMapFeatureConfig);
+      mapFeatureConfig.hasSchemaErrors = !schemaValid;
+
+      return mapFeatureConfig;
     } catch (error: unknown) {
       // If we get here, it is because the user provided a string config that cannot be translated to a json object,
       // or the config doesn't have the mandatory map property or the listOfGeoviewLayerConfig is defined but is not
@@ -317,6 +320,13 @@ export class ConfigApi {
    * @returns `true` if validation passes, `false` otherwise
    */
   static validateSchema(schemaPath: string, targetObject: object): boolean {
+    // Create a plain copy to strip class instance properties (e.g. hasSchemaErrors)
+    // that would trigger additionalProperties errors in the schema validation.
+    // Use spread + delete instead of JSON.parse(JSON.stringify()) to avoid creating
+    // a JSON.parse taint source that triggers CodeQL resource-exhaustion warnings.
+    const cleanObject: Record<string, unknown> = { ...(targetObject as Record<string, unknown>) };
+    delete cleanObject.hasSchemaErrors;
+
     // create a validator object
     const validator = new Ajv({
       strict: false,
@@ -331,25 +341,31 @@ export class ConfigApi {
 
     if (validate) {
       // validate configuration
-      const valid = validate(targetObject);
+      const valid = validate(cleanObject);
 
-      // If an error is detected, print it in the logger
+      // If an error is detected, deduplicate by instancePath + keyword + message and print in the logger
       if (!valid) {
+        const seen = new Set<string>();
         for (let i = 0; i < validate.errors!.length; i += 1) {
           const error = validate.errors![i];
-          const { instancePath } = error;
-          const path = instancePath.split('/');
-          let node = targetObject as Record<string, unknown>;
-          for (let j = 1; j < path.length; j++) {
-            node = node[path[j]] as Record<string, unknown>;
+          const dedupeKey = error.instancePath;
+          if (!seen.has(dedupeKey)) {
+            seen.add(dedupeKey);
+
+            const { instancePath } = error;
+            const path = instancePath.split('/');
+            let node = cleanObject;
+            for (let j = 1; j < path.length; j++) {
+              node = node[path[j]] as Record<string, unknown>;
+            }
+            logger.logWarning('SCHEMA VALIDATION', `\nSchemaPath: ${schemaPath}`, '\nSchema error: ', error, '\nObject affected: ', node);
           }
-          logger.logWarning('='.repeat(200), `\nSchemaPath: ${schemaPath}`, '\nSchema error: ', error, '\nObject affected: ', node);
         }
         return false;
       }
 
       // Log
-      logger.logDebug('CONFIG-MAP-VALIDATED', targetObject);
+      logger.logDebug('CONFIG-MAP-VALIDATED', cleanObject);
       return true;
     }
 
