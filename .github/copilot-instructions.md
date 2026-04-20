@@ -111,13 +111,48 @@ this.getControllersRegistry().mapController.applyLayerFilters(layerPath);
 this.getControllersRegistry().uiController.setCircularProgress(true);
 ```
 
+### Map Initialization Sequence
+
+The global `cgpv` object provides both an initialization function and event listeners:
+
+```typescript
+// 1. Register event listener BEFORE calling init
+cgpv.onMapInit((mapViewer) => {
+  // Fires when each map is initialized (map is ready, layers may still be loading)
+  mapViewer.onMapMoveEnd((sender, event) => {
+    console.log("Map moved to:", event.lonlat);
+  });
+});
+
+cgpv.onMapReady((mapViewer) => {
+  // Fires when map and UI are fully loaded
+});
+
+// 2. Call init to trigger map creation from HTML div configs
+cgpv.init();
+```
+
+- **`cgpv.init()`** — Initializes all maps declared in the HTML (reads `data-config` / `data-config-url` attributes)
+- **`cgpv.onMapInit(callback)`** — Event listener that fires after each map is initialized. Register BEFORE calling `cgpv.init()`
+- **`cgpv.onMapReady(callback)`** — Event listener that fires when map and UI are fully loaded
+- **`cgpv.api.getMapViewer(mapId)`** — Returns the `MapViewer` instance for a specific map
+- **`cgpv.api.getMapViewerAsync(mapId)`** — Async version that waits for the map to be available
+
 ### Layer Architecture
 
-- **Two Categories**: Raster (`AbstractGeoViewRaster`) and Vector (`AbstractGeoViewVector`)
-- **GV Layers**: OpenLayers wrapper layer classes (`GVEsriFeature`, `GVCSV`, etc.)
-- **Layer Sets**: Reactive collections tracking legends/queries/state (see [layerset-architecture.md](../docs/programming/layerset-architecture.md))
-  - `LegendsLayerSet`, `DetailsLayerSet` - extend `AbstractLayerSet`
-  - Event-driven sync with layer changes via result sets
+**Two-tier system** — both tiers are mandatory for every layer:
+
+1. **GeoView layers** (config tier): Handle configuration, metadata fetching, and validation. Created via `createGeoviewLayerConfig()`. Base classes: `AbstractGeoViewRaster`, `AbstractGeoViewVector` (both extend `AbstractGeoviewLayerConfig`).
+2. **GV layers** (runtime tier): OpenLayers wrapper classes for rendering and interaction. Created by `createGVLayers()` on the GeoView layer. Base classes: `AbstractGVRaster`, `AbstractGVVector` (both extend `AbstractBaseGVLayer`). Examples: `GVEsriFeature`, `GVCSV`, `GVWMS`.
+
+**Layer Sets**: Reactive collections tracking legends/queries/state (see [layerset-architecture.md](../docs/programming/layerset-architecture.md))
+
+- `LegendsLayerSet`, `DetailsLayerSet` - extend `AbstractLayerSet`
+- Event-driven sync with layer changes via result sets
+
+### Event Delegate System
+
+GeoView uses a lightweight typed delegate event system (see [event-helper.md](../docs/programming/event-helper.md)). Classes own private handler arrays (`#onXxxHandlers`) and expose `onXxx()`/`offXxx()` subscribe/unsubscribe methods. Events are emitted via `EventHelper.emitEvent()`. Controllers subscribe in `onHook()` and unsubscribe in `onUnhook()`.
 
 ## TypeScript Conventions
 
@@ -1680,6 +1715,28 @@ import { GVTestSuiteMyFeature } from './tests/suites/suite-my-feature';
 - [adding-layer-types.md](../docs/programming/adding-layer-types.md) - Extending layer support
 - [best-practices.md](../docs/programming/best-practices.md) - Code style & patterns
 - [using-store.md](../docs/programming/using-store.md) - Zustand usage patterns
+- [event-helper.md](../docs/programming/event-helper.md) - Delegate event system
+- [controller-architecture.md](../docs/programming/controller-architecture.md) - Controller design & domain integration
+- [troubleshooting.md](../docs/programming/troubleshooting.md) - Service-specific fixes & known issues
+
+## TypeDoc-First API Documentation Policy
+
+**Favor linking to TypeDoc over repeating method signatures in markdown docs.**
+
+The TypeDoc reference at `https://canadian-geospatial-platform.github.io/geoview/public/docs/typedoc/` is auto-generated from source code JSDoc and is always in sync. When writing or updating API documentation in `docs/app/api/` or `docs/app/events/`:
+
+1. **Link to TypeDoc** at the top of each file for the full method reference
+2. **Focus on concepts, access patterns, and usage examples** — things TypeDoc does not convey well
+3. **Do NOT exhaustively list every method signature, parameter, and return type** — that information lives in TypeDoc and goes stale when duplicated
+4. **Show common code patterns** with inline examples that demonstrate real workflows
+
+Key TypeDoc pages:
+
+- [TypeDoc Index](https://canadian-geospatial-platform.github.io/geoview/public/docs/typedoc/)
+- [API class](https://canadian-geospatial-platform.github.io/geoview/public/docs/typedoc/classes/API.html)
+- [LayerApi class](https://canadian-geospatial-platform.github.io/geoview/public/docs/typedoc/classes/LayerApi.html)
+- [GeometryApi class](https://canadian-geospatial-platform.github.io/geoview/public/docs/typedoc/classes/GeometryApi.html)
+- [MapViewer class](https://canadian-geospatial-platform.github.io/geoview/public/docs/typedoc/classes/MapViewer.html)
 
 ## File Structure Quick Reference
 
