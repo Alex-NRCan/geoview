@@ -10,7 +10,6 @@ Complete API reference for interacting with GeoView maps and components.
 ## Map Viewer API
 
 - **[MapViewer API](app/api/map-viewer-api.md)** - MapViewer instance methods and properties
-- **[MapViewer Functions](app/api/map-viewer-functions.md)** - Detailed function reference
 
 ## Layer Management
 
@@ -27,5 +26,5 @@ Complete API reference for interacting with GeoView maps and components.
 ## Related Documentation
 
 - [Layers Overview](app/layers/layers.md) - Layer types and concepts
-- [Event System](app/events/event-system.md) - Event handling and processors
+- [Event System](app/events/event-system.md) - Event handling and delegates
 - [Creating Maps](app/config/create-map.md) - How to create and configure maps
