@@ -68,9 +68,17 @@ export abstract class AbstractGVVector extends AbstractGVLayer {
     const layerOptions: VectorLayerOptions<VectorSource<Feature<Geometry>>> = {
       properties: { layerConfig },
       source: olSource,
-      style: (feature, resolution) => {
+      style: (feature) => {
         // Get or create cached style
-        const style = this.#getOrCreateCachedStyle(feature, resolution, label);
+        const style =
+          feature.getGeometry()?.getType() === 'Point'
+            ? this.#getOrCreateCachedStyle(feature, label)
+            : AbstractGVVector.calculateStyleForFeature(
+                this as AbstractGVLayer,
+                feature,
+                label,
+                this.getLayerFilters()?.getFilterEquation()
+              );
 
         // Set the style applied, throwing a style applied event in the process
         this.setStyleApplied(true);
@@ -78,13 +86,6 @@ export abstract class AbstractGVVector extends AbstractGVLayer {
         // Return the style
         return style;
       },
-      // TODO: (SEE ISSUE 3227) For layers with text, in order for declutterMode options to work, declutter at the layer level must be true
-      // TO.DOCONT: If true though, this will cause the features themselves to be decluttered, which we don't want
-      // TO.DOCONT: Instead, the best solution would be to create a second text only layer that uses the same source.
-      // TO.DOCONT: Could both layers be accessed by the same GeoView Layer? So that only the text layer or both layer's visibility can be toggled?
-      // TO.DOCONT: If two separate layers, could we remove the text from the sublayers? Could have separate categories for the text, although
-      // TO.DOCONT: then we wouldn't be able to turn off the individual text categories in the UI. Would be all or nothing at the main layer level.
-      // declutter: true,
     };
 
     // Init the layer options with initial settings
@@ -103,9 +104,9 @@ export abstract class AbstractGVVector extends AbstractGVLayer {
       const textLayerOptions: VectorLayerOptions<VectorSource<Feature<Geometry>>> = {
         properties: { layerConfig, isAuxiliaryLayer: true },
         source: olSource, // Share the same source
-        style: (feature, resolution) => {
+        style: (feature) => {
           // Calculate text-only style for the feature
-          const style = AbstractGVVector.calculateTextStyleForFeature(this as AbstractGVLayer, feature, resolution);
+          const style = AbstractGVVector.calculateTextStyleForFeature(this as AbstractGVLayer, feature);
           return style;
         },
         // Enable declutter based on layerText.declutterMode
@@ -421,25 +422,17 @@ export abstract class AbstractGVVector extends AbstractGVLayer {
   // #region METHODS
 
   /**
-   * Gets or creates a cached style for a feature at a given resolution.
-   *
-   * Resolution is rounded to 2 decimal places to prevent cache thrashing during smooth zoom animations.
-   * This avoids recreating Style objects for every tiny resolution change.
+   * Gets or creates a cached style for a feature.
    *
    * @param feature - The feature to calculate style for.
-   * @param resolution - The current map resolution.
    * @param label - Style label for fallback styling.
    * @returns The cached or newly calculated style.
    */
-  #getOrCreateCachedStyle(feature: FeatureLike, resolution: number, label: string): Style | undefined {
-    // Round resolution to 1 decimal place as cache key component to reduce style churn at zoom boundaries.
-    const roundedResolution = Math.round(resolution * 10) / 10;
-
+  #getOrCreateCachedStyle(feature: FeatureLike, label: string): Style | undefined {
     // Calculate new style and cache it
     const featureStyle = AbstractGVVector.calculateStyleForFeature(
       this as AbstractGVLayer,
       feature,
-      resolution,
       label,
       this.getLayerFilters()?.getFilterEquation()
     );
@@ -454,8 +447,8 @@ export abstract class AbstractGVVector extends AbstractGVLayer {
     const styleClone = featureStyle.clone();
     // Eliminate geometry from the style clone to prevent cache misses due to different geometries on features
     styleClone.setGeometry('');
-    // Create a cache key based on the rounded resolution and the stringified style (without geometry)
-    const styleKey = `${roundedResolution}${JSON.stringify(styleClone)}`;
+    // Create a cache key based on the stringified style (without geometry)
+    const styleKey = JSON.stringify(styleClone);
 
     // Cache the style if not already cached
     if (!this.#styleCache.has(styleKey)) {
@@ -668,7 +661,6 @@ export abstract class AbstractGVVector extends AbstractGVLayer {
   static calculateStyleForFeature(
     layer: AbstractGVLayer,
     feature: FeatureLike,
-    resolution: number,
     label: string,
     filterEquation?: FilterNodeType[]
   ): Style | undefined {
@@ -676,7 +668,7 @@ export abstract class AbstractGVVector extends AbstractGVLayer {
     const style = layer.getStyle() || {};
 
     // Get and create Feature style if necessary
-    return GeoviewRenderer.getAndCreateFeatureStyle(feature, resolution, style, label, filterEquation, (geometryType, theStyle) => {
+    return GeoviewRenderer.getAndCreateFeatureStyle(feature, style, label, filterEquation, (geometryType, theStyle) => {
       // A new style has been created
       logger.logDebug('A new style has been created on-the-fly', geometryType, layer);
 
@@ -693,10 +685,9 @@ export abstract class AbstractGVVector extends AbstractGVLayer {
    *
    * @param layer - The layer on which to work for the style.
    * @param feature - Feature that needs its style defined.
-   * @param resolution - The map resolution.
    * @returns The text-only style or undefined if no text style could be calculated.
    */
-  static calculateTextStyleForFeature(layer: AbstractGVLayer, feature: FeatureLike, resolution: number): Style | undefined {
+  static calculateTextStyleForFeature(layer: AbstractGVLayer, feature: FeatureLike): Style | undefined {
     // Get the layer config and style
     const style = layer.getStyle() || {};
     const outfields = layer.getLayerConfig().getOutfields();
@@ -714,7 +705,7 @@ export abstract class AbstractGVVector extends AbstractGVLayer {
     if (!styleSettings) return undefined;
 
     // Get the text style
-    const textStyle = GeoviewTextRenderer.getTextStyle(feature, resolution, styleSettings, layerText, aliasLookup);
+    const textStyle = GeoviewTextRenderer.getTextStyle(feature, styleSettings, layerText, aliasLookup);
 
     // If no text style, return undefined
     if (!textStyle) return undefined;

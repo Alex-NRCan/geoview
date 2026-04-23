@@ -1,7 +1,7 @@
 import { useStore } from 'zustand';
 
 import type { TypeFeatureInfoEntry, TypeLayerData, TypeResultSet, TypeResultSetEntry } from '@/api/types/map-schema-types';
-import type { TypeSetStore, TypeGetStore } from '@/core/stores/geoview-store';
+import { type TypeSetStore, type TypeGetStore, useStableSelector } from '@/core/stores/geoview-store';
 import { getGeoViewStore, helperDeleteFromArray, useGeoViewStore } from '@/core/stores/stores-managers';
 import type { TypeMapFeaturesConfig } from '@/core/types/global-types';
 import { logger } from '@/core/utils/logger';
@@ -51,11 +51,11 @@ export interface IDataTableState {
     setInitiallayerDataTableSetting: (layerPath: string) => void;
     setGlobalFilteredEntry: (globalFilterValue: string, layerPath: string) => void;
     setMapFilteredEntry: (mapFiltered: boolean, layerPath: string) => void;
+    setFilterDataToExtent: (filterDataToExtent: boolean, layerPath: string) => void;
     setRowsFilteredEntry: (rows: number, layerPath: string) => void;
     setSelectedFeature: (feature: TypeFeatureInfoEntry) => void;
     setSelectedLayerPath: (layerPath: string) => void;
     setTableFilters(newTableFilters: Record<string, string>): void;
-    setToolbarRowSelectedMessageEntry: (message: string, layerPath: string) => void;
   };
 }
 
@@ -132,6 +132,7 @@ export function initialDataTableState(set: TypeSetStore, get: TypeGetStore): IDa
           columnFilterModesRecord: {},
           columnsFiltersVisibility: false,
           mapFilteredRecord: true,
+          filterDataToExtent: false,
           rowsFilteredRecord: 0,
           toolbarRowSelectedMessageRecord: '',
           globalFilterRecord: '',
@@ -250,24 +251,6 @@ export function initialDataTableState(set: TypeSetStore, get: TypeGetStore): IDa
       },
 
       /**
-       * Sets the toolbar row-selected message for the specified layer.
-       *
-       * @param message - The message to display in the toolbar.
-       * @param layerPath - The target layer path.
-       */
-      setToolbarRowSelectedMessageEntry: (message: string, layerPath: string): void => {
-        const layerSettings = get().dataTableState.layersDataTableSetting[layerPath];
-        layerSettings.toolbarRowSelectedMessageRecord = message;
-
-        set({
-          dataTableState: {
-            ...get().dataTableState,
-            layersDataTableSetting: { ...get().dataTableState.layersDataTableSetting, [layerPath]: layerSettings },
-          },
-        });
-      },
-
-      /**
        * Sets the selected layer path for the data table.
        *
        * @param layerPath - The layer path to select.
@@ -290,6 +273,18 @@ export function initialDataTableState(set: TypeSetStore, get: TypeGetStore): IDa
       setGlobalFilteredEntry: (globalFilterValue: string, layerPath: string): void => {
         const layerSettings = get().dataTableState.layersDataTableSetting[layerPath];
         layerSettings.globalFilterRecord = globalFilterValue;
+
+        set({
+          dataTableState: {
+            ...get().dataTableState,
+            layersDataTableSetting: { ...get().dataTableState.layersDataTableSetting, [layerPath]: layerSettings },
+          },
+        });
+      },
+
+      setFilterDataToExtent: (filterDataToExtent: boolean, layerPath: string) => {
+        const layerSettings = get().dataTableState.layersDataTableSetting[layerPath];
+        layerSettings.filterDataToExtent = filterDataToExtent;
 
         set({
           dataTableState: {
@@ -412,12 +407,24 @@ export const getStoreMapFilteredRecord = (mapId: string, layerPath: string): boo
 };
 
 /** Hook that returns the per-layer data table settings record. */
-export const useStoreDataTableLayerSettings = (): Record<string, IDataTableSettings> =>
-  useStore(useGeoViewStore(), (state) => state.dataTableState.layersDataTableSetting);
+export const useStoreDataTableLayerSettings = (): Record<string, IDataTableSettings> => {
+  return useStableSelector(useGeoViewStore(), (state) => state.dataTableState.layersDataTableSetting);
+};
 
 /** Hook that returns the currently selected feature in the data table. */
 export const useStoreDataTableSelectedFeature = (): TypeFeatureInfoEntry | null =>
   useStore(useGeoViewStore(), (state) => state.dataTableState.selectedFeature);
+
+/**
+ * Gets whether the data table is filtered to the current map extent for a specific layer.
+ *
+ * @param mapId - The map identifier.
+ * @param layerPath - The layer path to check.
+ * @returns True if map extent filtering is enabled, or undefined if the layer has no settings.
+ */
+export const getStoreDataTableFilterDataToExtent = (mapId: string, layerPath: string): boolean | undefined => {
+  return getStoreDataTableState(mapId)?.layersDataTableSetting?.[layerPath]?.filterDataToExtent;
+};
 
 // #endregion STATE GETTERS & HOOKS - OTHERS (no match between getter-hook)
 
@@ -509,7 +516,7 @@ export const setStoreGlobalFilteredEntry = (mapId: string, globalFilterValue: st
 };
 
 /**
- * Sets whether the data table is filtered to the current map extent for a layer in the store.
+ * Sets whether the map feature is filtered to the data table filters for a specific layer in the store.
  *
  * @param mapId - The map identifier.
  * @param mapFiltered - Whether map extent filtering is enabled.
@@ -517,6 +524,17 @@ export const setStoreGlobalFilteredEntry = (mapId: string, globalFilterValue: st
  */
 export const setStoreMapFilteredEntry = (mapId: string, mapFiltered: boolean, layerPath: string): void => {
   getStoreDataTableState(mapId).actions.setMapFilteredEntry(mapFiltered, layerPath);
+};
+
+/**
+ * Sets whether the data table is filtered to the current map extent for a layer in the store.
+ *
+ * @param mapId - The map identifier.
+ * @param filterDataToExtent - Whether filtering data to extent is enabled.
+ * @param layerPath - The target layer path.
+ */
+export const setStoreFilterDataToExtent = (mapId: string, filterDataToExtent: boolean, layerPath: string): void => {
+  getStoreDataTableState(mapId).actions.setFilterDataToExtent(filterDataToExtent, layerPath);
 };
 
 /**
@@ -528,17 +546,6 @@ export const setStoreMapFilteredEntry = (mapId: string, mapFiltered: boolean, la
  */
 export const setStoreRowsFilteredEntry = (mapId: string, rows: number, layerPath: string): void => {
   getStoreDataTableState(mapId).actions.setRowsFilteredEntry(rows, layerPath);
-};
-
-/**
- * Sets the toolbar row-selected message for a specific layer in the store.
- *
- * @param mapId - The map identifier.
- * @param message - The message to display.
- * @param layerPath - The target layer path.
- */
-export const setStoreToolbarRowSelectedMessageEntry = (mapId: string, message: string, layerPath: string): void => {
-  getStoreDataTableState(mapId).actions.setToolbarRowSelectedMessageEntry(message, layerPath);
 };
 
 /**
@@ -644,14 +651,14 @@ export interface IDataTableSettings {
   /** Whether column filter inputs are visible. */
   columnsFiltersVisibility: boolean;
 
-  /** Whether the table is filtered to the current map extent. */
+  /** Whether the features in the map should reflect the filters applied in the data table. */
   mapFilteredRecord: boolean;
+
+  /** Whether the data table is filtered to the current map extent. */
+  filterDataToExtent: boolean;
 
   /** The number of rows matching the current filters. */
   rowsFilteredRecord: number;
-
-  /** The toolbar message shown when rows are selected. */
-  toolbarRowSelectedMessageRecord: string;
 
   /** The current global filter string applied across all columns. */
   globalFilterRecord: string;

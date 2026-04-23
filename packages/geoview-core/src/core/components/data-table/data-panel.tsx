@@ -14,6 +14,7 @@ import { useStoreAppShowUnsymbolizedFeatures } from '@/core/stores/store-interfa
 import {
   useStoreMapAllVisibleandInRangeLayers,
   useStoreMapIsLayerHiddenOnMapSet,
+  useStoreMapExtent,
 } from '@/core/stores/store-interface-and-intial-values/map-state';
 import { useStoreLayerNameSet, useStoreLayerStatusSet } from '@/core/stores/store-interface-and-intial-values/layer-state';
 import {
@@ -56,6 +57,7 @@ export function Datapanel({ containerType }: DataPanelType): JSX.Element {
   const isFirstLoad = useRef<Record<string, boolean>>({});
 
   const mapId = useStoreGeoViewMapId();
+  const mapExtent = useStoreMapExtent();
   const uiController = useUIController();
   const layerSetController = useLayerSetController();
   const layerData = useStoreDataTableAllFeaturesDataArray();
@@ -81,6 +83,33 @@ export function Datapanel({ containerType }: DataPanelType): JSX.Element {
       .map((layerPath) => mappedLayerData.filter((data) => data.layerPath === layerPath)[0])
       .filter((layer) => layer !== undefined && !layerHiddenSet[layer.layerPath]);
   }, [mappedLayerData, visibleInRangeLayers, layerHiddenSet]);
+
+  /**
+   * Applies filtering to the ordered layer data features.
+   */
+  const memoFilteredOrderedLayerData = useMemo(() => {
+    return memoOrderedLayerData.map((layer) => {
+      let { features } = layer;
+
+      // Apply extent filtering if enabled for the selected layer
+      if (features && datatableSettings[layer.layerPath]?.filterDataToExtent && mapExtent) {
+        features = features.filter((feature) => {
+          const { geometry } = feature;
+          return geometry?.intersectsExtent(mapExtent);
+        });
+      }
+
+      // Apply unsymbolized feature filtering if configured
+      if (features && !showUnsymbolizedFeatures) {
+        features = features.filter((feature) => feature.featureIcon);
+      }
+
+      return {
+        ...layer,
+        features,
+      };
+    });
+  }, [memoOrderedLayerData, mapExtent, showUnsymbolizedFeatures, datatableSettings]);
 
   /**
    * Handles layer selection change from the layer list.
@@ -119,19 +148,14 @@ export function Datapanel({ containerType }: DataPanelType): JSX.Element {
       }
 
       let featureStr = t('dataTable.noFeatures');
-      let features = memoOrderedLayerData?.find((layer) => layer.layerPath === layerPath)?.features;
-
-      // Filter unsymbolized features if configured
-      if (!showUnsymbolizedFeatures) {
-        features = features?.filter((feature) => feature.featureIcon);
-      }
+      const features = memoFilteredOrderedLayerData?.find((layer) => layer.layerPath === layerPath)?.features;
 
       if (features !== undefined) {
         featureStr = `${features?.length} ${t('dataTable.features')}`;
       }
       return featureStr;
     },
-    [datatableSettings, memoOrderedLayerData, showUnsymbolizedFeatures, t]
+    [datatableSettings, memoFilteredOrderedLayerData, t]
   );
 
   /**
@@ -285,13 +309,24 @@ export function Datapanel({ containerType }: DataPanelType): JSX.Element {
     if (!memoIsLayerDisabled() && memoIsSelectedLayerHasFeatures()) {
       return (
         <>
-          {memoOrderedLayerData
+          {memoFilteredOrderedLayerData
             .filter((data) => data.layerPath === selectedLayerPath)
-            .map((data: MappedLayerDataType) => (
-              <Box key={data.layerPath} ref={dataTableRef} className="data-table-panel" sx={{ height: '100%' }}>
-                <DataTable data={data} layerPath={data.layerPath} containerType={containerType} />
-              </Box>
-            ))}
+            .map((data: MappedLayerDataType) => {
+              // Get unfiltered count from orderedLayerData
+              const unfilteredLayer = memoOrderedLayerData.find((layer) => layer.layerPath === selectedLayerPath);
+              const unfilteredFeaturesCount = unfilteredLayer?.features?.length ?? 0;
+
+              return (
+                <Box key={data.layerPath} ref={dataTableRef} className="data-table-panel" sx={{ height: '100%' }}>
+                  <DataTable
+                    data={data}
+                    layerPath={data.layerPath}
+                    containerType={containerType}
+                    unfilteredFeaturesCount={unfilteredFeaturesCount}
+                  />
+                </Box>
+              );
+            })}
         </>
       );
     }

@@ -50,14 +50,14 @@ import {
   setStoreSelectedFeature,
 } from '@/core/stores/store-interface-and-intial-values/data-table-state';
 import { useStoreTimeSliderFilter } from '@/core/stores/store-interface-and-intial-values/time-slider-state';
-import { useStoreAppDisplayLanguage, useStoreAppShowUnsymbolizedFeatures } from '@/core/stores/store-interface-and-intial-values/app-state';
+import { useStoreAppDisplayLanguage } from '@/core/stores/store-interface-and-intial-values/app-state';
 import { DateMgt } from '@/core/utils/date-mgt';
 import linkifyHtml from 'linkify-html';
 import { isImage, delay, sanitizeHtmlContent, enhanceLinksAccessibility } from '@/core/utils/utilities';
 import { debounce } from '@/core/utils/debounce';
 import { logger } from '@/core/utils/logger';
 import type { TypeFeatureInfoEntry } from '@/api/types/map-schema-types';
-import { useFilterRows, useToolbarActionMessage, useGlobalFilter } from './hooks';
+import { useFilterRows, useGlobalFilter } from './hooks';
 import { getSxClasses } from './data-table-style';
 import { useLightBox } from '@/core/components/common';
 import { NUMBER_FILTER, DATE_FILTER, STRING_FILTER } from '@/core/utils/constant';
@@ -95,7 +95,7 @@ const STRING_FIELD_FILTERS = ['contains', 'startsWith', 'endsWith'];
  * @returns The data table element
  */
 
-function DataTable({ data, layerPath, containerType }: DataTableProps): JSX.Element {
+function DataTable({ data, layerPath, containerType, unfilteredFeaturesCount }: DataTableProps): JSX.Element {
   // Log
   logger.logTraceRender('components/data-table/data-table');
 
@@ -108,7 +108,6 @@ function DataTable({ data, layerPath, containerType }: DataTableProps): JSX.Elem
   const mapId = useStoreGeoViewMapId();
   const language = useStoreAppDisplayLanguage();
   const datatableSettings = useStoreDataTableLayerSettings();
-  const showUnsymbolizedFeatures = useStoreAppShowUnsymbolizedFeatures();
   const layerClassFilter = useStoreLayerFilterClass(layerPath);
   const layerTimeFilter = useStoreTimeSliderFilter(layerPath);
   const layerDateTemporalMode = useStoreLayerDateTemporalMode(layerPath);
@@ -516,15 +515,10 @@ function DataTable({ data, layerPath, containerType }: DataTableProps): JSX.Elem
     const layerFilterEquation = GeoviewRenderer.createFilterNodeFromFilter(layerFilterClassAndTime);
 
     // Filter each features
-    let filterArray =
+    const filterArray =
       data?.features?.filter((f) => {
         return f.feature && GeoviewRenderer.featureRespectsFilterEquation(f.feature, layerFilterEquation);
       }) ?? [];
-
-    // Filter out unsymbolized features if the showUnsymbolizedFeatures config is false
-    if (!showUnsymbolizedFeatures) {
-      filterArray = filterArray.filter((record) => record.featureIcon);
-    }
 
     return (filterArray ?? []).map((feature, featureIndex) => {
       // Create unique button ID per feature
@@ -635,17 +629,17 @@ function DataTable({ data, layerPath, containerType }: DataTableProps): JSX.Elem
       (props: { table: MRTTableInstance<ColumnsType> }): ReactNode => (
         <TopToolbar
           sxClasses={sxClasses}
-          datatableSettings={datatableSettings}
           layerPath={layerPath}
           t={t}
           globalFilter={globalFilter}
-          useTable={useTable}
+          useTable={props.table}
           columns={memoColumns}
           data={data}
           table={props.table}
+          unfilteredFeaturesCount={unfilteredFeaturesCount}
         />
       ),
-      [datatableSettings, layerPath, globalFilter, memoColumns, data, sxClasses, t, useTable] // Include dependencies
+      [sxClasses, layerPath, t, globalFilter, memoColumns, data, unfilteredFeaturesCount] // Include dependencies
     ),
     enableFilterMatchHighlighting: true,
     enableColumnResizing: true,
@@ -926,9 +920,6 @@ function DataTable({ data, layerPath, containerType }: DataTableProps): JSX.Elem
     }
     prevGlobalFilterRef.current = globalFilter ?? '';
   }, [globalFilter]);
-
-  // set toolbar custom action message in store.
-  useToolbarActionMessage({ data, columnFilters, globalFilter, layerPath, tableInstance: useTable, showUnsymbolizedFeatures });
 
   return (
     <Box ref={dataTableWrapperRef} sx={sxClasses.dataTableWrapper} className="data-table-wrapper">
