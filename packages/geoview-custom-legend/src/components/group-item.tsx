@@ -1,7 +1,7 @@
 import type { TypeWindow } from 'geoview-core/core/types/global-types';
 import { useStoreAppDisplayLanguage } from 'geoview-core/core/stores/store-interface-and-intial-values/app-state';
 import { logger } from 'geoview-core/core/utils/logger';
-import { useStoreMapLayerArrayVisibility } from 'geoview-core/core/stores/store-interface-and-intial-values/map-state';
+import { useStoreLayerArrayVisibility } from 'geoview-core/core/stores/store-interface-and-intial-values/layer-state';
 import { getLocalizedMessage } from 'geoview-core/core/utils/utilities';
 import { useLayerController } from 'geoview-core/core/controllers/use-controllers';
 
@@ -50,7 +50,7 @@ export function GroupItem({ item, sxClasses, itemPath }: GroupItemProps): JSX.El
 
   const { cgpv } = window as TypeWindow;
   const { ui, reactUtilities } = cgpv;
-  const { useState, useMemo } = reactUtilities.react;
+  const { useState, useCallback, useMemo } = reactUtilities.react;
   const {
     Box,
     ListItem,
@@ -72,34 +72,47 @@ export function GroupItem({ item, sxClasses, itemPath }: GroupItemProps): JSX.El
   const [collapsed, setCollapsed] = useState<boolean>(isGroupLayer(item) ? (item.collapsed ?? false) : false);
 
   // Collect all layer paths from children
-  const layerPaths = useMemo(() => collectLayerPaths(item.children), [item.children]);
+  const memoLayerPaths = useMemo(() => {
+    logger.logTraceUseMemo('GROUP-ITEM - memoLayerPaths', item.children);
+    return collectLayerPaths(item.children);
+  }, [item.children]);
 
   // Check if all child layers are visible
-  const allVisible = useStoreMapLayerArrayVisibility(layerPaths);
+  const allVisible = useStoreLayerArrayVisibility(memoLayerPaths);
 
-  if (!isGroupLayer(item)) return;
+  // #region HANDLERS
 
   /**
-   * Handles when the user toggles the group collapse state
+   * Handles when the user toggles the group collapse state.
    */
-  const handleToggleCollapse = (): void => {
+  const handleToggleCollapse = useCallback((): void => {
     setCollapsed((prev) => !prev);
-  };
+  }, []);
 
   /**
-   * Handles when the user toggles the visibility of all child layers
+   * Handles when the user toggles the visibility of all child layers.
    */
-  const handleToggleVisibility = (): void => {
+  const handleToggleVisibility = useCallback((): void => {
     const newVisibility = !allVisible;
 
     // Toggle all child layers
-    layerPaths.forEach((layerPath) => {
-      layerController.setOrToggleMapLayerVisibility(layerPath, newVisibility);
+    memoLayerPaths.forEach((layerPath) => {
+      try {
+        // Toggle the visibility
+        layerController.setOrToggleLayerVisibility(layerPath, newVisibility);
+      } catch (error) {
+        // Log
+        logger.logWarning(`Failed to toggle visibility for layer at path ${layerPath}:`, error);
+      }
     });
-  };
+  }, [allVisible, layerController, memoLayerPaths]);
+
+  // #endregion HANDLERS
 
   // Get current item text and path for children
   const currentPath = itemPath || item.itemId || `group-${item.text.toLowerCase().replace(/\s+/g, '-')}`;
+
+  if (!isGroupLayer(item)) return;
 
   return (
     <ListItem sx={sxClasses.legendListItem} disablePadding className="layerListItem groupItem">

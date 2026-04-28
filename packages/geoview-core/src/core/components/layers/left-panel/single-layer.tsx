@@ -27,15 +27,11 @@ import {
   useStoreLayerChildPaths,
   useStoreLayerItems,
   useStoreLayerHasDisabledVisibility,
-  setStoreLayerSelectedLayersTabLayer,
+  useStoreLayerVisible,
+  useStoreLayerInVisibleRange,
+  useStoreLayerIsParentHiddenOnMap,
+  useStoreLayerLegendCollapsed,
 } from '@/core/stores/store-interface-and-intial-values/layer-state';
-import {
-  useStoreMapLegendCollapsedByPath,
-  useStoreMapLayerVisibility,
-  useStoreMapLayerInVisibleRange,
-  useStoreMapIsParentLayerHiddenOnMap,
-  setStoreMapToggleLegendCollapsed,
-} from '@/core/stores/store-interface-and-intial-values/map-state';
 import { DeleteUndoButton } from '@/core/components/layers/delete-undo-button';
 import { LayersList } from './layers-list';
 import { LayerIcon } from '@/core/components/common/layer-icon';
@@ -95,7 +91,10 @@ export function SingleLayer({
   // Hook
   const { t } = useTranslation<string>();
   const theme = useTheme();
-  const sxClasses = useMemo(() => getSxClasses(theme), [theme]);
+  const memoSxClasses = useMemo(() => {
+    logger.logTraceUseMemo('SINGLE-LAYER - memoSxClasses', theme);
+    return getSxClasses(theme);
+  }, [theme]);
 
   // Create ref for scrolling into view
   const layerListItemRef = useRef<HTMLLIElement>(null);
@@ -110,10 +109,10 @@ export function SingleLayer({
   const layerIsSelected = layerPath === selectedLayerPath && displayState === 'view';
   const isKeyboardNavigationMode = useStoreUIActiveTrapGeoView();
 
-  const isVisible = useStoreMapLayerVisibility(layerPath);
-  const inVisibleRange = useStoreMapLayerInVisibleRange(layerPath);
-  const legendExpanded = !useStoreMapLegendCollapsedByPath(layerPath);
-  const parentHidden = useStoreMapIsParentLayerHiddenOnMap(layerPath);
+  const isVisible = useStoreLayerVisible(layerPath);
+  const inVisibleRange = useStoreLayerInVisibleRange(layerPath);
+  const legendExpanded = !useStoreLayerLegendCollapsed(layerPath);
+  const parentHidden = useStoreLayerIsParentHiddenOnMap(layerPath);
 
   const layerId = useStoreLayerId(layerPath);
   const layerName = useStoreLayerName(layerPath);
@@ -202,13 +201,13 @@ export function SingleLayer({
   const selectLayerIfNeeded = useCallback(
     (openPanel: boolean = true): void => {
       if (!layerIsSelected && ['processed', 'loaded'].includes(layerStatus!)) {
-        setStoreLayerSelectedLayersTabLayer(mapId, layerPath);
+        layerController.setSelectedLayerPath(layerPath);
         if (openPanel) {
           showLayerDetailsPanel?.(layerId || '');
         }
       }
     },
-    [mapId, layerIsSelected, layerStatus, layerPath, layerId, showLayerDetailsPanel]
+    [layerController, layerIsSelected, layerStatus, layerPath, layerId, showLayerDetailsPanel]
   );
 
   /**
@@ -222,8 +221,8 @@ export function SingleLayer({
     selectLayerIfNeeded();
 
     // Set legend collapse value
-    setStoreMapToggleLegendCollapsed(mapId, layerPath);
-  }, [layerPath, selectLayerIfNeeded, mapId, blurOtherLayerButtons]);
+    layerController.toggleLegendCollapsed(layerPath);
+  }, [layerPath, selectLayerIfNeeded, layerController, blurOtherLayerButtons]);
 
   const handleExpandGroupKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLButtonElement>): void => {
@@ -235,13 +234,13 @@ export function SingleLayer({
         selectLayerIfNeeded(false);
 
         // Set legend collapse value
-        setStoreMapToggleLegendCollapsed(mapId, layerPath);
+        layerController.toggleLegendCollapsed(layerPath);
 
         // Allow the toggle expansion action to work
         event.preventDefault();
       }
     },
-    [layerPath, mapId, blurOtherLayerButtons, selectLayerIfNeeded]
+    [layerPath, layerController, blurOtherLayerButtons, selectLayerIfNeeded]
   );
 
   const handleLayerClick = useCallback((): void => {
@@ -254,9 +253,9 @@ export function SingleLayer({
     blurOtherLayerButtons();
 
     // Set selected layer path
-    setStoreLayerSelectedLayersTabLayer(mapId, layerPath);
+    layerController.setSelectedLayerPath(layerPath);
     showLayerDetailsPanel?.(layerId || '');
-  }, [mapId, layerPath, layerId, layerStatus, showLayerDetailsPanel, blurOtherLayerButtons]);
+  }, [layerController, layerPath, layerId, layerStatus, showLayerDetailsPanel, blurOtherLayerButtons]);
 
   const handleArrowClick = useCallback(
     (direction: number) => {
@@ -342,7 +341,7 @@ export function SingleLayer({
     selectLayerIfNeeded();
 
     // Toggle visibility
-    layerController.setOrToggleMapLayerVisibility(layerPath);
+    layerController.setOrToggleLayerVisibility(layerPath);
   }, [layerPath, layerController, selectLayerIfNeeded, inVisibleRange, parentHidden]);
 
   const handleToggleVisibilityKeyDown = useCallback(
@@ -359,7 +358,7 @@ export function SingleLayer({
         selectLayerIfNeeded(false);
 
         // Toggle visibility
-        layerController.setOrToggleMapLayerVisibility(layerPath);
+        layerController.setOrToggleLayerVisibility(layerPath);
 
         // Allow the toggle visibility action to work
         event.preventDefault();
@@ -493,7 +492,7 @@ export function SingleLayer({
             size="small"
             onKeyDown={handleArrowKeyDownWrapper}
             onClick={handleArrowClickWrapper}
-            sx={isFirst ? sxClasses.orderButtonDisabled : sxClasses.orderButtonEnabled}
+            sx={isFirst ? memoSxClasses.orderButtonDisabled : memoSxClasses.orderButtonEnabled}
             aria-label={t('layers.moveLayerUp')}
             aria-disabled={isFirst} // WCAG - used instead of disabled to allow button retain focus and be discoverable by screen readers
           >
@@ -506,13 +505,13 @@ export function SingleLayer({
             size="small"
             onKeyDown={handleArrowKeyDownWrapper}
             onClick={handleArrowClickWrapper}
-            sx={isLast ? sxClasses.orderButtonDisabled : sxClasses.orderButtonEnabled}
+            sx={isLast ? memoSxClasses.orderButtonDisabled : memoSxClasses.orderButtonEnabled}
             aria-label={t('layers.moveLayerDown')}
             aria-disabled={isLast} // WCAG - used instead of disabled to allow button retain focus and be discoverable by screen readers
           >
             <ArrowDownwardIcon />
           </IconButton>
-          <Divider orientation="vertical" sx={sxClasses.dividerVertical} variant="middle" flexItem />
+          <Divider orientation="vertical" sx={memoSxClasses.dividerVertical} variant="middle" flexItem />
         </>
       );
     }
@@ -526,9 +525,9 @@ export function SingleLayer({
     isLast,
     layerPath,
     t,
-    sxClasses.orderButtonDisabled,
-    sxClasses.orderButtonEnabled,
-    sxClasses.dividerVertical,
+    memoSxClasses.orderButtonDisabled,
+    memoSxClasses.orderButtonEnabled,
+    memoSxClasses.dividerVertical,
     hasFocusWithin,
     orderDownButtonId,
     orderUpButtonId,
@@ -602,7 +601,7 @@ export function SingleLayer({
           <IconButton
             edge="end"
             size="small"
-            sx={sxClasses.zoomButton}
+            sx={memoSxClasses.zoomButton}
             className="buttonOutline"
             onClick={handleZoomToLayerVisibleScale}
             onKeyDown={handleZoomToLayerVisibleScaleKeyDown}
@@ -653,7 +652,7 @@ export function SingleLayer({
     parentHidden,
     reloadButtonId,
     panelCloseButtonId,
-    sxClasses.zoomButton,
+    memoSxClasses.zoomButton,
   ]);
 
   // Memoize the arrow buttons component section
@@ -757,13 +756,15 @@ export function SingleLayer({
   }, [layerStatus, layerPath, reloadButtonId, layerListItemButtonId]);
 
   /** Memoized sx for the list item button. */
-  const memoListItemButtonSx = useMemo(
-    () => ({
+  const memoListItemButtonSx = useMemo(() => {
+    // Log
+    logger.logTraceUseMemo('SINGLE-LAYER - memoListItemButtonSx', inVisibleRange, parentHidden, isVisible, layerStatus);
+
+    return {
       minHeight: '4.51rem',
-      ...(!inVisibleRange || parentHidden || !isVisible || layerStatus === 'error' ? sxClasses.outOfRange : {}),
-    }),
-    [inVisibleRange, parentHidden, isVisible, layerStatus, sxClasses.outOfRange]
-  );
+      ...(!inVisibleRange || parentHidden || !isVisible || layerStatus === 'error' ? memoSxClasses.outOfRange : {}),
+    };
+  }, [inVisibleRange, parentHidden, isVisible, layerStatus, memoSxClasses.outOfRange]);
 
   return (
     <ListItem
@@ -775,7 +776,7 @@ export function SingleLayer({
       onFocusCapture={handleFocusWithin}
       onBlurCapture={handleBlurWithin}
     >
-      <Box sx={sxClasses.containerBox}>
+      <Box sx={memoSxClasses.containerBox}>
         <Tooltip
           title={t('layers.selectLayer', { layerName })}
           placement="top"
@@ -804,7 +805,7 @@ export function SingleLayer({
           </Box>
         )}
         {layerStatus === 'loading' && (
-          <Box sx={sxClasses.progressBarSingleLayer}>
+          <Box sx={memoSxClasses.progressBarSingleLayer}>
             <ProgressBar aria-label={t('layers.status.layerLoadingDescriptive', { layerName })!} />
           </Box>
         )}

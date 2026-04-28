@@ -6,12 +6,12 @@ import type { TypeLegendItem } from '@/core/components/layers/types';
 import {
   useStoreLayerCanToggle,
   useStoreLayerControls,
+  useStoreLayerIsHiddenOnMap,
   useStoreLayerStyleConfig,
 } from '@/core/stores/store-interface-and-intial-values/layer-state';
 import { getSxClasses } from './legend-styles';
 import { logger } from '@/core/utils/logger';
 import { generateId } from '@/core/utils/utilities';
-import { useStoreMapIsLayerHiddenOnMap } from '@/core/stores/store-interface-and-intial-values/map-state';
 import { useStoreGeoViewMapId } from '@/core/stores/geoview-store';
 import { useLayerController } from '@/core/controllers/use-controllers';
 
@@ -27,7 +27,6 @@ const LegendListItem = memo(
     layerVisible,
     canToggle,
     showNameTooltip,
-    showIcon,
     onToggle,
     sxClasses,
     id,
@@ -36,7 +35,6 @@ const LegendListItem = memo(
     layerVisible: boolean;
     canToggle: boolean;
     showNameTooltip: boolean;
-    showIcon: boolean;
     onToggle?: () => void;
     sxClasses: Record<string, object>;
     id: string;
@@ -80,13 +78,11 @@ const LegendListItem = memo(
             aria-pressed={isVisible && layerVisible}
             aria-label={`${t('layers.toggleVisibility')} - ${name}`} // WCAG - Provide descriptive aria-label for accessibility
           >
-            {showIcon && (
-              <ListItemIcon>
-                <Box sx={{ display: 'flex', padding: '0 18px 0 18px', margin: '0 -18px 0 -18px' }}>
-                  {icon ? <Box component="img" alt="" src={icon} /> : <BrowserNotSupportedIcon />}
-                </Box>
-              </ListItemIcon>
-            )}
+            <ListItemIcon>
+              <Box sx={{ display: 'flex', padding: '0 18px 0 18px', margin: '0 -18px 0 -18px' }}>
+                {icon ? <Box component="img" alt="" src={icon} /> : <BrowserNotSupportedIcon />}
+              </Box>
+            </ListItemIcon>
             <ListItemText primary={name} />
           </ListItemButton>
         </Tooltip>
@@ -105,14 +101,17 @@ export const ItemsList = memo(function ItemsList({ items, layerPath }: ItemsList
 
   // Hooks
   const theme = useTheme();
-  const sxClasses = useMemo(() => getSxClasses(theme), [theme]);
+  const memoSxClasses = useMemo(() => {
+    logger.logTraceUseMemo('LEGEND-LAYER-ITEMS - memoSxClasses', theme);
+    return getSxClasses(theme);
+  }, [theme]);
   const lastToggledRef = useRef<string | null>(null);
   const itemIdMapRef = useRef<Map<string, string>>(new Map());
 
   // Store
   const mapId = useStoreGeoViewMapId();
   const layerControls = useStoreLayerControls(layerPath);
-  const layerHidden = useStoreMapIsLayerHiddenOnMap(layerPath);
+  const layerHidden = useStoreLayerIsHiddenOnMap(layerPath);
   const canToggle = useStoreLayerCanToggle(layerPath);
   const canToggleItemVisibility = canToggle && layerControls?.visibility !== false;
   const styleConfig = useStoreLayerStyleConfig(layerPath);
@@ -150,6 +149,7 @@ export const ItemsList = memo(function ItemsList({ items, layerPath }: ItemsList
 
   // Keep focus on layers when they are toggled using keyboard
   useEffect(() => {
+    logger.logTraceUseEffect('LEGEND-LAYER-ITEMS - keep focus on toggled layer', items);
     if (lastToggledRef.current) {
       document.getElementById(lastToggledRef.current)?.focus();
       lastToggledRef.current = null;
@@ -159,15 +159,12 @@ export const ItemsList = memo(function ItemsList({ items, layerPath }: ItemsList
   // Early returns
   if (!items?.length) return null;
 
-  // GV Hide item icons when all items share the same icon (redundant with the layer header icon)
-  const allSameIcon = items.every((item): boolean => item.icon === items[0].icon);
-
   // Direct mapping since we only reach this code if items has content
   // GV isVisible is part of key so that it forces a re-render when it changes
   // GV this is specifically because of esriFeature layers. This also causes focus to be lost when using a keyboard to toggle layer visibility
   // TODO Add a visibility hook for the individual classes to update this in the future
   return (
-    <List className="layerList" sx={sxClasses.layerList}>
+    <List className="layerList" sx={memoSxClasses.layerList}>
       {items.map((item) => {
         const itemId = getItemId(item);
         const canReallyToggle = Boolean(
@@ -187,9 +184,8 @@ export const ItemsList = memo(function ItemsList({ items, layerPath }: ItemsList
             key={`${item.name}-${item.isVisible}-${item.icon}`}
             id={itemId}
             {...commonProps}
-            showIcon={!allSameIcon}
             onToggle={canToggle ? () => handleToggleItemVisibility(item, itemId) : undefined}
-            sxClasses={sxClasses}
+            sxClasses={memoSxClasses}
           />
         );
       })}

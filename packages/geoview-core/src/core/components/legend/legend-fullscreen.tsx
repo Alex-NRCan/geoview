@@ -3,21 +3,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { Box, List, Typography, IconButton, FullscreenIcon } from '@/ui';
-import { logger } from '@/core/utils/logger';
-import {
-  getStoreMapLegendCollapsedSet,
-  setStoreMapAllMapLayerCollapsed,
-  setStoreMapLegendCollapsed,
-} from '@/core/stores/store-interface-and-intial-values/map-state';
 
+import { DEFAULT_APPBAR_CORE } from '@/api/types/map-schema-types';
 import { getSxClasses } from './legend-styles';
 import { LegendLayer } from './legend-layer';
+import { logger } from '@/core/utils/logger';
 import { CONTAINER_TYPE } from '@/core/utils/constant';
 import type { TypeContainerBox } from '@/core/types/global-types';
+import { useStoreAppShellContainer } from '@/core/stores/store-interface-and-intial-values/app-state';
+import { getStoreLayerLegendCollapsedSet } from '@/core/stores/store-interface-and-intial-values/layer-state';
 import { useEventListener } from '@/core/components/common/hooks/use-event-listener';
 import { FullScreenDialog } from '@/core/components/common/full-screen-dialog';
-import { DEFAULT_APPBAR_CORE } from '@/api/types/map-schema-types';
-import { useStoreAppShellContainer } from '@/core/stores/store-interface-and-intial-values/app-state';
+import { useLayerController } from '@/core/controllers/use-controllers';
 
 /**
  * Properties for the LegendFullscreen component.
@@ -117,15 +114,19 @@ export function LegendFullscreen({ layerPaths, mapId, containerType, isOpen, onC
   // Hooks
   const { t } = useTranslation<string>();
   const theme = useTheme();
-  const sxClasses = useMemo(() => getSxClasses(theme), [theme]);
+  const memoSxClasses = useMemo(() => {
+    logger.logTraceUseMemo('LEGEND-FULLSCREEN - memoSxClasses', theme);
+    return getSxClasses(theme);
+  }, [theme]);
   const shellContainer = useStoreAppShellContainer();
 
   // State
   const [fullscreenLegendLayerList, setFullscreenLegendLayersList] = useState<string[][]>([]);
   const savedCollapseStateRef = useRef<Record<string, boolean>>({});
+  const layerController = useLayerController();
 
   // Memoize breakpoint values
-  const breakpoints = useMemo(() => {
+  const memoBreakpoints = useMemo(() => {
     // Log
     logger.logTraceUseMemo('LEGEND FULLSCREEN - breakpoints', theme.breakpoints.values);
 
@@ -147,11 +148,11 @@ export function LegendFullscreen({ layerPaths, mapId, containerType, isOpen, onC
    */
   const getFullscreenLayerListSize = useCallback(() => {
     const { innerWidth } = window;
-    if (innerWidth < breakpoints.sm) return 1;
-    if (innerWidth < breakpoints.md) return 2;
-    if (innerWidth < breakpoints.lg) return 3;
+    if (innerWidth < memoBreakpoints.sm) return 1;
+    if (innerWidth < memoBreakpoints.md) return 2;
+    if (innerWidth < memoBreakpoints.lg) return 3;
     return 4;
-  }, [breakpoints]);
+  }, [memoBreakpoints]);
 
   /**
    * Distributes legend layers across multiple columns for fullscreen display.
@@ -201,47 +202,46 @@ export function LegendFullscreen({ layerPaths, mapId, containerType, isOpen, onC
     if (isOpen) {
       // Entering fullscreen: snapshot collapse state from the store and expand all
       // GV Here we use a store getter, because we actually want to snapshot the values to reuse them later, we don't want to hook on them
-      savedCollapseStateRef.current = getStoreMapLegendCollapsedSet(mapId);
+      savedCollapseStateRef.current = getStoreLayerLegendCollapsedSet(mapId);
 
       // Save to the store
-      setStoreMapAllMapLayerCollapsed(mapId, false);
+      layerController.setAllLayerCollapsed(false);
     } else {
       // Exiting fullscreen: restore saved collapse state
       const savedState = savedCollapseStateRef.current;
       if (Object.keys(savedState).length > 0) {
         Object.entries(savedState).forEach(([layerPath, collapsed]) => {
-          // Save to the store
-          setStoreMapLegendCollapsed(mapId, layerPath, collapsed);
+          // Perform collapse action
+          layerController.setLegendCollapsed(layerPath, collapsed);
         });
       }
     }
-  }, [isOpen, mapId]);
+  }, [isOpen, layerController, mapId]);
 
   // Memoize the no layers content
-  const noLayersContent = useMemo(() => {
+  const memoNoLayersContent = useMemo(() => {
     // Log
     logger.logTraceUseMemo('components/legend-fullscreen - noLayersContent');
 
     return (
       <Box sx={styles.noLayersContainer}>
-        <Typography component="div" gutterBottom sx={sxClasses.legendInstructionsTitle}>
+        <Typography component="div" gutterBottom sx={memoSxClasses.legendInstructionsTitle}>
           {t('legend.noLayersAdded')}
         </Typography>
-        <Typography component="p" sx={sxClasses.legendInstructionsBody}>
+        <Typography component="p" sx={memoSxClasses.legendInstructionsBody}>
           {t('legend.noLayersAddedDescription')}
         </Typography>
       </Box>
     );
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- sxClasses is memoized from theme which is stable
-  }, [t]);
+  }, [t, memoSxClasses]);
 
   // Memoize fullscreen content
-  const fullscreenContent = useMemo(() => {
+  const memoFullscreenContent = useMemo(() => {
     // Log
     logger.logTraceUseMemo('components/legend-fullscreen - fullscreenContent', fullscreenLegendLayerList.length);
 
     if (!fullscreenLegendLayerList.length) {
-      return noLayersContent;
+      return memoNoLayersContent;
     }
 
     return fullscreenLegendLayerList.map((paths, idx) => (
@@ -251,7 +251,7 @@ export function LegendFullscreen({ layerPaths, mapId, containerType, isOpen, onC
         key={`fullscreen-${idx}`}
         sx={{
           width: responsiveWidths.responsive,
-          ...sxClasses.legendList,
+          ...memoSxClasses.legendList,
         }}
       >
         {paths.map((layerPath) => (
@@ -259,8 +259,7 @@ export function LegendFullscreen({ layerPaths, mapId, containerType, isOpen, onC
         ))}
       </List>
     ));
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- sxClasses is memoized from theme which is stable
-  }, [fullscreenLegendLayerList, noLayersContent]);
+  }, [fullscreenLegendLayerList, memoNoLayersContent, containerType, memoSxClasses]);
 
   return (
     <FullScreenDialog
@@ -276,7 +275,7 @@ export function LegendFullscreen({ layerPaths, mapId, containerType, isOpen, onC
       disableEnforceFocus={true}
     >
       <Box
-        sx={sxClasses.fullscreenContainer}
+        sx={memoSxClasses.fullscreenContainer}
         id={`${mapId}-${containerType}-${DEFAULT_APPBAR_CORE.LEGEND}-panel-fullscreen-container`}
         {...({
           // To set the content behind the dialog as inert to remove access to content
@@ -285,7 +284,7 @@ export function LegendFullscreen({ layerPaths, mapId, containerType, isOpen, onC
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } as any)}
       >
-        {fullscreenContent}
+        {memoFullscreenContent}
       </Box>
     </FullScreenDialog>
   );

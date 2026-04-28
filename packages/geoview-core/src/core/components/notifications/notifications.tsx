@@ -215,13 +215,20 @@ export default memo(function Notifications(): JSX.Element {
   // Hooks
   const { t } = useTranslation();
   const theme = useTheme();
-  const sxClasses = useMemo(() => getSxClasses(theme), [theme]);
+  const memoSxClasses = useMemo(() => {
+    logger.logTraceUseMemo('NOTIFICATIONS - memoSxClasses', theme);
+    return getSxClasses(theme);
+  }, [theme]);
 
   // State
   const [anchorEl, setAnchorEl] = useState<HTMLButtonElement | null>(null);
   const [hasNewNotification, setHasNewNotification] = useState(false);
   const [notificationsCount, setNotificationsCount] = useState(0);
   const [open, setOpen] = useState(false);
+
+  // Ref to read the latest notificationsCount inside the notifications effect without making it a dep
+  const notificationsCountRef = useRef(notificationsCount);
+  notificationsCountRef.current = notificationsCount;
 
   // Store
   const notifications = useStoreAppNotifications();
@@ -305,10 +312,10 @@ export default memo(function Notifications(): JSX.Element {
    * Triggers the shake animation when new notifications arrive.
    */
   useEffect(() => {
-    logger.logTraceUseEffect('Notifications - notifications list changed', notificationsCount, notifications);
+    logger.logTraceUseEffect('Notifications - notifications list changed', notifications);
 
     const curNotificationCount = notifications.reduce((sum, n) => sum + n.count, 0);
-    if (curNotificationCount > notificationsCount) {
+    if (curNotificationCount > notificationsCountRef.current) {
       if (timerRef.current) {
         clearTimeout(timerRef.current);
       }
@@ -327,8 +334,7 @@ export default memo(function Notifications(): JSX.Element {
         clearTimeout(timerRef.current);
       }
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [notifications]); // Only depend on notifications changes
+  }, [notifications]);
 
   /**
    * Builds the rendered list of notification items.
@@ -341,12 +347,12 @@ export default memo(function Notifications(): JSX.Element {
         key={notification.key}
         notification={notification}
         onRemove={handleRemoveNotification}
-        sxClasses={sxClasses}
+        sxClasses={memoSxClasses}
         t={t}
         closeButtonId={closeButtonId}
       />
     ));
-  }, [notifications, handleRemoveNotification, sxClasses, t, closeButtonId]);
+  }, [notifications, handleRemoveNotification, memoSxClasses, t, closeButtonId]);
 
   return (
     <ClickAwayListener mouseEvent="onMouseDown" touchEvent="onTouchStart" onClickAway={handleClickAway}>
@@ -400,17 +406,17 @@ export default memo(function Notifications(): JSX.Element {
           }}
           handleKeyDown={(key, callBackFn) => handleEscapeKey(key, '', false, callBackFn)}
         >
-          <Paper component="section" sx={sxClasses.notificationPanel}>
+          <Paper component="section" sx={memoSxClasses.notificationPanel}>
             <NotificationHeader
               onClose={handleClickAway}
               onRemoveAll={handleRemoveAllNotifications}
               hasNotifications={notifications.length > 0}
               t={t}
-              sxClasses={sxClasses}
+              sxClasses={memoSxClasses}
               titleId={titleId}
               closeButtonId={closeButtonId}
             />
-            <List sx={sxClasses.notificationsList} aria-live="polite" aria-relevant="all">
+            <List sx={memoSxClasses.notificationsList} aria-live="polite" aria-relevant="all">
               {notifications.length > 0 ? (
                 memoNotificationsList
               ) : (

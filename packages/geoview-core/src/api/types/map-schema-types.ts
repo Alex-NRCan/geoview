@@ -76,8 +76,29 @@ export type TypeValidNavBarProps =
   | 'projection'
   | 'drawer';
 
+/** Built-in nav bar core components that are not plugins. */
+export const DEFAULT_NAVBAR_CORE = {
+  ZOOM: 'zoom',
+  ROTATION: 'rotation',
+  FULLSCREEN: 'fullscreen',
+  HOME: 'home',
+  LOCATION: 'location',
+  BASEMAP_SELECT: 'basemap-select',
+  MEASUREMENT: 'measurement',
+  PROJECTION: 'projection',
+} as const;
+
 /** Supported footer bar tabs */
 export type TypeValidFooterBarTabsCoreProps = 'legend' | 'layers' | 'details' | 'data-table' | 'time-slider' | 'geochart' | 'guide';
+
+/** Built-in footer bar core components that are not plugins. */
+export const DEFAULT_FOOTERBAR_CORE = {
+  LEGEND: 'legend',
+  LAYERS: 'layers',
+  DETAILS: 'details',
+  DATA_TABLE: 'data-table',
+  GUIDE: 'guide',
+} as const;
 
 /** Default tabs order */
 export const DEFAULT_FOOTER_TABS_ORDER = ['legend', 'layers', 'details', 'geochart', 'time-slider', 'data-table', 'guide'];
@@ -358,13 +379,13 @@ export const VALID_MAP_CENTER: Record<TypeValidMapProjectionCodes, Record<string
 // Map view extents for each projection
 export const MAP_EXTENTS: Record<TypeValidMapProjectionCodes, number[]> = {
   3857: [-180, 0, 80, 84],
-  // TODO: tighten these up for initial view now that we have a separate MAX_EXTENTS_RESTRICTION
+  // TODO: tighten these up for initial view now that we have a separate MAX_EXTENTS_RESTRICTION_LONLAT
   3978: [-150, -10, -30, 90],
   3573: [-180, 45, 180, 90],
 };
 
 // Extent restrictions for each projection
-export const MAX_EXTENTS_RESTRICTION: Record<TypeValidMapProjectionCodes, number[]> = {
+export const MAX_EXTENTS_RESTRICTION_LONLAT: Record<TypeValidMapProjectionCodes, number[]> = {
   3857: [-180, -85.05112877980659, 180, 85.05112877980659],
   3978: [-150, -10, -30, 90],
   3573: [-180, 45, 180, 90],

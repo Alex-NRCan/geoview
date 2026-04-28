@@ -3,7 +3,7 @@ import { GeoChart as GeoChartComponent } from 'geochart';
 
 import {
   useStoreAppDisplayLanguageById,
-  useStoreDisplayDateTimezone,
+  useStoreAppDisplayDateTimezone,
 } from 'geoview-core/core/stores/store-interface-and-intial-values/app-state';
 import { useStoreLayerDisplayDateFormatShort } from 'geoview-core/core/stores/store-interface-and-intial-values/layer-state';
 import type { TypeGeochartResultSetEntry } from 'geoview-core/core/stores/store-interface-and-intial-values/geochart-state';
@@ -57,8 +57,8 @@ export function GeoChart(props: GeoChartProps): JSX.Element {
 
   // Use Store
   const displayLanguage = useStoreAppDisplayLanguageById(mapId);
+  const displayDateTimezone = useStoreAppDisplayDateTimezone();
   const displayDateFormatShort = useStoreLayerDisplayDateFormatShort(layerPath);
-  const displayDateTimezone = useStoreDisplayDateTimezone();
   const uiController = useUIController();
   const layerController = useLayerController();
 
@@ -122,6 +122,9 @@ export function GeoChart(props: GeoChartProps): JSX.Element {
    * Memoizes the fetching of the correct config based on the provided layers array.
    */
   const memoAllInfo = useMemo(() => {
+    // Log
+    logger.logTraceUseMemo('GEOVIEW-GEOCHART - memoAllInfo', layers);
+
     // Find the right config/layer/data for what we want based on the layerDataArray
     const [foundConfigChart, foundConfigChartLyr, foundLayerEntry, foundData]: [
       GeoViewGeoChartConfig | undefined,

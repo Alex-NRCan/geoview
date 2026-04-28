@@ -1,8 +1,7 @@
 import ReactDOMServer from 'react-dom/server';
-import { useStoreGeoViewMapId, type TypeWindow } from 'geoview-core';
+import type { TypeWindow } from 'geoview-core';
 import { useStoreAppDisplayLanguage } from 'geoview-core/core/stores/store-interface-and-intial-values/app-state';
 import {
-  setStoreDrawerIconSrc,
   useStoreDrawerActiveGeom,
   useStoreDrawerIsDrawing,
   useStoreDrawerStyle,
@@ -37,8 +36,8 @@ export function PointIcon(props: PointIconProps): JSX.Element {
   const { IconComponent } = props;
 
   // Store
-  const mapId = useStoreGeoViewMapId();
   const { fillColor, strokeColor, strokeWidth } = useStoreDrawerStyle();
+  const drawerController = useDrawerController();
 
   useEffect(() => {
     logger.logTraceUseEffect('POINT ICON - Icon style sync', IconComponent, fillColor, strokeColor, strokeWidth);
@@ -76,11 +75,11 @@ export function PointIcon(props: PointIconProps): JSX.Element {
     const dataUrl = `data:image/svg+xml;base64,${btoa(svgStr)}`;
 
     // Store the URL
-    setStoreDrawerIconSrc(mapId, dataUrl);
+    drawerController.setDrawerIconSrc(dataUrl);
 
     // Clean up when component unmounts
     return () => URL.revokeObjectURL(dataUrl);
-  }, [IconComponent, fillColor, mapId, strokeColor, strokeWidth]);
+  }, [IconComponent, fillColor, drawerController, strokeColor, strokeWidth]);
 
   return <IconComponent sx={{ fill: fillColor, stroke: strokeColor, strokeWidth }} />;
 }
@@ -99,24 +98,24 @@ export function GeometryPickerButton(): JSX.Element {
 
   const geomType = useStoreDrawerActiveGeom();
   const style = useStoreDrawerStyle();
-  const iconStyle = useMemo(
-    () => ({
+  const memoIconStyle = useMemo(() => {
+    logger.logTraceUseMemo('GEOMETRY-PICKER - GeomIcon - memoIconStyle', style);
+    return {
       fillColor: style.fillColor,
       strokeColor: style.strokeColor,
       textColor: style.textColor,
       textHaloColor: style.textHaloColor,
-    }),
-    [style]
-  );
+    };
+  }, [style]);
 
   if (geomType === 'Point') return <PointIcon IconComponent={PlaceIcon} />;
-  if (geomType === 'Text') return <TextFieldsIcon sx={{ color: iconStyle.textColor }} stroke={iconStyle.textHaloColor} />;
-  if (geomType === 'LineString') return <ShowChartIcon sx={{ color: iconStyle.strokeColor }} />;
-  if (geomType === 'Polygon') return <HexagonIcon sx={{ color: iconStyle.fillColor }} stroke={iconStyle.strokeColor} />;
-  if (geomType === 'Rectangle') return <RectangleIcon sx={{ color: iconStyle.fillColor }} stroke={iconStyle.strokeColor} />;
-  if (geomType === 'Circle') return <CircleIcon sx={{ color: iconStyle.fillColor }} stroke={iconStyle.strokeColor} />;
-  if (geomType === 'Star') return <StarIcon sx={{ color: iconStyle.fillColor }} stroke={iconStyle.strokeColor} />;
-  return <ShapeLineIcon sx={{ color: iconStyle.fillColor }} stroke={iconStyle.strokeColor} />;
+  if (geomType === 'Text') return <TextFieldsIcon sx={{ color: memoIconStyle.textColor }} stroke={memoIconStyle.textHaloColor} />;
+  if (geomType === 'LineString') return <ShowChartIcon sx={{ color: memoIconStyle.strokeColor }} />;
+  if (geomType === 'Polygon') return <HexagonIcon sx={{ color: memoIconStyle.fillColor }} stroke={memoIconStyle.strokeColor} />;
+  if (geomType === 'Rectangle') return <RectangleIcon sx={{ color: memoIconStyle.fillColor }} stroke={memoIconStyle.strokeColor} />;
+  if (geomType === 'Circle') return <CircleIcon sx={{ color: memoIconStyle.fillColor }} stroke={memoIconStyle.strokeColor} />;
+  if (geomType === 'Star') return <StarIcon sx={{ color: memoIconStyle.fillColor }} stroke={memoIconStyle.strokeColor} />;
+  return <ShapeLineIcon sx={{ color: memoIconStyle.fillColor }} stroke={memoIconStyle.strokeColor} />;
 }
 
 /**
@@ -143,15 +142,15 @@ export function GeometryPickerPanel(props: GeometryPickerPanelProps): JSX.Elemen
   const isDrawing = useStoreDrawerIsDrawing();
   const drawerController = useDrawerController();
 
-  const memoIconStyle = useMemo(
-    () => ({
+  const memoIconStyle = useMemo(() => {
+    logger.logTraceUseMemo('GEOMETRY-PICKER - GeometryPickerPanel - memoIconStyle', style);
+    return {
       color: style.fillColor,
       stroke: style.strokeColor,
       textColor: style.textColor,
       textHaloColor: style.textHaloColor,
-    }),
-    [style]
-  );
+    };
+  }, [style]);
 
   // Styles
   const sxClasses = {

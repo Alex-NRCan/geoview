@@ -24,21 +24,17 @@ import {
   useStoreLayerStatus,
   useStoreLayerEntryType,
   useStoreLayerName,
-  setStoreLayerSelectedLayersTabLayer,
   getStoreLayerLegendLayerByPath,
+  getStoreLayerParentHidden,
+  useStoreLayerIsParentHiddenOnMap,
+  useStoreLayerInVisibleRange,
+  useStoreLayerVisible,
 } from '@/core/stores/store-interface-and-intial-values/layer-state';
 import {
   useStoreUIFooterBarComponents,
   useStoreUIAppbarComponents,
   useStoreUIActiveTrapGeoView,
 } from '@/core/stores/store-interface-and-intial-values/ui-state';
-import {
-  getStoreMapLayerParentHidden,
-  getStoreMapOrderedLayerInfoByPath,
-  useStoreMapLayerInVisibleRange,
-  useStoreMapIsParentLayerHiddenOnMap,
-  useStoreMapLayerVisibility,
-} from '@/core/stores/store-interface-and-intial-values/map-state';
 import type { TypeLegendItem } from '@/core/components/layers/types';
 import { getSxClasses } from './legend-styles';
 import { logger } from '@/core/utils/logger';
@@ -75,8 +71,9 @@ const useControlActions = (layerPath: string): ControlActions => {
   /**
    * Builds the memoized control action handlers.
    */
-  return useMemo(
-    () => ({
+  return useMemo(() => {
+    logger.logTraceUseMemo('LEGEND-LAYER-CTRL - useCtrlActions', layerPath, mapId);
+    return {
       /**
        * Handles zooming to the layer's visible scale range.
        */
@@ -85,9 +82,8 @@ const useControlActions = (layerPath: string): ControlActions => {
         // Read current state values when handler executes
         const layer = getStoreLayerLegendLayerByPath(mapId, layerPath);
 
-        // Use orderedLayerInfo to check visibility range
-        const layerInfo = getStoreMapOrderedLayerInfoByPath(mapId, layerPath);
-        const isInVisibleRange = layerInfo?.inVisibleRange || false;
+        // Check visibility range
+        const isInVisibleRange = layer?.inVisibleRange || false;
 
         const isZoomToVisibleScaleCapable = !isInVisibleRange && layer?.entryType !== 'group';
         if (!isZoomToVisibleScaleCapable) {
@@ -103,14 +99,13 @@ const useControlActions = (layerPath: string): ControlActions => {
         event.stopPropagation();
         // Read current state values when handler executes
         const layer = getStoreLayerLegendLayerByPath(mapId, layerPath);
-        const layerInfo = getStoreMapOrderedLayerInfoByPath(mapId, layerPath);
-        const isInVisibleRange = layerInfo?.inVisibleRange || false;
-        const parentHidden = getStoreMapLayerParentHidden(mapId, layerPath);
+        const isInVisibleRange = layer?.inVisibleRange;
+        const parentHidden = getStoreLayerParentHidden(mapId, layerPath);
 
         if (!isInVisibleRange || parentHidden || layer?.layerStatus === 'error') {
           return false;
         }
-        return layerController.setOrToggleMapLayerVisibility(layerPath);
+        return layerController.setOrToggleLayerVisibility(layerPath);
       },
 
       /**
@@ -120,10 +115,9 @@ const useControlActions = (layerPath: string): ControlActions => {
         event.stopPropagation();
         // Read current state values when handler executes
         const layer = getStoreLayerLegendLayerByPath(mapId, layerPath);
-        const layerInfo = getStoreMapOrderedLayerInfoByPath(mapId, layerPath);
-        const isInVisibleRange = layerInfo?.inVisibleRange || false;
-        const parentHidden = getStoreMapLayerParentHidden(mapId, layerPath);
-        const isVisible = layerInfo?.visible || false;
+        const isInVisibleRange = layer?.inVisibleRange || false;
+        const parentHidden = getStoreLayerParentHidden(mapId, layerPath);
+        const isVisible = layer?.visible || false;
 
         if (!isInVisibleRange || parentHidden || !isVisible || layer?.layerStatus === 'error') {
           return;
@@ -138,10 +132,9 @@ const useControlActions = (layerPath: string): ControlActions => {
         event.stopPropagation();
         // Read current state values when handler executes
         const layer = getStoreLayerLegendLayerByPath(mapId, layerPath);
-        const layerInfo = getStoreMapOrderedLayerInfoByPath(mapId, layerPath);
-        const isInVisibleRange = layerInfo?.inVisibleRange || false;
-        const parentHidden = getStoreMapLayerParentHidden(mapId, layerPath);
-        const isVisible = layerInfo?.visible || false;
+        const isInVisibleRange = layer?.inVisibleRange || false;
+        const parentHidden = getStoreLayerParentHidden(mapId, layerPath);
+        const isVisible = layer?.visible || false;
 
         const isZoomToLayerDisabled = !isInVisibleRange || parentHidden || !isVisible || layer?.layerStatus === 'error';
         if (isZoomToLayerDisabled) {
@@ -151,18 +144,18 @@ const useControlActions = (layerPath: string): ControlActions => {
           logger.logPromiseFailed('in zoomToLayerExtent in legend-layer.handleZoomTo', error);
         });
       },
-    }),
-    [layerPath, mapId, layerController]
-  );
+    };
+  }, [layerPath, mapId, layerController]);
 };
 
 // Create subtitle
 const useSubtitle = (layerPath: string, childPaths: string[], items: TypeLegendItem[]): string => {
   // Hooks
   const { t } = useTranslation();
-  const parentHidden = useStoreMapIsParentLayerHiddenOnMap(layerPath);
+  const parentHidden = useStoreLayerIsParentHiddenOnMap(layerPath);
 
   return useMemo(() => {
+    logger.logTraceUseMemo('LEGEND-LAYER-CTRL - useSubtitle', childPaths.length, items);
     if (parentHidden) return t('layers.parentHidden');
 
     if (childPaths.length) {
@@ -192,9 +185,12 @@ export function SecondaryControls({ layerPath }: SecondaryControlsProps): JSX.El
   const hasFooterLayersTab = footerBarComponents.includes('layers');
   const hasAppBarLayersTab = appBarComponents.includes('layers');
   const hasLayersTab = hasFooterLayersTab || hasAppBarLayersTab;
+  const layerController = useLayerController();
 
   // Use navigate hook
-  const navigateToLayers = useNavigateToTab('layers', setStoreLayerSelectedLayersTabLayer);
+  const navigateToLayers = useNavigateToTab('layers', (lyrPath) => {
+    layerController.setSelectedLayerPath(lyrPath);
+  });
 
   // Create stable handler for layer navigation
   const handleNavigateToLayers = useCallback(
@@ -212,15 +208,18 @@ export function SecondaryControls({ layerPath }: SecondaryControlsProps): JSX.El
   // Hooks
   const { t } = useTranslation<string>();
   const theme = useTheme();
-  const sxClasses = useMemo(() => getSxClasses(theme), [theme]);
+  const memoSxClasses = useMemo(() => {
+    logger.logTraceUseMemo('LEGEND-LAYER-CTRL - memoSxClasses', theme);
+    return getSxClasses(theme);
+  }, [theme]);
   const layerEntryType = useStoreLayerEntryType(layerPath);
   const layerChildPaths = useStoreLayerChildPaths(layerPath);
   const layerItems = useStoreLayerItems(layerPath);
   const layerControls = useStoreLayerControls(layerPath);
   const layerStatus = useStoreLayerStatus(layerPath);
-  const isVisible = useStoreMapLayerVisibility(layerPath);
-  const isInVisibleRange = useStoreMapLayerInVisibleRange(layerPath);
-  const parentHidden = useStoreMapIsParentLayerHiddenOnMap(layerPath);
+  const isVisible = useStoreLayerVisible(layerPath);
+  const isInVisibleRange = useStoreLayerInVisibleRange(layerPath);
+  const parentHidden = useStoreLayerIsParentHiddenOnMap(layerPath);
   const highlightedLayer = useStoreLayerHighlightedLayer();
   const isFocusTrap = useStoreUIActiveTrapGeoView();
   const layerName = useStoreLayerName(layerPath) ?? layerPath;
@@ -246,14 +245,14 @@ export function SecondaryControls({ layerPath }: SecondaryControlsProps): JSX.El
   const subTitle = useSubtitle(layerPath, layerChildPaths || [], layerItems || []);
 
   return (
-    <Stack direction="row" alignItems="center" sx={sxClasses.layerStackIcons}>
+    <Stack direction="row" alignItems="center" sx={memoSxClasses.layerStackIcons}>
       {!!subTitle.length && <Typography fontSize={14}>{subTitle}</Typography>}
-      <Box role="group" aria-label={t('layers.layerControls')!} sx={{ ...sxClasses.subtitle, display: 'flex', alignItems: 'center' }}>
+      <Box role="group" aria-label={t('layers.layerControls')!} sx={{ ...memoSxClasses.subtitle, display: 'flex', alignItems: 'center' }}>
         {/* Button to select layer in panel and scroll to footer
             Hidden in WCAG mode - keyboard users can Tab to layer panel instead
           */}
         {hasLayersTab && !isFocusTrap && (
-          <Box sx={sxClasses.buttonDivider}>
+          <Box sx={memoSxClasses.buttonDivider}>
             <IconButton
               tooltip={t('legend.selectLayerAndScroll')}
               className="buttonOutline"

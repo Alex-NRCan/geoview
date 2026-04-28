@@ -57,7 +57,7 @@ export function StylePanel(): JSX.Element {
 
   const { cgpv } = window as TypeWindow;
   const { ui, reactUtilities } = cgpv;
-  const { useCallback, useEffect, useMemo } = reactUtilities.react;
+  const { useCallback, useEffect } = reactUtilities.react;
 
   // Components
   const { Box, List, ListItem, Typography, TextField, IconButton, FormatBoldIcon, FormatItalicIcon } = ui.elements;
@@ -69,9 +69,8 @@ export function StylePanel(): JSX.Element {
   const displayLanguage = useStoreAppDisplayLanguage();
   const drawerController = useDrawerController();
 
-  const memoCurrentGeomType = useMemo(() => {
-    return selectedDrawingType ?? activeGeom;
-  }, [activeGeom, selectedDrawingType]);
+  /** The current geometry type, using the selected drawing type or active geometry as fallback. */
+  const currentGeomType = selectedDrawingType ?? activeGeom;
 
   // Local state for color inputs
   const [localFillColor, setLocalFillColor] = useState(style.fillColor);
@@ -312,7 +311,7 @@ export function StylePanel(): JSX.Element {
   return (
     <List sx={{ p: 2 }}>
       {/* Text-specific controls */}
-      {memoCurrentGeomType === 'Text' && (
+      {currentGeomType === 'Text' && (
         <>
           <ListItem sx={sxClasses.listItem}>
             <Typography variant="subtitle2" sx={sxClasses.label}>
@@ -443,7 +442,7 @@ export function StylePanel(): JSX.Element {
       )}
 
       {/* Fill color - hide for LineString and Text */}
-      {memoCurrentGeomType !== 'LineString' && memoCurrentGeomType !== 'Text' && (
+      {currentGeomType !== 'LineString' && currentGeomType !== 'Text' && (
         <ListItem sx={sxClasses.listItem}>
           <Typography variant="subtitle2" sx={sxClasses.label}>
             {getLocalizedMessage(displayLanguage, 'drawer.fillColour')}
@@ -453,7 +452,7 @@ export function StylePanel(): JSX.Element {
       )}
 
       {/* Point-specific controls */}
-      {memoCurrentGeomType === 'Point' && (
+      {currentGeomType === 'Point' && (
         <ListItem sx={sxClasses.listItem}>
           <Typography variant="subtitle2" sx={sxClasses.label}>
             {getLocalizedMessage(displayLanguage, 'drawer.iconSize')}
@@ -473,7 +472,7 @@ export function StylePanel(): JSX.Element {
       )}
 
       {/* Stroke controls - show for all except Text */}
-      {memoCurrentGeomType !== 'Text' && (
+      {currentGeomType !== 'Text' && (
         <>
           <ListItem sx={sxClasses.listItem}>
             <Typography variant="subtitle2" sx={sxClasses.label}>

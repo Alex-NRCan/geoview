@@ -5,7 +5,7 @@ import { logger } from '@/core/utils/logger';
 import { SingleLayer } from './single-layer';
 import { getSxClasses } from './left-panel-styles';
 import type { TypeContainerBox } from '@/core/types/global-types';
-import { useStoreMapOrderedLayers } from '@/core/stores/store-interface-and-intial-values/map-state';
+import { useStoreLayerOrderedLayerPaths } from '@/core/stores/store-interface-and-intial-values/layer-state';
 
 interface LayerListProps {
   depth: number;
@@ -21,19 +21,22 @@ export function LayersList({ layerPaths, showLayerDetailsPanel, isLayoutEnlarged
 
   // Hook
   const theme = useTheme();
-  const sxClasses = useMemo(() => getSxClasses(theme), [theme]);
+  const memoSxClasses = useMemo(() => {
+    logger.logTraceUseMemo('LAYERS-LIST - memoSxClasses', theme);
+    return getSxClasses(theme);
+  }, [theme]);
 
   // Store
-  const layerPathOrder = useStoreMapOrderedLayers();
+  const layerPathOrder = useStoreLayerOrderedLayerPaths();
 
   // ? I doubt we want to define an explicit type for style properties?
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const getListClass = useCallback((): any => {
     if (depth === 0) {
-      return sxClasses.list;
+      return memoSxClasses.list;
     }
-    return sxClasses.listSubitem;
-  }, [depth, sxClasses]);
+    return memoSxClasses.listSubitem;
+  }, [depth, memoSxClasses]);
 
   // Memoize the legend items
   const memoLegendItems = useMemo(() => {

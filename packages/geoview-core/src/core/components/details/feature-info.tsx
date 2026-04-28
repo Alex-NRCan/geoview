@@ -12,13 +12,8 @@ import {
   Typography,
   ZoomInSearchIcon,
 } from '@/ui';
+import { useStoreDetailsCheckedFeatures } from '@/core/stores/store-interface-and-intial-values/feature-info-state';
 import {
-  addStoreDetailsCheckedFeature,
-  removeStoreDetailsCheckedFeature,
-  useStoreDetailsCheckedFeatures,
-} from '@/core/stores/store-interface-and-intial-values/feature-info-state';
-import {
-  setStoreGeochartSelectedLayerPath,
   useStoreGeochartChartsConfig,
   useStoreGeochartLayerDataArrayBatch,
 } from '@/core/stores/store-interface-and-intial-values/geochart-state';
@@ -30,8 +25,7 @@ import type { TypeContainerBox } from '@/core/types/global-types';
 import { FeatureInfoTable } from './feature-info-table';
 import { getSxClasses } from './details-style';
 import { useStoreUIActiveTrapGeoView } from '@/core/stores/store-interface-and-intial-values/ui-state';
-import { useStoreGeoViewMapId } from '@/core/stores/geoview-store';
-import { useMapController } from '@/core/controllers/use-controllers';
+import { useDetailsController, useGeoChartControllerIfExists, useMapController } from '@/core/controllers/use-controllers';
 
 /** Properties for the FeatureInfo component. */
 interface FeatureInfoProps {
@@ -112,7 +106,10 @@ const FeatureHeader = memo(function FeatureHeader({
   // Hooks
   const { t } = useTranslation();
   const theme = useTheme();
-  const sxClasses = useMemo(() => getSxClasses(theme), [theme]);
+  const memoSxClasses = useMemo(() => {
+    logger.logTraceUseMemo('FEATURE-INFO - FeatureHeader - memoSxClasses', theme);
+    return getSxClasses(theme);
+  }, [theme]);
   const isFocusTrap = useStoreUIActiveTrapGeoView();
 
   /**
@@ -125,7 +122,7 @@ const FeatureHeader = memo(function FeatureHeader({
 
   return (
     <Box sx={HEADER_STYLES.container}>
-      <Box sx={sxClasses.flexBoxAlignCenter}>
+      <Box sx={memoSxClasses.flexBoxAlignCenter}>
         {iconSrc ? (
           <Box component="img" src={iconSrc} alt="" className="layer-icon" />
         ) : (
@@ -149,7 +146,7 @@ const FeatureHeader = memo(function FeatureHeader({
       <Box
         role="group"
         sx={{
-          ...sxClasses.flexBoxAlignCenter,
+          ...memoSxClasses.flexBoxAlignCenter,
           [theme.breakpoints.down('sm')]: { display: 'none' },
         }}
         aria-label={t('details.featureActions')!}
@@ -205,41 +202,45 @@ export function FeatureInfo({ feature, containerType }: FeatureInfoProps): JSX.E
 
   // Hooks
   const theme = useTheme();
-  const sxClasses = useMemo(() => getSxClasses(theme), [theme]);
+  const memoSxClasses = useMemo(() => {
+    logger.logTraceUseMemo('FEATURE-INFO - FeatureInfo - memoSxClasses', theme);
+    return getSxClasses(theme);
+  }, [theme]);
 
   // State
   const [checked, setChecked] = useState<boolean>(false);
 
   // Store
-  const mapId = useStoreGeoViewMapId();
   const checkedFeatures = useStoreDetailsCheckedFeatures();
   const geochartLayerDataArrayBatch = useStoreGeochartLayerDataArrayBatch();
   const geochartConfigs = useStoreGeochartChartsConfig();
   const mapController = useMapController();
+  const detailsController = useDetailsController();
+  const geoChartController = useGeoChartControllerIfExists();
 
   // Use navigate hook for geochart (only if geochart state exists)
-  const navigateToGeochart = useNavigateToTab('geochart', setStoreGeochartSelectedLayerPath);
+  const navigateToGeochart = useNavigateToTab('geochart', (lyrPath) => {
+    geoChartController?.setSelectedLayerPath(lyrPath);
+  });
 
   /**
    * Memoizes the feature name.
    */
   const memoFeatureName = useMemo(() => {
+    logger.logTraceUseMemo('FEATURE-INFO - memoFeatureName', feature.nameField);
     // Try to get the value at the fieldName
     const value = feature.nameField && (feature.fieldInfo?.[feature.nameField]?.value as string);
     return value ?? 'No name / Sans nom';
   }, [feature]);
 
-  /**
-   * Memoizes whether the feature has a geometry.
-   */
-  const memoFeatureHasGeometry = useMemo(() => {
-    return !!feature.geometry;
-  }, [feature.geometry]);
+  /** Whether the feature has a geometry. */
+  const featureHasGeometry = !!feature.geometry;
 
   /**
    * Memoizes the feature info list.
    */
   const memoFeatureInfoList: TypeFieldEntry[] = useMemo(() => {
+    logger.logTraceUseMemo('FEATURE-INFO - memoFeatureInfoList', feature.fieldInfo);
     if (!feature?.fieldInfo) return [];
 
     return Object.entries(feature.fieldInfo)
@@ -259,6 +260,7 @@ export function FeatureInfo({ feature, containerType }: FeatureInfoProps): JSX.E
    * Memoizes whether the feature has a geochart.
    */
   const memoHasGeochart = useMemo(() => {
+    logger.logTraceUseMemo('FEATURE-INFO - memoHasGeochart', feature.layerPath);
     return (
       !!geochartConfigs?.[feature.layerPath] &&
       (geochartLayerDataArrayBatch?.some((entry) => entry.layerPath === feature.layerPath && (entry.features?.length ?? 0) > 0) ?? false)
@@ -273,13 +275,13 @@ export function FeatureInfo({ feature, containerType }: FeatureInfoProps): JSX.E
       // If feature is checked
       if (checkedState) {
         // Add
-        addStoreDetailsCheckedFeature(mapId, feature);
+        detailsController.addCheckedFeature(feature);
       } else {
         // Remove
-        removeStoreDetailsCheckedFeature(mapId, feature);
+        detailsController.removeCheckedFeature(feature);
       }
     },
-    [mapId, feature]
+    [detailsController, feature]
   );
 
   /**
@@ -340,7 +342,7 @@ export function FeatureInfo({ feature, containerType }: FeatureInfoProps): JSX.E
       <FeatureHeader
         iconSrc={feature.featureIcon}
         name={memoFeatureName}
-        hasGeometry={memoFeatureHasGeometry}
+        hasGeometry={featureHasGeometry}
         hasGeochart={memoHasGeochart}
         checked={checked}
         onCheckChange={handleFeatureChecked}
@@ -348,7 +350,7 @@ export function FeatureInfo({ feature, containerType }: FeatureInfoProps): JSX.E
         onGeochart={handleGeochart}
       />
 
-      <Box sx={sxClasses.featureInfoListContainer}>
+      <Box sx={memoSxClasses.featureInfoListContainer}>
         <FeatureInfoTable layerPath={feature.layerPath} featureInfoList={memoFeatureInfoList} containerType={containerType} />
       </Box>
     </Paper>

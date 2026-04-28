@@ -100,7 +100,10 @@ function SliderUI(props: SliderProps): JSX.Element {
 
   // Hooks
   const theme = useTheme();
-  const sxClasses = useMemo(() => getSxClasses(theme), [theme]);
+  const memoSxClasses = useMemo(() => {
+    logger.logTraceUseMemo('SLIDER - memoSxClasses', theme);
+    return getSxClasses(theme);
+  }, [theme]);
 
   // Ref
   const sliderRef = useRef<HTMLDivElement>(null);
@@ -165,6 +168,7 @@ function SliderUI(props: SliderProps): JSX.Element {
     // Log
     logger.logTraceUseMemo('SLIDER - memoFinalClassName', sliderValue, orientation);
 
+    logger.logTraceUseMemo('SLIDER - memoFinalClassName', sliderValue, orientation, className);
     const shouldSpreadLabel = Array.isArray(sliderValue) && sliderValue.length >= 2 && (!orientation || orientation === 'horizontal');
 
     if (!shouldSpreadLabel) return className;
@@ -175,30 +179,33 @@ function SliderUI(props: SliderProps): JSX.Element {
   // #region Handlers
 
   /**
-   * Handles when the user drags the slider thumb to change the value
+   * Handles when the user drags the slider thumb to change the value.
    */
-  const handleChange = (event: React.SyntheticEvent | Event, newValue: number | number[], activeThumb: number): void => {
-    // Track which thumb is active
-    activeThumbRef.current = activeThumb;
+  const handleChange = useCallback(
+    (event: React.SyntheticEvent | Event, newValue: number | number[], activeThumb: number): void => {
+      // Update the internal state if not controlled, meaning 'value' isn't provided by the parent component
+      if (!isControlled) {
+        setInternalValue(newValue);
+      }
 
-    // Update the internal state if not controlled, meaning 'value' isn't provided by the parent component
-    if (!isControlled) {
-      setInternalValue(newValue);
-    }
+      event.preventDefault();
 
-    event.preventDefault();
-
-    // Callback
-    onChange?.(newValue, activeThumb);
-  };
+      // Callback
+      onChange?.(newValue, activeThumb);
+    },
+    [isControlled, onChange, setInternalValue]
+  );
 
   /**
-   * Handles when the user completes a slider drag (mouseup)
+   * Handles when the user completes a slider drag (mouseup).
    */
-  const handleChangeCommitted = (event: React.SyntheticEvent | Event, newValue: number | number[]): void => {
-    // Callback
-    onChangeCommitted?.(newValue);
-  };
+  const handleChangeCommitted = useCallback(
+    (event: React.SyntheticEvent | Event, newValue: number | number[]): void => {
+      // Callback
+      onChangeCommitted?.(newValue);
+    },
+    [onChangeCommitted]
+  );
 
   // #endregion
 
@@ -363,7 +370,7 @@ function SliderUI(props: SliderProps): JSX.Element {
     <MaterialSlider
       {...properties}
       id={containerId}
-      sx={disabled ? null : sxClasses.slider}
+      sx={disabled ? null : memoSxClasses.slider}
       className={memoFinalClassName}
       ref={sliderRef}
       orientation={orientation}

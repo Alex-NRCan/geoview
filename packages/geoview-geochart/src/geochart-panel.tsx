@@ -5,19 +5,18 @@ import { Layout } from 'geoview-core/core/components/common';
 import { checkSelectedLayerPathList } from 'geoview-core/core/components/common/comp-common';
 import { Typography } from 'geoview-core/ui/typography/typography';
 import { Box } from 'geoview-core/ui';
+import { useStoreMapClickCoordinates } from 'geoview-core/core/stores/store-interface-and-intial-values/map-state';
 import {
-  useStoreMapClickCoordinates,
-  useStoreMapAllVisibleandInRangeLayers,
-  useStoreMapIsLayerHiddenOnMapSet,
-} from 'geoview-core/core/stores/store-interface-and-intial-values/map-state';
-import { useStoreLayerNameSet, useStoreLayerStatusSet } from 'geoview-core/core/stores/store-interface-and-intial-values/layer-state';
+  useStoreLayerAllVisibleAndInRangeLayers,
+  useStoreLayerIsHiddenOnMapSet,
+  useStoreLayerNameSet,
+  useStoreLayerStatusSet,
+} from 'geoview-core/core/stores/store-interface-and-intial-values/layer-state';
 import type { TypeGeochartResultSetEntry } from 'geoview-core/core/stores/store-interface-and-intial-values/geochart-state';
 import {
   useStoreGeochartChartsConfig,
   useStoreGeochartLayerDataArrayBatch,
   useStoreGeochartSelectedLayerPath,
-  setStoreGeochartLayerDataArrayBatchLayerPathBypass,
-  setStoreGeochartSelectedLayerPath,
 } from 'geoview-core/core/stores/store-interface-and-intial-values/geochart-state';
 import { useStoreAppDisplayLanguage } from 'geoview-core/core/stores/store-interface-and-intial-values/app-state';
 import { getLocalizedMessage } from 'geoview-core/core/utils/utilities';
@@ -27,6 +26,7 @@ import { CONTAINER_TYPE, TABS } from 'geoview-core/core/utils/constant';
 import { GeoChart } from './geochart';
 import type { GeoViewGeoChartRootConfig } from './geochart-types';
 import { convertGeoViewGeoChartConfigFromCore } from './geochart-types';
+import { useGeoChartController } from 'geoview-core/core/controllers/use-controllers';
 
 /** Properties for the GeoChartPanel component. */
 interface GeoChartPanelProps {
@@ -52,13 +52,14 @@ export function GeoChartPanel(props: GeoChartPanelProps): JSX.Element {
   // Get states and actions from store
   const configObj = useStoreGeochartChartsConfig();
   const displayLanguage = useStoreAppDisplayLanguage();
-  const visibleInRangeLayers = useStoreMapAllVisibleandInRangeLayers();
+  const visibleInRangeLayers = useStoreLayerAllVisibleAndInRangeLayers();
   const mapClickCoordinates = useStoreMapClickCoordinates();
-  const layerHiddenSet = useStoreMapIsLayerHiddenOnMapSet();
+  const layerHiddenSet = useStoreLayerIsHiddenOnMapSet();
   const layerNames = useStoreLayerNameSet();
   const layerStatuses = useStoreLayerStatusSet();
   const storeArrayOfLayerData = useStoreGeochartLayerDataArrayBatch();
   const selectedLayerPath = useStoreGeochartSelectedLayerPath();
+  const geoChartController = useGeoChartController();
 
   // Create the validator shared for all the charts in the footer
   const [schemaValidator] = useState<SchemaValidator>(new SchemaValidator());
@@ -99,10 +100,10 @@ export function GeoChartPanel(props: GeoChartPanelProps): JSX.Element {
    * @param key - The GeoChart unique key of the child component
    * @param theCallbackRedraw - The callback to execute whenever we want to redraw the GeoChart
    */
-  const handleProvideCallbackRedraw = (key: string, theCallbackRedraw: () => void): void => {
+  const handleProvideCallbackRedraw = useCallback((key: string, theCallbackRedraw: () => void): void => {
     // Keep the callback
     redrawGeochart.current[key] = theCallbackRedraw;
-  };
+  }, []);
 
   // #region HOOKS
 
@@ -121,8 +122,7 @@ export function GeoChartPanel(props: GeoChartPanelProps): JSX.Element {
 
       return label;
     },
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [mapId, displayLanguage]
+    [displayLanguage]
   );
 
   /**
@@ -133,15 +133,18 @@ export function GeoChartPanel(props: GeoChartPanelProps): JSX.Element {
   const handleLayerChange = useCallback(
     (layer: LayerListEntry): void => {
       // Set the selected layer path in the store which will in turn trigger the store listeners on this component
-      setStoreGeochartSelectedLayerPath?.(mapId, layer.layerPath);
+      geoChartController.setSelectedLayerPath(layer.layerPath);
     },
-    [mapId]
+    [geoChartController]
   );
 
   // #endregion
 
   // Convert the config object from core to geoview-geochart type-equivalent
   const memoConfigObj = useMemo(() => {
+    // Log
+    logger.logTraceUseMemo('GEOCHART-PANEL - memoConfigObj', configObj);
+
     // Memoize a better config object using the geoview-geochart type-equivalent instead of the store's
     return configObj
       ? Object.fromEntries(
@@ -199,9 +202,9 @@ export function GeoChartPanel(props: GeoChartPanelProps): JSX.Element {
 
     // Set the layer data array batch bypass to the currently selected layer
     if (selectedLayerPath) {
-      setStoreGeochartLayerDataArrayBatchLayerPathBypass?.(mapId, selectedLayerPath);
+      geoChartController.setLayerDataArrayBatchLayerPathBypass(selectedLayerPath);
     }
-  }, [mapId, selectedLayerPath]);
+  }, [geoChartController, selectedLayerPath]);
 
   /**
    * Effect used to persist or alter the current layer selection based on the layers list changes.
@@ -215,14 +218,13 @@ export function GeoChartPanel(props: GeoChartPanelProps): JSX.Element {
     if (selectedLayerPath) {
       // Redirect to the keep selected layer path logic
       checkSelectedLayerPathList(
-        mapId,
-        setStoreGeochartLayerDataArrayBatchLayerPathBypass,
-        setStoreGeochartSelectedLayerPath,
+        (lyrPath) => geoChartController.setLayerDataArrayBatchLayerPathBypass(lyrPath),
+        (lyrPath) => geoChartController.setSelectedLayerPath(lyrPath),
         memoLayerSelectedItem,
         memoLayersList
       );
     }
-  }, [mapId, memoLayerSelectedItem, memoLayersList, selectedLayerPath]);
+  }, [geoChartController, memoLayerSelectedItem, memoLayersList, selectedLayerPath]);
 
   /**
    * Selects a layer after a map click happened on the map.
@@ -235,9 +237,9 @@ export function GeoChartPanel(props: GeoChartPanelProps): JSX.Element {
     if (mapClickCoordinates && memoLayersList?.length && !selectedLayerPath?.length) {
       const selectedLayer = memoLayersList.find((layer) => !!layer.numOffeatures);
       // Select the first layer that has features
-      setStoreGeochartSelectedLayerPath(mapId, selectedLayer?.layerPath ?? '');
+      geoChartController.setSelectedLayerPath(selectedLayer?.layerPath ?? '');
     }
-  }, [mapId, mapClickCoordinates, memoLayersList, selectedLayerPath?.length]);
+  }, [geoChartController, mapClickCoordinates, memoLayersList, selectedLayerPath?.length]);
 
   // #endregion HOOKS
 

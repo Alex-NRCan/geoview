@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { ShareIcon, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField, Box } from '@/ui';
@@ -9,8 +9,8 @@ import {
   useStoreMapCenterCoordinates,
   useStoreMapCurrentProjection,
   useStoreMapCurrentBasemapOptions,
-  useStoreMapOrderedLayers,
 } from '@/core/stores/store-interface-and-intial-values/map-state';
+import { useStoreLayerOrderedLayerPaths } from '@/core/stores/store-interface-and-intial-values/layer-state';
 import { Projection } from '@/geo/utils/projection';
 
 import type { Coordinate } from 'ol/coordinate';
@@ -105,7 +105,7 @@ export default function Share(): JSX.Element | null {
   const center = useStoreMapCenterCoordinates();
   const projection = useStoreMapCurrentProjection();
   const basemap = useStoreMapCurrentBasemapOptions();
-  const layers = useStoreMapOrderedLayers();
+  const layers = useStoreLayerOrderedLayerPaths();
 
   // State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -151,13 +151,9 @@ export default function Share(): JSX.Element | null {
 
   // #endregion
 
-  // Memoize visibility check
-  const memoIsVisible = useMemo(() => {
-    return sharedMode === true;
-  }, [sharedMode]);
-
   // If shared mode is not enabled, don't render the button
-  if (!memoIsVisible) return null;
+  const isVisible = sharedMode === true;
+  if (!isVisible) return null;
 
   return (
     <>

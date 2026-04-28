@@ -465,18 +465,23 @@ export abstract class GVAbstractTester extends AbstractTester {
   /** The Map Viewer for the tests */
   #mapViewer: MapViewer;
 
+  /** The Controller Registry for the tests */
+  #controllerRegistry: ControllerRegistry;
+
   /**
    * Constructs a GeoView specific tester.
    *
    * @param api - The api
    * @param mapViewer - The map viewer
+   * @param controllerRegistry - The controller registry
    */
-  constructor(api: API, mapViewer: MapViewer) {
+  constructor(api: API, mapViewer: MapViewer, controllerRegistry: ControllerRegistry) {
     super();
 
     // Keep the attributes
     this.#api = api;
     this.#mapViewer = mapViewer;
+    this.#controllerRegistry = controllerRegistry;
   }
 
   /**
@@ -495,15 +500,6 @@ export abstract class GVAbstractTester extends AbstractTester {
    */
   getMapViewer(): MapViewer {
     return this.#mapViewer;
-  }
-
-  /**
-   * Sets the MapViewer.
-   *
-   * @param mapViewer - The MapViewer to set
-   */
-  setMapViewer(mapViewer: MapViewer): void {
-    this.#mapViewer = mapViewer;
   }
 
   /**
@@ -529,7 +525,17 @@ export abstract class GVAbstractTester extends AbstractTester {
    * @returns The controller registry
    */
   getControllersRegistry(): ControllerRegistry {
-    return this.getMapViewer().controllers;
+    return this.#controllerRegistry;
+  }
+
+  /**
+   * Sets the MapViewer and the Controller registry for the current test.
+   *
+   * @param mapViewer - The MapViewer to set
+   */
+  reassignMapViewerAndControllers(mapViewer: MapViewer): void {
+    this.#mapViewer = mapViewer;
+    this.#controllerRegistry = mapViewer.controllers;
   }
 
   /**

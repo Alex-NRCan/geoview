@@ -4,10 +4,10 @@ import type { TypeFeatureInfoResult } from '@/api/types/map-schema-types';
 import { CONST_LAYER_TYPES, type TypeLayerControls, type TypeMosaicMethod } from '@/api/types/layer-schema-types';
 import type { ConfigBaseClass } from '@/api/config/validation-classes/config-base-class';
 import { AbstractMapViewerController } from '@/core/controllers/base/abstract-map-viewer-controller';
+import type { ControllerRegistry } from '@/core/controllers/base/controller-registry';
 import type { LayerDomain } from '@/core/domains/layer-domain';
 import {
   getStoreDetailsSelectedLayerPath,
-  propagateStoreFeatureInfoDetails,
   type TypeFeatureInfoResultSet,
 } from '@/core/stores/store-interface-and-intial-values/feature-info-state';
 import {
@@ -15,13 +15,9 @@ import {
   getStoreUIAppBarComponents,
   getStoreUIFooterBarComponents,
 } from '@/core/stores/store-interface-and-intial-values/ui-state';
-import {
-  getStoreMapConfigGlobalSettings,
-  getStoreMapOrderedLayerIndexByPath,
-  setStoreMapClickMarkerIconHide,
-} from '@/core/stores/store-interface-and-intial-values/map-state';
-import { setStoreSelectedLayerPath } from '@/core/stores/store-interface-and-intial-values/data-table-state';
+import { getStoreMapConfigGlobalSettings } from '@/core/stores/store-interface-and-intial-values/map-state';
 import { logger } from '@/core/utils/logger';
+import { whenThisThen } from '@/core/utils/utilities';
 import { LayerNoLastQueryToPerformError } from '@/core/exceptions/geoview-exceptions';
 import { AllFeatureInfoLayerSet } from '@/geo/layer/layer-sets/all-feature-info-layer-set';
 import { HoverFeatureInfoLayerSet } from '@/geo/layer/layer-sets/hover-feature-info-layer-set';
@@ -39,6 +35,7 @@ import { AbstractGVVector } from '@/geo/layer/gv-layers/vector/abstract-gv-vecto
 import type { TypeLegendItem, TypeLegendLayer, TypeLegendLayerItem } from '@/core/components/layers/types';
 import {
   getStoreLayerLegendLayers,
+  getStoreLayerOrderedLayerIndexByPath,
   setStoreLegendLayersDirectly,
   type TypeLegendResultSetEntry,
 } from '@/core/stores/store-interface-and-intial-values/layer-state';
@@ -82,16 +79,17 @@ export class LayerSetController extends AbstractMapViewerController {
    * Creates an instance of LayerSetController.
    *
    * @param mapViewer - The map viewer instance to associate with this controller
+   * @param controllerRegistry - The controller registry for accessing sibling controllers
    * @param layerDomain - The layer domain instance to associate with this controller
    */
-  constructor(mapViewer: MapViewer, layerDomain: LayerDomain) {
-    super(mapViewer);
+  constructor(mapViewer: MapViewer, controllerRegistry: ControllerRegistry, layerDomain: LayerDomain) {
+    super(mapViewer, controllerRegistry);
 
     // The layer sets
-    this.legendsLayerSet = new LegendsLayerSet(mapViewer, this, layerDomain);
-    this.hoverFeatureInfoLayerSet = new HoverFeatureInfoLayerSet(mapViewer, layerDomain);
-    this.allFeatureInfoLayerSet = new AllFeatureInfoLayerSet(mapViewer, layerDomain);
-    this.featureInfoLayerSet = new FeatureInfoLayerSet(mapViewer, layerDomain);
+    this.legendsLayerSet = new LegendsLayerSet(mapViewer, controllerRegistry, layerDomain);
+    this.hoverFeatureInfoLayerSet = new HoverFeatureInfoLayerSet(mapViewer, controllerRegistry, layerDomain);
+    this.allFeatureInfoLayerSet = new AllFeatureInfoLayerSet(mapViewer, controllerRegistry, layerDomain);
+    this.featureInfoLayerSet = new FeatureInfoLayerSet(mapViewer, controllerRegistry, layerDomain);
     this.allLayerSets = [this.legendsLayerSet, this.hoverFeatureInfoLayerSet, this.featureInfoLayerSet, this.allFeatureInfoLayerSet];
 
     // Keep bounded references to the handlers
@@ -142,7 +140,14 @@ export class LayerSetController extends AbstractMapViewerController {
    * @param layerPath - The layer path to query the features from
    * @returns A promise that resolves with the feature info result
    */
-  triggerGetAllFeatureInfo(layerPath: string): Promise<TypeFeatureInfoResult> {
+  async triggerGetAllFeatureInfo(layerPath: string, waitForLayer: boolean = false): Promise<TypeFeatureInfoResult> {
+    // If the layer isn't in the domain yet, give it a chance to get registered
+    if (waitForLayer) {
+      // Wait for the layer to be available, this can happen if the trigger is called too soon (or between the layer config registration and the actual layer registration)
+      await whenThisThen(() => this.allFeatureInfoLayerSet.getRegisteredLayerPaths().includes(layerPath));
+    }
+
+    // Query the registered layer
     return this.allFeatureInfoLayerSet.queryLayer(layerPath);
   }
 
@@ -158,7 +163,7 @@ export class LayerSetController extends AbstractMapViewerController {
     this.allFeatureInfoLayerSet.clearLayerFeatures(layerPath);
 
     // Update the layer data array in the store, all the time
-    setStoreSelectedLayerPath(this.getMapId(), '');
+    this.getControllersRegistry().dataTableController.setSelectedLayerPath('');
   }
 
   /**
@@ -175,13 +180,13 @@ export class LayerSetController extends AbstractMapViewerController {
 
     if (resultSet[layerPath]) {
       resultSet[layerPath].features = [];
-      propagateStoreFeatureInfoDetails(this.getMapId(), resultSet[layerPath]);
+      this.getControllersRegistry().detailsController.propagateFeatureInfo(resultSet[layerPath]);
     }
 
     // Remove highlighted features and marker if it is the selected layer path
     if (getStoreDetailsSelectedLayerPath(this.getMapId()) === layerPath) {
       this.getControllersRegistry().mapController.removeHighlightedFeature('all');
-      setStoreMapClickMarkerIconHide(this.getMapId());
+      this.getControllersRegistry().mapController.clickMarkerIconHide();
     }
   }
 
@@ -372,6 +377,9 @@ export class LayerSetController extends AbstractMapViewerController {
             entryType: 'group',
             canToggle: legendResultSetEntry.data?.type !== CONST_LAYER_TYPES.ESRI_IMAGE,
             opacity: layerConfig.getInitialSettings()?.states?.opacity ?? 1, // GV: This is call all the time, if set on OL use value, default to config or 1
+            visible: true,
+            inVisibleRange: true,
+            legendCollapsed: layerConfig.getInitialSettings()?.states?.legendCollapsed ?? false, // default: false
             icons: [] as TypeLegendLayerItem[],
             items: [] as TypeLegendItem[],
             children: [] as TypeLegendLayer[],
@@ -414,6 +422,9 @@ export class LayerSetController extends AbstractMapViewerController {
         // Get the schema tag
         const schemaTag = legendResultSetEntry.data?.type ?? layerConfig.getSchemaTag();
 
+        // Get the visibility flag, invisible if the layer doesn't exist yet (could be only the config exists)
+        const visible = layer?.getVisible() ?? false;
+
         const legendLayerEntry: TypeLegendLayer = {
           url: layerConfig.getMetadataAccessPath(),
           bounds: existingStoreEntry?.bounds, // Reassigning the value, because we try to not manage this property from within this function anymore
@@ -433,6 +444,9 @@ export class LayerSetController extends AbstractMapViewerController {
           opacityMaxFromParent: existingStoreEntry?.opacityMaxFromParent ?? 1, // Reassigning the value, because we try to not manage this property from within this function anymore
           hoverable: layerConfig.getInitialSettings()?.states?.hoverable, // default: true
           queryable: layerConfig.getInitialSettings()?.states?.queryable, // default: true
+          visible,
+          inVisibleRange: layer?.inVisibleRange(this.getMapViewer().getView().getZoom() ?? 0) ?? true,
+          legendCollapsed: layerConfig.getInitialSettings()?.states?.legendCollapsed ?? false, // default: false
           children: [] as TypeLegendLayer[],
           items,
           icons,
@@ -484,7 +498,8 @@ export class LayerSetController extends AbstractMapViewerController {
     // Reorder the array so legend tab is in synch
     const sortedLayers = layers.sort(
       (a, b) =>
-        getStoreMapOrderedLayerIndexByPath(this.getMapId(), a.layerPath) - getStoreMapOrderedLayerIndexByPath(this.getMapId(), b.layerPath)
+        getStoreLayerOrderedLayerIndexByPath(this.getMapId(), a.layerPath) -
+        getStoreLayerOrderedLayerIndexByPath(this.getMapId(), b.layerPath)
     );
     this.#sortLegendLayersChildren(sortedLayers);
 
@@ -556,8 +571,8 @@ export class LayerSetController extends AbstractMapViewerController {
       if (legendLayer.children.length)
         legendLayer.children.sort(
           (a, b) =>
-            getStoreMapOrderedLayerIndexByPath(this.getMapId(), a.layerPath) -
-            getStoreMapOrderedLayerIndexByPath(this.getMapId(), b.layerPath)
+            getStoreLayerOrderedLayerIndexByPath(this.getMapId(), a.layerPath) -
+            getStoreLayerOrderedLayerIndexByPath(this.getMapId(), b.layerPath)
         );
       this.#sortLegendLayersChildren(legendLayer.children);
     });

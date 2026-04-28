@@ -1,4 +1,4 @@
-import { useEffect, useRef, useMemo } from 'react';
+import { useEffect, useRef } from 'react';
 
 import { useTranslation } from 'react-i18next';
 
@@ -32,6 +32,9 @@ type MapProps = {
   viewer: MapViewer;
 };
 
+/** Sx class definitions for the map component (static - no theme dependency). */
+const sxClasses = getSxClasses();
+
 /**
  * Creates the map component.
  *
@@ -46,7 +49,6 @@ export function Map(props: MapProps): JSX.Element {
   const { t } = useTranslation();
 
   const defaultTheme = useTheme();
-  const sxClasses = useMemo(() => getSxClasses(), []);
 
   // internal state - get ref to div element
   const mapElement = useRef<HTMLElement | undefined>();

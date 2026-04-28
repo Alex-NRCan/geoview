@@ -28,7 +28,7 @@ import {
   ZoomInSearchIcon,
 } from '@/ui';
 import { ArrowBackIcon } from '@/ui/icons';
-import { useUIController } from '@/core/controllers/use-controllers';
+import { useTimeSliderControllerIfExists, useUIController } from '@/core/controllers/use-controllers';
 import type { TypeLegendItem } from '@/core/components/layers/types';
 import { getSxClasses } from './layer-details-style';
 import {
@@ -48,6 +48,10 @@ import {
   useStoreLayerSchemaTag,
   useStoreLayerIcons,
   useStoreLayerAttribution,
+  useStoreLayerVisible,
+  useStoreLayerIsParentHiddenOnMap,
+  useStoreLayerIsHiddenOnMap,
+  useStoreLayerVisibleLayers,
 } from '@/core/stores/store-interface-and-intial-values/layer-state';
 import { useStoreUIActiveTrapGeoView } from '@/core/stores/store-interface-and-intial-values/ui-state';
 import {
@@ -61,16 +65,7 @@ import { LayerInfoPanel } from './layer-info/layer-info';
 import { logger } from '@/core/utils/logger';
 import { LAYER_STATUS, TABS, TIMEOUT } from '@/core/utils/constant';
 import { CONST_LAYER_TYPES } from '@/api/types/layer-schema-types';
-import {
-  useStoreMapVisibleLayers,
-  useStoreMapIsLayerHiddenOnMap,
-  useStoreMapLayerVisibility,
-  useStoreMapIsParentLayerHiddenOnMap,
-} from '@/core/stores/store-interface-and-intial-values/map-state';
-import {
-  useStoreTimeSliderLayers,
-  setStoreTimeSliderSelectedLayerPath,
-} from '@/core/stores/store-interface-and-intial-values/time-slider-state';
+import { useStoreTimeSliderLayers } from '@/core/stores/store-interface-and-intial-values/time-slider-state';
 import { useNavigateToTab } from '@/core/components/common/hooks/use-navigate-to-tab';
 import { useStoreGeoViewMapId } from '@/core/stores/geoview-store';
 import { DeleteUndoButton } from '@/core/components/layers/delete-undo-button';
@@ -105,9 +100,9 @@ const Sublayer = memo(function Sublayer({ layerPath }: SubLayerProps): JSX.Eleme
   // Hooks
   const layerName = useStoreLayerName(layerPath);
   const childPaths = useStoreLayerChildPaths(layerPath);
-  const layerHidden = useStoreMapIsLayerHiddenOnMap(layerPath);
-  const parentHidden = useStoreMapIsParentLayerHiddenOnMap(layerPath);
-  const layerVisible = useStoreMapLayerVisibility(layerPath);
+  const layerHidden = useStoreLayerIsHiddenOnMap(layerPath);
+  const parentHidden = useStoreLayerIsParentHiddenOnMap(layerPath);
+  const layerVisible = useStoreLayerVisible(layerPath);
   const layerController = useLayerController();
 
   // Return the ui
@@ -119,7 +114,7 @@ const Sublayer = memo(function Sublayer({ layerPath }: SubLayerProps): JSX.Eleme
           <Checkbox
             color="primary"
             checked={layerVisible === true}
-            onChange={() => layerController.setOrToggleMapLayerVisibility(layerPath)}
+            onChange={() => layerController.setOrToggleLayerVisibility(layerPath)}
             disabled={parentHidden}
           />
         }
@@ -191,22 +186,25 @@ export function LayerDetails(props: LayerDetailsProps): JSX.Element | null {
   const allSublayersVisible = useStoreLayerAllChildrenVisible(layerPath);
   const highlightedLayer = useStoreLayerHighlightedLayer();
   const hasText = useStoreLayerHasText(layerPath);
-  const visibleLayers = useStoreMapVisibleLayers();
+  const visibleLayers = useStoreLayerVisibleLayers();
   const datatableSettings = useStoreDataTableLayerSettings();
   const layersData = useStoreDataTableAllFeaturesDataArray();
   const bounds = useStoreLayerBounds(layerPath);
-  const layerVisible = useStoreMapLayerVisibility(layerPath);
-  const parentHidden = useStoreMapIsParentLayerHiddenOnMap(layerPath);
-  const layerHidden = useStoreMapIsLayerHiddenOnMap(layerPath);
+  const layerVisible = useStoreLayerVisible(layerPath);
+  const parentHidden = useStoreLayerIsParentHiddenOnMap(layerPath);
+  const layerHidden = useStoreLayerIsHiddenOnMap(layerPath);
   const availableSettings = useStoreLayerStyleSettings(layerPath);
   const timeSliderLayers = useStoreTimeSliderLayers();
   const isFocusTrap = useStoreUIActiveTrapGeoView();
   const uiController = useUIController();
   const layerController = useLayerController();
   const layerSetController = useLayerSetController();
+  const timeSliderController = useTimeSliderControllerIfExists();
 
   // Use navigate hook for time slider (only if time slider state exists)
-  const navigateToTimeSlider = useNavigateToTab('time-slider', setStoreTimeSliderSelectedLayerPath);
+  const navigateToTimeSlider = useNavigateToTab('time-slider', (lyrPath) => {
+    timeSliderController?.setSelectedLayerPathTimeSlider(lyrPath);
+  });
 
   // Is highlight button disabled?
   const isLayerHighlightCapable = layerControls?.highlight;
@@ -236,17 +234,17 @@ export function LayerDetails(props: LayerDetailsProps): JSX.Element | null {
   /**
    * Handles resetting the layer to its initial state.
    */
-  const handleResetLayer = (): void => {
+  const handleResetLayer = useCallback((): void => {
     layerController.resetLayer(layerPath).catch((error: unknown) => {
       // Log
       logger.logPromiseFailed('in layerController.resetLayer in layer-details.handleResetLayer', error);
     });
-  };
+  }, [layerController, layerPath]);
 
   /**
    * Handles zooming to the layer's extent.
    */
-  const handleZoomTo = (): void => {
+  const handleZoomTo = useCallback((): void => {
     // Early return if zoom button is disabled
     if (isZoomDisabled) {
       return;
@@ -255,12 +253,12 @@ export function LayerDetails(props: LayerDetailsProps): JSX.Element | null {
       // Log
       logger.logPromiseFailed('in zoomToLayerExtent in layer-details.handleZoomTo', error);
     });
-  };
+  }, [isZoomDisabled, layerController, layerPath]);
 
   /**
    * Handles opening the data table for the layer.
    */
-  const handleOpenTable = (): void => {
+  const handleOpenTable = useCallback((): void => {
     // Early return if table button is disabled
     if (isTableButtonDisabled) {
       return;
@@ -276,18 +274,18 @@ export function LayerDetails(props: LayerDetailsProps): JSX.Element | null {
       });
     }
     uiController.enableFocusTrap({ activeElementId: 'layerDataTable', callbackElementId: tableDetailsButtonId });
-  };
+  }, [isTableButtonDisabled, layerPath, layerSetController, layerStatus, layersData, tableDetailsButtonId, uiController]);
 
   /**
    * Handles highlighting the layer on the map.
    */
-  const handleHighlightLayer = (): void => {
+  const handleHighlightLayer = useCallback((): void => {
     // Early return if highlight button is disabled
     if (layerHidden) {
       return;
     }
     layerController.setHighlightLayer(layerPath);
-  };
+  }, [layerController, layerHidden, layerPath]);
 
   /**
    * Handles navigation to the Time Slider panel when the button is clicked.
@@ -369,8 +367,8 @@ export function LayerDetails(props: LayerDetailsProps): JSX.Element | null {
     const setRecursive = (legendLayer: typeof layer, newVisibility: boolean): void => {
       legendLayer.children.forEach((child) => {
         if (newVisibility) {
-          if (!visibleLayers.includes(child.layerPath)) layerController.setOrToggleMapLayerVisibility(child.layerPath, true);
-        } else if (visibleLayers.includes(child.layerPath)) layerController.setOrToggleMapLayerVisibility(child.layerPath, false);
+          if (!visibleLayers.includes(child.layerPath)) layerController.setOrToggleLayerVisibility(child.layerPath, true);
+        } else if (visibleLayers.includes(child.layerPath)) layerController.setOrToggleLayerVisibility(child.layerPath, false);
         if (child.children.length) setRecursive(child, newVisibility);
       });
     };

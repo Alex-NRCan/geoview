@@ -144,6 +144,9 @@ const extractTabId = (fullId: string, mapId: string): string => {
  * @see {@link https://mui.com/material-ui/react-tabs/}
  */
 function TabsUI(props: TypeTabsProps): JSX.Element {
+  // Log
+  logger.logTraceRender('ui/tabs/tabs');
+
   const {
     // NOTE: need this shellContainer, so that mobile dropdown can be rendered on top fullscreen window.
     mapId,
@@ -176,7 +179,10 @@ function TabsUI(props: TypeTabsProps): JSX.Element {
   const [value, setValue] = useState<number | boolean>(0);
   const [tabPanels, setTabPanels] = useState([tabs[0]]);
   const tabPanelRef = useRef<HTMLDivElement | null>(null);
-  const sxClasses = useMemo((): SxStyles => getSxClasses(theme, isFullScreen, appHeight), [theme, isFullScreen, appHeight]);
+  const memoSxClasses = useMemo((): SxStyles => {
+    logger.logTraceUseMemo('UI.TABS - memoSxClasses', theme, isFullScreen, appHeight);
+    return getSxClasses(theme, isFullScreen, appHeight);
+  }, [theme, isFullScreen, appHeight]);
 
   // #region Handlers
 
@@ -248,13 +254,14 @@ function TabsUI(props: TypeTabsProps): JSX.Element {
 
     // If a selected tab is defined
     if (selectedTab !== undefined) {
-      const newPanels = [...tabPanels];
-      newPanels[selectedTab] = tabs[selectedTab];
-      setTabPanels(newPanels);
+      setTabPanels((prev) => {
+        const next = [...prev];
+        next[selectedTab] = tabs[selectedTab];
+        return next;
+      });
       // Make sure internal state follows
       setValue(selectedTab);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedTab, tabs]);
   // Do not add dependency on onToggleCollapse or isCollapse, because then on re-render after the change, the useEffect just re-collapses/re-expands...
 
@@ -312,7 +319,7 @@ function TabsUI(props: TypeTabsProps): JSX.Element {
   }, [selectedTab, isCollapsed, tabs, onCloseKeyboard, mapId]);
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const sxMerged: any = { ...sxClasses.panel, visibility: TabContentVisibilty };
+  const sxMerged: any = { ...memoSxClasses.panel, visibility: TabContentVisibilty };
 
   /**
    * Filters out hidden tabs from the tab list.
@@ -367,7 +374,7 @@ function TabsUI(props: TypeTabsProps): JSX.Element {
                     iconPosition="start"
                     id={createTabId(mapId, tab.id)}
                     onClick={handleClick}
-                    sx={sxClasses.tab}
+                    sx={memoSxClasses.tab}
                     aria-controls={createPanelId(mapId, tab.id)}
                     tabIndex={0}
                     value={tab.value}
@@ -377,7 +384,7 @@ function TabsUI(props: TypeTabsProps): JSX.Element {
               })}
             </MaterialTabs>
           ) : (
-            <Box sx={sxClasses.mobileDropdown}>
+            <Box sx={memoSxClasses.mobileDropdown}>
               <Select
                 labelId={`${mapId}-footerBarDropdownLabel`}
                 label=""
@@ -394,7 +401,7 @@ function TabsUI(props: TypeTabsProps): JSX.Element {
             </Box>
           )}
         </Grid>
-        <Grid size={{ xs: 5, sm: 2 }} sx={sxClasses.rightIcons}>
+        <Grid size={{ xs: 5, sm: 2 }} sx={memoSxClasses.rightIcons}>
           {rightButtons as ReactNode}
         </Grid>
       </Grid>

@@ -16,14 +16,29 @@ import { logger } from 'geoview-core/core/utils/logger';
 import { getLocalizedMessage, delay } from 'geoview-core/core/utils/utilities';
 import { debounce } from 'geoview-core/core/utils/debounce';
 import { useStoreAppDisplayLanguage } from 'geoview-core/core/stores/store-interface-and-intial-values/app-state';
-import { useStoreMapSize, useStoreMapVisibleLayers } from 'geoview-core/core/stores/store-interface-and-intial-values/map-state';
+import { useStoreMapSize } from 'geoview-core/core/stores/store-interface-and-intial-values/map-state';
+import { useStoreLayerVisibleLayers } from 'geoview-core/core/stores/store-interface-and-intial-values/layer-state';
 import type { MapViewer } from 'geoview-core/geo/map/map-viewer';
+import type { ControllerRegistry } from 'geoview-core/core/controllers/base/controller-registry';
 import { TIMEOUT } from 'geoview-core/core/utils/constant';
 import { getSxClasses } from './swiper-style';
 
 /** Properties for the Swiper component. */
 type SwiperProps = {
+  /**
+   * The MapViewer associated with the Swiper component.*
+   *
+   * @remarks The controller registry has to be provided via params, because the Swiper itself resides outside of the MapViewer context.
+   */
   viewer: MapViewer;
+
+  /**
+   * The ControllerRegistry associated with the Swiper component.
+   *
+   * @remarks The controller registry has to be provided via params, because the Swiper itself resides outside of the MapViewer context.
+   */
+  controllerRegistry: ControllerRegistry;
+
   // We have this eslint here for "standardization between plugins"
   // eslint-disable-next-line react/no-unused-prop-types
   config: ConfigProps;
@@ -50,7 +65,7 @@ export function Swiper(props: SwiperProps): JSX.Element {
   // Log
   logger.logTraceRender('geoview-swiper/swiper');
 
-  const { viewer } = props;
+  const { viewer, controllerRegistry } = props;
 
   const { cgpv } = window;
   const { ui, reactUtilities } = cgpv;
@@ -65,7 +80,10 @@ export function Swiper(props: SwiperProps): JSX.Element {
 
   // SxClasses
   const mapHeight = useStoreMapSize()[1];
-  const sxClasses = useMemo(() => getSxClasses(mapHeight), [mapHeight]);
+  const memoSxClasses = useMemo(() => {
+    logger.logTraceUseMemo('SWIPER - memoSxClasses', mapHeight);
+    return getSxClasses(mapHeight);
+  }, [mapHeight]);
 
   // States
   const [olLayers, setOlLayers] = useState<BaseLayer[]>([]);
@@ -77,7 +95,7 @@ export function Swiper(props: SwiperProps): JSX.Element {
   // Get store values
   const layerPaths = useStoreSwiperLayerPaths();
   const displayLanguage = useStoreAppDisplayLanguage();
-  const visibleLayers = useStoreMapVisibleLayers();
+  const visibleLayers = useStoreLayerVisibleLayers();
   const orientation = useStoreSwiperOrientation();
 
   // Grab reference
@@ -227,7 +245,7 @@ export function Swiper(props: SwiperProps): JSX.Element {
     async (layerPath: string) => {
       try {
         // Get the layer at the layer path
-        const olLayer = await viewer.controllers.layerController.getOLLayerAsync(layerPath, CONST_LAYERS_WAIT, CONST_LAYERS_RETRY);
+        const olLayer = await controllerRegistry.layerController.getOLLayerAsync(layerPath, CONST_LAYERS_WAIT, CONST_LAYERS_RETRY);
 
         // Set the OL layers
         setOlLayers((prevArray) => [...prevArray, olLayer]);
@@ -242,13 +260,13 @@ export function Swiper(props: SwiperProps): JSX.Element {
         // Log
         logger.logError(
           'SWIPER - Failed to attach layer events',
-          viewer.controllers.layerController.getGeoviewLayerIds(),
+          controllerRegistry.layerController.getGeoviewLayerIds(),
           layerPath,
           error
         );
       }
     },
-    [viewer, prerender]
+    [controllerRegistry, prerender]
   );
 
   // #endregion
@@ -282,7 +300,7 @@ export function Swiper(props: SwiperProps): JSX.Element {
       associatedLayerPaths.forEach((layerPath: string) => {
         try {
           // Get the layer at the layer path
-          const olLayer = viewer.controllers.layerController.getGeoviewLayerIfExists(layerPath)?.getOLLayer();
+          const olLayer = controllerRegistry.layerController.getGeoviewLayerIfExists(layerPath)?.getOLLayer();
           if (olLayer) {
             // Unwire the events on the layer
             olLayer.un(['precompose' as EventTypes, 'prerender' as EventTypes], prerender);
@@ -303,7 +321,7 @@ export function Swiper(props: SwiperProps): JSX.Element {
       // Empty layers array
       setOlLayers([]);
     };
-  }, [viewer, layerPaths, attachLayerEventsOnPath, prerender, visibleLayers]);
+  }, [controllerRegistry, layerPaths, attachLayerEventsOnPath, prerender, visibleLayers]);
 
   /**
    * UseEffect for WCAG keyboard navigation.
@@ -343,7 +361,7 @@ export function Swiper(props: SwiperProps): JSX.Element {
   if (layerPaths && layerPaths.length > 0) {
     // Use a swiper
     return (
-      <Box sx={sxClasses.layerSwipe}>
+      <Box sx={memoSxClasses.layerSwipe}>
         <Draggable
           key={orientation} // This forces recreation when orientation changes
           axis={orientation === 'vertical' ? 'x' : 'y'}
@@ -354,11 +372,15 @@ export function Swiper(props: SwiperProps): JSX.Element {
           onStop={onStop}
           onDrag={onStop}
         >
-          <Box sx={[orientation === 'vertical' ? sxClasses.vertical : sxClasses.horizontal, sxClasses.bar]} tabIndex={0} ref={swiperRef}>
+          <Box
+            sx={[orientation === 'vertical' ? memoSxClasses.vertical : memoSxClasses.horizontal, memoSxClasses.bar]}
+            tabIndex={0}
+            ref={swiperRef}
+          >
             <Tooltip title={getLocalizedMessage(displayLanguage, 'swiper.tooltip')}>
               <Box className="handleContainer">
-                <HandleIcon sx={sxClasses.handle} className="handleL" />
-                <HandleIcon sx={sxClasses.handle} className="handleR" />
+                <HandleIcon sx={memoSxClasses.handle} className="handleL" />
+                <HandleIcon sx={memoSxClasses.handle} className="handleR" />
               </Box>
             </Tooltip>
           </Box>
