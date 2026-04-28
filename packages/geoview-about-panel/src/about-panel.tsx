@@ -2,6 +2,7 @@ import type { TypeWindow } from 'geoview-core/core/types/global-types';
 import { getLocalizedMessage } from 'geoview-core/core/utils/utilities';
 import { useStoreAppDisplayLanguage } from 'geoview-core/core/stores/store-interface-and-intial-values/app-state';
 import { logger } from 'geoview-core/core/utils/logger';
+import { Fetch } from 'geoview-core/core/utils/fetch-helper';
 
 import { getSxClasses } from './about-panel-style';
 import Markdown from 'markdown-to-jsx';
@@ -38,16 +39,15 @@ function MarkdownFromPath(props: TypeMarkdownFromPathProps): JSX.Element {
   const theme = ui.useTheme();
   const sxClasses = getSxClasses(theme);
 
+  /**
+   * Fetches and loads the markdown content when the path changes.
+   */
   useEffect(() => {
     logger.logTraceUseEffect('ABOUT-PANEL - fetch markdown', { mdPath });
 
     const fetchMarkdown = async (): Promise<void> => {
       try {
-        const response = await fetch(mdPath);
-        if (!response.ok) {
-          throw new Error(`Failed to fetch markdown: ${response.statusText}`);
-        }
-        const text = await response.text();
+        const text = await Fetch.fetchText(mdPath);
         setContent(text);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : 'Unknown error';
