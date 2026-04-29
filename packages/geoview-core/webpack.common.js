@@ -66,6 +66,12 @@ const multipleHtmlPluginsOutliers = globSync('./public/templates/outliers/*.html
 
 // TODO: I think we can remove config.resolve.alias.@config line
 const config = {
+  cache: {
+    type: 'filesystem',
+    buildDependencies: {
+      config: [__filename],
+    },
+  },
   entry: {
     'cgpv-main': './src/app.tsx',
     'geoview-custom-legend': {
@@ -140,21 +146,32 @@ const config = {
       },
       {
         test: /\.(png|svg|jpg|gif)$/,
-        use: [
-          {
-            loader: 'file-loader',
-          },
-        ],
+        type: 'asset/resource',
       },
       {
         test: /\.(ts|tsx|js|jsx)$/,
         exclude: /node_modules/,
         use: [
           {
-            loader: 'babel-loader',
+            loader: 'swc-loader',
             options: {
-              plugins: ['@babel/transform-runtime'],
-              presets: ['@babel/preset-env', ['@babel/preset-react', { runtime: 'automatic' }], '@babel/preset-typescript'],
+              jsc: {
+                parser: {
+                  syntax: 'typescript',
+                  tsx: true,
+                  decorators: false,
+                },
+                transform: {
+                  react: {
+                    runtime: 'automatic',
+                  },
+                },
+                externalHelpers: false,
+                target: 'es2021',
+              },
+              module: {
+                type: 'es6',
+              },
             },
           },
         ],
@@ -163,10 +180,25 @@ const config = {
         test: /github.com\+Canadian-Geospatial-Platform\+geochart(.*)\.(ts|tsx|js|jsx)$/,
         use: [
           {
-            loader: 'babel-loader',
+            loader: 'swc-loader',
             options: {
-              plugins: ['@babel/transform-runtime'],
-              presets: ['@babel/preset-env', ['@babel/preset-react', { runtime: 'automatic' }], '@babel/preset-typescript'],
+              jsc: {
+                parser: {
+                  syntax: 'typescript',
+                  tsx: true,
+                  decorators: false,
+                },
+                transform: {
+                  react: {
+                    runtime: 'automatic',
+                  },
+                },
+                externalHelpers: false,
+                target: 'es2021',
+              },
+              module: {
+                type: 'es6',
+              },
             },
           },
         ],
@@ -187,10 +219,19 @@ const config = {
             },
           },
           {
-            loader: 'babel-loader',
+            loader: 'swc-loader',
             options: {
-              plugins: ['@babel/transform-runtime'],
-              presets: ['@babel/preset-env', '@babel/preset-typescript'],
+              jsc: {
+                parser: {
+                  syntax: 'typescript',
+                  tsx: false,
+                },
+                externalHelpers: false,
+                target: 'es2021',
+              },
+              module: {
+                type: 'es6',
+              },
             },
           },
         ],
