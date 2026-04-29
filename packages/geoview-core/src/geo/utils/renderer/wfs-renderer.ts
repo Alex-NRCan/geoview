@@ -73,6 +73,8 @@ export abstract class WfsRenderer {
     const infos: TypeLayerStyleConfigInfo[] = [];
     const fields: string[] = [];
     let hasClassBreaks: boolean = false;
+    let hasDefault: boolean = false;
+
     rules.forEach((userRule) => {
       // Check the filter for the rule if any
       const label = userRule['se:Name'] || 'unnamed';
@@ -85,7 +87,12 @@ export abstract class WfsRenderer {
         hasClassBreaks = filterInfo.hasGreaterOrLessThan;
 
         // Compile the fields
-        if (!fields.includes(filterInfo.propertyName)) fields.push(filterInfo.propertyName);
+        const propertyNames = Array.isArray(filterInfo.propertyName) ? filterInfo.propertyName : [filterInfo.propertyName];
+        propertyNames.forEach((name) => {
+          if (!fields.includes(name)) fields.push(name);
+        });
+      } else {
+        hasDefault = true;
       }
 
       // Check if it's a PointSymbolizer
@@ -149,7 +156,7 @@ export abstract class WfsRenderer {
     const styleSettings = {
       type,
       fields,
-      hasDefault: false,
+      hasDefault,
       info: infos,
     } as unknown as TypeLayerStyleSettings;
 
@@ -190,8 +197,15 @@ export abstract class WfsRenderer {
    * @throws {NotSupportedError} When the filter uses `ogc:Function` or cannot be interpreted
    */
   static #readFilterFromRule(filter: TypeUserStyleRuleFilter): FilterInfo {
-    // If the filter is based on a function, throw error
-    if (filter['ogc:PropertyIsEqualTo']?.['ogc:Function']) throw new NotSupportedError('Filters based on functions are not supported.');
+    // Try to parse function-based filters first
+    if (filter['ogc:PropertyIsEqualTo']?.['ogc:Function']) {
+      const funcInfo = this.#tryParseConcatFunction(filter);
+      if (funcInfo) return funcInfo;
+
+      throw new NotSupportedError(
+        'Function-based filters are only partially supported. Currently only supports simple concat functions with string literals.'
+      );
+    }
 
     // Read simple filters
     let filterOption = this.#readFilterInfoNumberOptionFromFilter(filter);
@@ -209,6 +223,73 @@ export abstract class WfsRenderer {
 
     // Throw
     throw new NotSupportedError(`Couldn't read the filter information.`);
+  }
+
+  /**
+   * Attempts to parse a function-based filter, specifically looking for `concat` functions used within `PropertyIsEqualTo` filters.
+   *
+   * @param filter - The OGC filter block to evaluate for function-based patterns
+   * @returns The parsed filter information if the structure matches a supported `concat` function pattern, or undefined if it does not match
+   */
+  static #tryParseConcatFunction(filter: TypeUserStyleRuleFilter): FilterInfo | undefined {
+    const eqTo = filter['ogc:PropertyIsEqualTo'];
+    const func = eqTo?.['ogc:Function'];
+    if (!eqTo || !func) return undefined;
+
+    const funcName = func['@attributes']?.name;
+
+    if (funcName !== 'concat') return undefined;
+
+    // Extract the expected value (right side of equality)
+    const expectedValue = String(eqTo['ogc:Literal']);
+
+    // Extract PropertyName and Literal nodes from concat function
+    const fields: string[] = [];
+    const separators: string[] = [];
+
+    // Parse the XML structure - typically alternates PropertyName/Literal
+    Object.keys(func).forEach((key) => {
+      if (key === 'ogc:PropertyName') {
+        const props = Array.isArray(func[key]) ? func[key] : [func[key]];
+        fields.push(...props);
+      } else if (key === 'ogc:Literal') {
+        const lits = Array.isArray(func[key]) ? func[key] : [func[key]];
+        separators.push(...lits);
+      }
+    });
+
+    // Check all separators are identical
+    const uniqueSeparators = [...new Set(separators)];
+    if (uniqueSeparators.length !== 1) {
+      throw new NotSupportedError(
+        'Concat functions with multiple different separators are not supported. All separators must be identical.'
+      );
+    }
+
+    // Validate structural correctness: N fields need N-1 separators
+    if (separators.length !== fields.length - 1) {
+      throw new NotSupportedError(
+        `Concat function structure mismatch: found ${fields.length} fields but ${separators.length} separators. Expected ${fields.length - 1} separators.`
+      );
+    }
+
+    // Split the expected value by the separator
+    const separator = separators[0];
+    const values = expectedValue.split(separator).map((v) => v.trim());
+
+    // Validate field count matches value count
+    if (fields.length !== values.length) {
+      throw new NotSupportedError(
+        `Concat function has ${fields.length} fields but the comparison value splits into ${values.length} parts.`
+      );
+    }
+
+    return {
+      hasGreaterOrLessThan: false,
+      propertyName: fields, // Primary field for backward compat
+      values, // Split values
+      valuesConditions: undefined,
+    };
   }
 
   /**
@@ -376,10 +457,21 @@ export abstract class WfsRenderer {
         sizeGraphic: symSize,
         mimeType: symMime,
         fromSVGsOrMarkers: fromGraphic,
+        rotation: graphicRotation,
       } = this.#parseGraphic(symbol['se:Graphic']);
 
       // If no graphics info gathered
       if (graphicsInfo.length === 0) return; // Skip
+
+      // Apply rotation to each graphic if rotation is defined and non-zero
+      if (graphicRotation !== undefined && graphicRotation !== 0) {
+        graphicsInfo.forEach((gInfo) => {
+          const centerX = gInfo.vx + gInfo.vw / 2;
+          const centerY = gInfo.vy + gInfo.vh / 2;
+          // eslint-disable-next-line no-param-reassign
+          gInfo.innerSVG = `<g transform="rotate(${graphicRotation} ${centerX} ${centerY})">${gInfo.innerSVG}</g>`;
+        });
+      }
 
       globalMimeType ??= symMime;
       globalFromSVGsOrMarkers = globalFromSVGsOrMarkers !== 'svg' ? fromGraphic : 'svg';
@@ -886,18 +978,26 @@ export abstract class WfsRenderer {
     // Get the graphic size right away
     const sizeGraphic = Number(graphic?.['se:Size'] ?? 12); // default: 12
 
+    // Extract rotation if present
+    const rotationNode = graphic?.['se:Rotation'];
+    const rotation = rotationNode ? Number(rotationNode?.['ogc:Literal']) : undefined;
+
     // Check if we have ExternalGraphics (SVGs)
     const externalGraphics = graphic?.['se:ExternalGraphic'] ?? [];
     if (externalGraphics.length > 0) {
       // Redirect building the SVGs
-      return this.#parseGraphicsGatherSVGs(externalGraphics, sizeGraphic);
+      const result = this.#parseGraphicsGatherSVGs(externalGraphics, sizeGraphic);
+      result.rotation = !Number.isNaN(rotation) && rotation !== undefined ? rotation : 0;
+      return result;
     }
 
     // Support se:Mark (well-known shapes)
     const marker = graphic?.['se:Mark'];
     if (marker) {
       // Redirect building the markers
-      return this.#parseGraphicsMarkers(marker, sizeGraphic);
+      const result = this.#parseGraphicsMarkers(marker, sizeGraphic);
+      result.rotation = !Number.isNaN(rotation) && rotation !== undefined ? rotation : 0;
+      return result;
     }
 
     // Unsupported
@@ -1697,13 +1797,14 @@ type ExternalGraphicsInfo = {
   sizeGraphic: number;
   mimeType?: string;
   fromSVGsOrMarkers: 'svg' | 'marker';
+  rotation?: number;
 };
 
 type GraphicInfo = { innerSVG: string; vx: number; vy: number; vw: number; vh: number };
 
 type FilterInfo = {
   hasGreaterOrLessThan: boolean;
-  propertyName: string;
+  propertyName: string | string[];
   values: (number | string)[];
   valuesConditions?: TypeLayerStyleValueCondition[];
 };
