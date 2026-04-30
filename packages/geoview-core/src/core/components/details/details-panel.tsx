@@ -107,7 +107,6 @@ export function DetailsPanel({ containerType }: DetailsPanelType): JSX.Element {
   const [selectedLayerPathLocal, setSelectedLayerPathLocal] = useState<string>(selectedLayerPath);
   const [arrayOfLayerListLocal, setArrayOfLayerListLocal] = useState<LayerListStructureEntry[]>([]);
   const [isRightPanelVisible, setIsRightPanelVisible] = useState<boolean>(false);
-  const prevLayerSelected = useRef<TypeLayerData>();
   const prevLayerFeatures = useRef<TypeFeatureInfoEntry[] | undefined | null>();
   const prevFeatureIndex = useRef<number>(0); // 0 because that's the default index for the features
   const prevMapClickCoordinates = useRef<TypeMapMouseInfo | undefined>(mapClickCoordinates);
@@ -120,7 +119,6 @@ export function DetailsPanel({ containerType }: DetailsPanelType): JSX.Element {
   /**
    * Memoizes the set of checked feature IDs for O(1) lookup.
    */
-  // Create a memoized Set of checked feature IDs
   const memoIsCheckedFeaturesSet = useMemo(() => {
     // Log
     logger.logTraceUseMemo('DETAILS-PANEL - memoIsCheckedFeaturesSet', checkedFeatures);
@@ -148,7 +146,6 @@ export function DetailsPanel({ containerType }: DetailsPanelType): JSX.Element {
    *
    * @param arrayToClear - The array to clear of unchecked features
    */
-  // Modified clearHighlightsUnchecked
   const clearHighlightsUnchecked = useCallback(
     (arrayToClear: TypeFeatureInfoEntry[] | undefined | null) => {
       arrayToClear?.forEach((feature) => {
@@ -585,6 +582,20 @@ export function DetailsPanel({ containerType }: DetailsPanelType): JSX.Element {
   );
 
   /**
+   * Handles a click on the previous feature navigation button.
+   */
+  const handlePrevFeature = useCallback((): void => {
+    handleFeatureNavigateChange(-1);
+  }, [handleFeatureNavigateChange]);
+
+  /**
+   * Handles a click on the next feature navigation button.
+   */
+  const handleNextFeature = useCallback((): void => {
+    handleFeatureNavigateChange(1);
+  }, [handleFeatureNavigateChange]);
+
+  /**
    * Handles click to change the selected layer in left panel.
    *
    * @param layerEntry - The data of the newly selected layer
@@ -616,10 +627,8 @@ export function DetailsPanel({ containerType }: DetailsPanelType): JSX.Element {
    * the selected features with the store.
    */
   const resetCurrentIndex = (): void => {
-    // Keep reference on previously selected layer
-    prevLayerSelected.current = arrayOfLayerDataBatch.find((layer) => layer.layerPath === selectedLayerPathLocal);
     // Keep reference on previously selected features
-    prevLayerFeatures.current = prevLayerSelected.current?.features;
+    prevLayerFeatures.current = arrayOfLayerDataBatch.find((layer) => layer.layerPath === selectedLayerPathLocal)?.features;
     // Keep reference on previously selected index
     prevFeatureIndex.current = currentFeatureIndex;
     // Reset the indexing
@@ -728,15 +737,15 @@ export function DetailsPanel({ containerType }: DetailsPanelType): JSX.Element {
   }, [detailsController, mapController, footerBarTabId, footerBarIsOpen, appBarTabId, appBarIsOpen, containerType]);
 
   /**
-   * Checks if all layers query status is processed.
+   * Memoizes whether all layers query status is processed.
    */
-  const memoIsAllLayersQueryStatusProcessed = useMemo(() => {
+  const memoIsAllLayersQueryStatusProcessed = useMemo((): boolean => {
     // Log
     logger.logTraceUseMemo('DETAILS-PANEL - AllLayersQueryStatusProcessed.');
 
-    if (!arrayOfLayerDataBatch || arrayOfLayerDataBatch?.length === 0) return () => false;
+    if (!arrayOfLayerDataBatch || arrayOfLayerDataBatch.length === 0) return false;
 
-    return () => arrayOfLayerDataBatch?.every((layer) => layer.queryStatus === FEATURE_INFO_STATUS.PROCESSED);
+    return arrayOfLayerDataBatch.every((layer) => layer.queryStatus === FEATURE_INFO_STATUS.PROCESSED);
   }, [arrayOfLayerDataBatch]);
 
   /**
@@ -762,7 +771,7 @@ export function DetailsPanel({ containerType }: DetailsPanelType): JSX.Element {
       const shouldClearSelectedLayer = allLayersHaveNoFeatures && !coordinateInfoEnabled;
 
       // If should clear the selected layer and queries are processed
-      if (shouldClearSelectedLayer && memoIsAllLayersQueryStatusProcessed()) {
+      if (shouldClearSelectedLayer && memoIsAllLayersQueryStatusProcessed) {
         // Log
         logger.logDebug('DETAILS-PANEL - All layers have no features and coordinate info is disabled, showing right panel with guide');
 
@@ -808,7 +817,7 @@ export function DetailsPanel({ containerType }: DetailsPanelType): JSX.Element {
     }
 
     // Until process or something found for selected layerPath, return skeleton
-    if (!memoIsAllLayersQueryStatusProcessed() && !(memoSelectedLayerDataFeatures && memoSelectedLayerDataFeatures.length > 0)) {
+    if (!memoIsAllLayersQueryStatusProcessed && !(memoSelectedLayerDataFeatures && memoSelectedLayerDataFeatures.length > 0)) {
       return <DetailsSkeleton />;
     }
 
@@ -835,11 +844,7 @@ export function DetailsPanel({ containerType }: DetailsPanelType): JSX.Element {
                     iconRef={prevButtonRef}
                     aria-label={t('details.previousFeatureBtn')}
                     tooltipPlacement="top"
-                    onClick={() => {
-                      if (!isPrevDisabled) {
-                        handleFeatureNavigateChange(-1);
-                      }
-                    }}
+                    onClick={handlePrevFeature}
                     aria-disabled={isPrevDisabled}
                     className="buttonOutline"
                   >
@@ -852,11 +857,7 @@ export function DetailsPanel({ containerType }: DetailsPanelType): JSX.Element {
                     }}
                     aria-label={t('details.nextFeatureBtn')}
                     tooltipPlacement="top"
-                    onClick={() => {
-                      if (!isNextDisabled) {
-                        handleFeatureNavigateChange(1);
-                      }
-                    }}
+                    onClick={handleNextFeature}
                     aria-disabled={isNextDisabled}
                     className="buttonOutline"
                   >
