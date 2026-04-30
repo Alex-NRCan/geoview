@@ -32,7 +32,7 @@
         'theme': 'geo.ca',
         'corePackages': [],
         'externalPackages': []
-      }"></div><script src="codedoc.js"></script><script>insertPageHeader();
+      }"></div><button type="button" class="collapsible">Configuration Snippet</button><pre id="Map1CS" class="panel"></pre><script src="codedoc.js"></script><script>insertPageHeader();
 
       /**
        * Example share URL with all supported parameters:
@@ -192,4 +192,10 @@
       });
 
       // initialize cgpv
-      cgpv.init();</script></body></html>
+      cgpv.init();
+
+      // create snippets
+      window.addEventListener('load', () => {
+        createCodeSnippet();
+        createConfigSnippet();
+      });</script></body></html>
