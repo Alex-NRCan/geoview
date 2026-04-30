@@ -205,6 +205,10 @@ export const getStoreDetailsFeatures = (mapId: string, layerPath: string): TypeF
 export const useStoreDetailsCheckedFeatures = (): TypeFeatureInfoEntry[] =>
   useStore(useGeoViewStore(), (state) => state.detailsState.checkedFeatures);
 
+/** Hook that returns the live (non-batched) feature info layer data array. */
+export const useStoreDetailsLayerDataArray = (): TypeFeatureInfoResultSetEntry[] =>
+  useStore(useGeoViewStore(), (state) => state.detailsState.layerDataArray);
+
 /** Hook that returns the batched feature info layer data array. */
 export const useStoreDetailsLayerDataArrayBatch = (): TypeFeatureInfoResultSetEntry[] =>
   useStore(useGeoViewStore(), (state) => state.detailsState.layerDataArrayBatch);
