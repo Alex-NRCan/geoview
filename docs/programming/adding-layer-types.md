@@ -215,7 +215,7 @@ export interface TypeImageStaticLayerConfig extends Omit<
 
 ## Step 5: Add Source Type
 
-Add your source type to `packages/geoview-core/src/geo/map/map-schema-types.ts`:
+Add your source type to `packages/geoview-core/src/api/types/layer-schema-types.ts`:
 
 ```typescript
 /**
@@ -243,10 +243,10 @@ Update `packages/geoview-core/src/api/types/layer-schema-types.ts`:
 
 ```typescript
 export type LayerTypesKey =
-  | "esriDynamic"
-  | "esriFeature"
-  | "imageStatic" // Add here
-  | "GeoJSON";
+  | "ESRI_DYNAMIC"
+  | "ESRI_FEATURE"
+  | "IMAGE_STATIC" // Add here
+  | "GEOJSON";
 // ... other types
 ```
 
@@ -449,7 +449,7 @@ Export your new types and classes from the appropriate index files:
 export * from "./image-static";
 ```
 
-### In `packages/geoview-core/src/geo/map/map-schema-types.ts`
+### In `packages/geoview-core/src/api/types/layer-schema-types.ts`
 
 ```typescript
 export type { TypeImageStaticLayerConfig, TypeImageStaticLayerEntryConfig };
@@ -610,7 +610,7 @@ protected applyStyle(olLayer: BaseLayer, styleConfig: any): void {
 
 ### Type Errors
 
-1. Verify all types are exported from `map-schema-types.ts`
+1. Verify all types are exported from `layer-schema-types.ts`
 2. Check type guard function signatures
 3. Ensure source type is added to union type
 

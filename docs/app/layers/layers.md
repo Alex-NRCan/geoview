@@ -22,7 +22,7 @@ GeoView uses a **two-tier** layer architecture. Both tiers are created for every
 
 | Tier             | Name          | Base Class                   | Purpose                                                                                             |
 | ---------------- | ------------- | ---------------------------- | --------------------------------------------------------------------------------------------------- |
-| **Config tier**  | GeoView Layer | `AbstractGeoviewLayerConfig` | Handles configuration, metadata fetching, and validation. Created from the JSON config you provide. |
+| **Config tier**  | GeoView Layer | `AbstractGeoViewLayer` | Handles configuration, metadata fetching, and validation. Created from the JSON config you provide. |
 | **Runtime tier** | GV Layer      | `AbstractBaseGVLayer`        | Wraps the actual OpenLayers layer for rendering and interaction on the map.                         |
 
 **How to access each tier:**
@@ -369,11 +369,11 @@ Temporal layers can be filtered using the layer's built-in filter mechanisms. La
 }
 ```
 
-For runtime filter changes, use the map controller:
+For runtime filter changes, update the GV layer filters directly:
 
 ```typescript
-const mapController = mapViewer.controllers.mapController;
-mapController.applyLayerFilters(layerPath);
+const gvLayer = mapViewer.layer.getGeoviewLayer(layerPath);
+gvLayer.setLayerFiltersTime("dateField = 2023-01-01T00:00:00Z");
 ```
 
 ## Filtering Layers
@@ -388,11 +388,11 @@ Filters are applied through layer configuration using the `layerFilter` property
 }
 ```
 
-For runtime filter changes, use the map controller:
+For runtime filter changes, update the GV layer filters directly:
 
 ```typescript
-const mapController = mapViewer.controllers.mapController;
-mapController.applyLayerFilters(layerPath);
+const gvLayer = mapViewer.layer.getGeoviewLayer(layerPath);
+gvLayer.setLayerFiltersData("population > 100000 AND name LIKE 'New%'");
 ```
 
 **CQL Filter Syntax:**
