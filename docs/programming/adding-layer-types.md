@@ -22,7 +22,7 @@ Config JSON (TypeGeoviewLayerConfig)
 LayerCreatorController.createLayerConfigFromType()
         ↓
 GeoView Layer (e.g., new EsriDynamic)
-   1. onFetchAndSetServiceMetadata()
+   1. onFetchServiceMetadata()
    2. onValidateListOfLayerEntryConfig()
    3. onProcessLayerMetadata()
    4. onProcessOneLayerEntry()
@@ -146,7 +146,7 @@ export class ImageStatic extends AbstractGeoViewRaster {
     return new GVImageStatic(source, layerConfig);
   }
 
-  // Implement other abstract methods (onFetchAndSetServiceMetadata, etc.)
+  // Implement other abstract methods (onFetchServiceMetadata, etc.)
 }
 ```
 
@@ -243,10 +243,10 @@ Update `packages/geoview-core/src/api/types/layer-schema-types.ts`:
 
 ```typescript
 export type LayerTypesKey =
-  | "ESRI_DYNAMIC"
-  | "ESRI_FEATURE"
-  | "IMAGE_STATIC" // Add here
-  | "GEOJSON";
+  | "esriDynamic"
+  | "esriFeature"
+  | "imageStatic" // Add here
+  | "GeoJSON";
 // ... other types
 ```
 
@@ -293,8 +293,11 @@ The base class defines exactly **4 abstract methods**:
 protected abstract onFetchServiceMetadata<T>(abortSignal?: AbortSignal): Promise<T>;
 protected abstract onInitLayerEntries(): Promise<TypeGeoviewLayerConfig>;
 protected abstract onProcessLayerMetadata(
-  layerConfig: AbstractBaseLayerEntryConfig
-): Promise<void>;
+  layerConfig: AbstractBaseLayerEntryConfig,
+  displayDateMode: DisplayDateMode,
+  mapProjection?: OLProjection,
+  abortSignal?: AbortSignal
+): Promise<AbstractBaseLayerEntryConfig>;
 protected abstract onCreateGVLayer(
   layerConfig: AbstractBaseLayerEntryConfig
 ): AbstractGVLayer;
@@ -316,9 +319,9 @@ export class ImageStatic extends AbstractGeoViewRaster {
   /**
    * Fetches service metadata (not needed for static images).
    */
-  protected async onFetchServiceMetadata(): Promise<void> {
+  protected async onFetchServiceMetadata<T>(abortSignal?: AbortSignal): Promise<T> {
     // Static images don't have service metadata
-    return Promise.resolve();
+    return Promise.resolve(undefined as T);
   }
 
   /**
@@ -334,8 +337,12 @@ export class ImageStatic extends AbstractGeoViewRaster {
    */
   protected async onProcessLayerMetadata(
     layerConfig: AbstractBaseLayerEntryConfig,
-  ): Promise<void> {
+    displayDateMode: DisplayDateMode,
+    mapProjection?: OLProjection,
+    abortSignal?: AbortSignal,
+  ): Promise<AbstractBaseLayerEntryConfig> {
     // Process metadata for this layer entry
+    return layerConfig;
   }
 
   /**
@@ -350,24 +357,15 @@ export class ImageStatic extends AbstractGeoViewRaster {
 }
 ```
 
-## Step 8: Add to Layer Loading
+## Step 8: Add to Layer Creation Flow
 
-Add your layer type to the loading process in `packages/geoview-core/src/geo/layer/layer.ts`:
+Register your new layer type in the layer-creation orchestration path in `packages/geoview-core/src/core/controllers/layer-creator-controller.ts`.
 
-```typescript
-import {
-  ImageStatic,
-  layerConfigIsImageStatic,
-} from "./geoview-layers/raster/image-static";
+Specifically:
 
-// In the EVENT_ADD_LAYER handler:
-if (layerConfigIsImageStatic(layerConfig)) {
-  const imageStatic = new ImageStatic(this.mapId, layerConfig);
-  imageStatic.createGeoViewLayers().then(() => {
-    this.addToMap(imageStatic);
-  });
-}
-```
+1. Update `createLayerConfigFromType(...)` (or equivalent factory branch) so your new `geoviewLayerType` resolves to the right config class.
+2. Ensure your GeoView layer class is instantiated through the normal `addGeoviewLayer(...)` workflow (do not add an alternate event-specific loading path).
+3. Keep creation in controller flow so layer registration and layer-set/store synchronization stay consistent.
 
 ## Step 9: Update JSON Schema
 
@@ -624,8 +622,8 @@ protected applyStyle(olLayer: BaseLayer, styleConfig: any): void {
 
 - **[GeoView Layers Guide](app/layers/layers.md)** - User-facing layer documentation
 - **[Layer API Reference](app/api/layer-api.md)** - API methods
-- **[Event Helper](programming/event-helper.md)** - Delegate event system
-- **[Best Practices](programming/best-practices.md)** - General coding standards
+- **[Event Helper](event-helper.md)** - Delegate event system
+- **[Best Practices](best-practices.md)** - General coding standards
 
 ## Example: Complete Layer Implementation
 

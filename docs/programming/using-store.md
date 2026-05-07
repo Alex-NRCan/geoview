@@ -102,7 +102,6 @@ import {
   getStoreMapZoom,
   setStoreMapZoom,
   setStoreMapProjection,
-} from "@/core/stores/store-interface-and-intial-values/map-state";
 } from "@/core/stores/states/map-state";
 
 export class MapController extends AbstractMapViewerController {
@@ -153,5 +152,5 @@ this.mapViewer.controllers.timeSliderController?.checkInitTimeSliderLayerAndAppl
 
 ## See Also
 
-- **[Best Practices](programming/best-practices.md)** - Coding standards
-- **[Event Helper](programming/event-helper.md)** - Delegate event system
+- **[Best Practices](best-practices.md)** - Coding standards
+- **[Event Helper](event-helper.md)** - Delegate event system
