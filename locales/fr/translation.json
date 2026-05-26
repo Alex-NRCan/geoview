@@ -202,7 +202,7 @@
     "errorNoExtent": "Aucune étendue définie pour la couche '{{layerPath}}'.",
     "errorInvalidExtent": "Étendue invalide '{{extent}}'.",
     "fetchProgress": "Téléchargement des données... Téléchargé {{processed}} de {{total}} enregistrements.",
-    "fetchDoneDeprecated": "Données téléchargées - {{count}} enregistrements.",
+    "fetchDone": "Données téléchargées - {{count}} enregistrements.",
     "fetchStart": "Téléchargement des données...",
     "only": "seulement",
     "opacity": "Opacité (%)",
@@ -492,6 +492,9 @@
     "searchInstructions": "Tapez au moins 3 caractères pour rechercher. Appuyez sur Entrée ou Flèche bas pour passer au résultat suivant, Flèche haut pour le précédent.",
     "searchNavigationAnnouncement": "Résultat {{current}} sur {{total}}",
     "searchMatchCountLabel": "Correspondance {{current}} sur {{total}}"
+  },
+  "aio": {
+    "zoomToHighlight": "Zoomer et mettre en surbrillance {{name}}"
   },
   "footerBar": {
     "resizeTooltip": "Redimensionner",
