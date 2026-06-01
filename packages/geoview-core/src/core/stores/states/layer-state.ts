@@ -655,6 +655,27 @@ export const useStoreLayerSelectedLayerPath = (): string | null | undefined =>
   useStore(useGeoViewStore(), (state) => state.layerState.selectedLayerPath);
 
 /**
+ * Hook that returns whether a specific layer is selected while in view mode.
+ *
+ * @param layerPath - The layer path to check
+ * @returns True when the given layer is selected and the panel is in view mode
+ */
+export const useStoreLayerIsSelected = (layerPath: string): boolean =>
+  useStore(useGeoViewStore(), (state) => state.layerState.displayState === 'view' && state.layerState.selectedLayerPath === layerPath);
+
+/**
+ * Hook that returns whether a specific layer has a selected descendant while in view mode.
+ *
+ * @param layerPath - The parent layer path to check
+ * @returns True when a selected layer path starts with the given layer path
+ */
+export const useStoreLayerHasSelectedDescendant = (layerPath: string): boolean =>
+  useStore(useGeoViewStore(), (state) => {
+    const { selectedLayerPath, displayState } = state.layerState;
+    return displayState === 'view' && !!selectedLayerPath && selectedLayerPath.startsWith(`${layerPath}/`);
+  });
+
+/**
  * Hook that returns the layer name of the currently selected layer. Primitive string so Object.is prevents spurious re-renders.
  *
  * @returns The selected layer name, or undefined if no layer is selected

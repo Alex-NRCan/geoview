@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '@mui/material';
 
+import { useLightBox } from '@/core/components/common';
 import { Box, Button, Collapse, List } from '@/ui';
 import { getSxClasses } from './legend-styles';
 import { ItemsList } from './legend-layer-items';
@@ -25,7 +26,6 @@ import {
 
 interface CollapsibleContentProps {
   layerPath: string;
-  initLightBox: (images: string, altText: string, returnFocusId: string, index?: number) => void;
   LegendLayerComponent: ComponentType<LegendLayerProps>;
   showControls: boolean;
   containerType: TypeContainerBox;
@@ -36,7 +36,6 @@ interface CollapsibleContentProps {
 interface WMSLegendImageProps {
   imgSrc: string;
   title?: string;
-  initLightBox: (images: string, altText: string, returnFocusId: string, index?: number) => void;
   legendExpanded: boolean;
   sxClasses: Record<string, object>;
   mapId: string;
@@ -52,7 +51,6 @@ interface WMSLegendImageProps {
 const WMSLegendImage = memo(
   ({
     imgSrc,
-    initLightBox,
     legendExpanded,
     sxClasses,
     title,
@@ -64,6 +62,7 @@ const WMSLegendImage = memo(
     logger.logTraceRender('components/legend/legend-layer-container - WMSLegendImage');
 
     const { t } = useTranslation<string>();
+    const { initLightBox, LightBoxComponent } = useLightBox();
     const id = useId();
     const buttonId = `${mapId}-${containerType}-legend-image-btn-${id}`; // Create unique ID for focus management after lightbox closes
     const altText = title ? `${t('legend.title')}, ${title}` : t('legend.title');
