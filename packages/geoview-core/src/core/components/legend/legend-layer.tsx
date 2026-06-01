@@ -18,7 +18,6 @@ import {
   useStoreLayerStyleConfig,
   useStoreLayerIcons,
 } from '@/core/stores/states/layer-state';
-import { useLightBox } from '@/core/components/common';
 import { LayerIcon } from '@/core/components/common/layer-icon';
 import { layerHasClassItems, layerHasLegendImage } from '@/core/components/layers/types';
 import { SecondaryControls } from './legend-layer-ctrl';
@@ -152,7 +151,6 @@ export function LegendLayer({ layerPath, showControls, containerType }: LegendLa
   const collapseContainerId = `${mapId}-${containerType}-collapse-${id}`; // WCAG - IDs to link collapse buttons to collapsible content related to it (aria-controls)
   const layerStatus = useStoreLayerStatus(layerPath);
   const layerName = useStoreLayerName(layerPath) ?? layerPath;
-  const { initLightBox, LightBoxComponent } = useLightBox();
   const layerController = useLayerController();
 
   // Internal state
@@ -227,14 +225,12 @@ export function LegendLayer({ layerPath, showControls, containerType }: LegendLa
 
       <CollapsibleContent
         layerPath={layerPath}
-        initLightBox={initLightBox}
         LegendLayerComponent={LegendLayer}
         showControls={showControls}
         containerType={containerType}
         collapseContainerId={collapseContainerId}
         layerNameId={layerNameId}
       />
-      <LightBoxComponent />
     </ListItem>
   );
 }

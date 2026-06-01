@@ -121,7 +121,8 @@ export function LegendFullscreen({ layerPaths, mapId, containerType, isOpen, onC
   const shellContainer = useStoreAppShellContainer();
 
   // State
-  const [fullscreenLegendLayerList, setFullscreenLegendLayersList] = useState<string[][]>([]);
+  const [legendColumnCount, setLegendColumnCount] = useState(1);
+  const resizeRafRef = useRef<number | undefined>(undefined);
   const savedCollapseStateRef = useRef<Record<string, boolean>>({});
   const layerController = useLayerController();
 
@@ -154,45 +155,54 @@ export function LegendFullscreen({ layerPaths, mapId, containerType, isOpen, onC
     return 4;
   }, [memoBreakpoints]);
 
-  /**
-   * Distributes legend layers across multiple columns for fullscreen display.
-   * Uses a round-robin algorithm to evenly distribute layers across the available columns
-   * determined by the current window size.
-   *
-   * @param paths - Array of layer paths to distribute.
-   */
-  const updateFullscreenLayerListByWindowSize = useCallback(
-    (paths: string[]): void => {
-      const arrSize = getFullscreenLayerListSize();
-      const list = Array.from({ length: arrSize }, () => []) as Array<string[]>;
-
-      paths.forEach((layerPath, index) => {
-        list[index % arrSize].push(layerPath);
-      });
-
-      // Format the list only if there is layers
-      setFullscreenLegendLayersList(paths.length === 0 ? [] : list);
-    },
-    [getFullscreenLayerListSize]
-  );
-
-  // Memoize the window resize handler and use the hook to add listener to avoid many creation
+  // Memoize the window resize handler and keep state updates stable when count does not change.
   const handleWindowResize = useCallback(() => {
-    // Update the layer list based on window size
-    updateFullscreenLayerListByWindowSize(layerPaths);
-  }, [layerPaths, updateFullscreenLayerListByWindowSize]);
+    if (!isOpen || resizeRafRef.current !== undefined) return;
+
+    resizeRafRef.current = window.requestAnimationFrame(() => {
+      resizeRafRef.current = undefined;
+      const nextColumnCount = getFullscreenLayerListSize();
+      setLegendColumnCount((prevColumnCount) => (prevColumnCount === nextColumnCount ? prevColumnCount : nextColumnCount));
+    });
+  }, [isOpen, getFullscreenLayerListSize]);
 
   // Wire a handler using a custom hook on the window resize event
   useEventListener<Window>('resize', handleWindowResize, window);
 
-  // Handle initial layer setup
+  // Initialize/update column count when fullscreen opens or breakpoints change.
   useEffect(() => {
     // Log
-    logger.logTraceUseEffect('LEGEND FULLSCREEN - layer setup', layerPaths);
+    logger.logTraceUseEffect('LEGEND FULLSCREEN - update column count', isOpen, memoBreakpoints);
 
-    // Update the layer list based on window size
-    updateFullscreenLayerListByWindowSize(layerPaths);
-  }, [layerPaths, updateFullscreenLayerListByWindowSize]);
+    if (!isOpen) return;
+
+    const nextColumnCount = getFullscreenLayerListSize();
+    setLegendColumnCount((prevColumnCount) => (prevColumnCount === nextColumnCount ? prevColumnCount : nextColumnCount));
+  }, [isOpen, memoBreakpoints, getFullscreenLayerListSize]);
+
+  // Cleanup any pending animation frame from resize handling.
+  useEffect(() => {
+    return () => {
+      if (resizeRafRef.current !== undefined) {
+        window.cancelAnimationFrame(resizeRafRef.current);
+        resizeRafRef.current = undefined;
+      }
+    };
+  }, []);
+
+  // Memoize the list of grouped layer paths for fullscreen wrapped-column rendering.
+  const memoFullscreenLegendLayerList = useMemo((): string[][] => {
+    logger.logTraceUseMemo('LEGEND FULLSCREEN - memoFullscreenLegendLayerList', isOpen, layerPaths.length, legendColumnCount);
+
+    if (!isOpen || !layerPaths.length) return [];
+
+    const groupedLayerPaths = Array.from({ length: legendColumnCount }, () => []) as Array<string[]>;
+    layerPaths.forEach((layerPath, index) => {
+      groupedLayerPaths[index % legendColumnCount].push(layerPath);
+    });
+
+    return groupedLayerPaths;
+  }, [isOpen, layerPaths, legendColumnCount]);
 
   // Handle fullscreen state changes
   useEffect(() => {
@@ -238,13 +248,17 @@ export function LegendFullscreen({ layerPaths, mapId, containerType, isOpen, onC
   // Memoize fullscreen content
   const memoFullscreenContent = useMemo(() => {
     // Log
-    logger.logTraceUseMemo('components/legend-fullscreen - fullscreenContent', fullscreenLegendLayerList.length);
+    logger.logTraceUseMemo('components/legend-fullscreen - fullscreenContent', isOpen, memoFullscreenLegendLayerList.length);
 
-    if (!fullscreenLegendLayerList.length) {
+    if (!isOpen) {
+      return null;
+    }
+
+    if (!memoFullscreenLegendLayerList.length) {
       return memoNoLayersContent;
     }
 
-    return fullscreenLegendLayerList.map((paths, idx) => (
+    return memoFullscreenLegendLayerList.map((paths, idx) => (
       <List
         className="legendList"
         // eslint-disable-next-line react/no-array-index-key
@@ -259,7 +273,7 @@ export function LegendFullscreen({ layerPaths, mapId, containerType, isOpen, onC
         ))}
       </List>
     ));
-  }, [fullscreenLegendLayerList, memoNoLayersContent, containerType, memoSxClasses]);
+  }, [isOpen, memoFullscreenLegendLayerList, memoNoLayersContent, containerType, memoSxClasses]);
 
   return (
     <FullScreenDialog

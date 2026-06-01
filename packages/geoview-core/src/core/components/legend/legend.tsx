@@ -15,7 +15,7 @@ import { CONTAINER_TYPE } from '@/core/utils/constant';
 import type { TypeContainerBox } from '@/core/types/global-types';
 import { useEventListener } from '@/core/components/common/hooks/use-event-listener';
 import { useStoreGeoViewMapId } from '@/core/stores/geoview-store';
-import { useStoreLayerTopLevelLayerPaths } from '@/core/stores/states/layer-state';
+import { useStoreLayerAreLayersLoading, useStoreLayerTopLevelLayerPaths } from '@/core/stores/states/layer-state';
 
 interface LegendType {
   containerType: TypeContainerBox;
@@ -64,13 +64,17 @@ export function Legend({ containerType }: LegendType): JSX.Element | null {
   }, [theme]);
 
   // State
-  const [formattedLegendLayerList, setFormattedLegendLayersList] = useState<string[][]>([]);
+  const [legendColumnCount, setLegendColumnCount] = useState(1);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const fullScreenBtnRef = useRef<HTMLButtonElement>(null);
+  const resizeRafRef = useRef<number | undefined>(undefined);
+  const containerTypeRef = useRef<TypeContainerBox>(containerType);
+  const breakpointsRef = useRef<{ sm: number; md: number; lg: number }>({ sm: 0, md: 0, lg: 0 });
 
   // Store
   const mapId = useStoreGeoViewMapId();
   const layerPaths = useStoreLayerTopLevelLayerPaths();
+  const layersAreLoading = useStoreLayerAreLayersLoading();
 
   // Memoize breakpoint values
   const memoBreakpoints = useMemo(() => {
@@ -84,58 +88,23 @@ export function Legend({ containerType }: LegendType): JSX.Element | null {
     };
   }, [theme.breakpoints.values]);
 
-  /**
-   * Get the size of list based on window size.
-   */
-  const getLegendLayerListSize = useCallback(() => {
-    if (containerType === CONTAINER_TYPE.APP_BAR) return 1;
+  // Keep latest values available to stable callbacks.
+  containerTypeRef.current = containerType;
+  breakpointsRef.current = memoBreakpoints;
 
-    const { innerWidth } = window;
-    if (innerWidth < memoBreakpoints.sm) return 1;
-    if (innerWidth < memoBreakpoints.md) return 2;
-    if (innerWidth < memoBreakpoints.lg) return 3;
-    return 4;
-  }, [memoBreakpoints, containerType]);
+  // Memoize the list of grouped layer paths for wrapped-column rendering.
+  const memoFormattedLegendLayerList = useMemo((): string[][] => {
+    logger.logTraceUseMemo('LEGEND - memoFormattedLegendLayerList', layerPaths.length, legendColumnCount);
 
-  /**
-   * Transform the list of the legends into subsets of lists.
-   * it will return subsets of lists with pattern:- [[0,4,8],[1,5,9],[2,6],[3,7] ]
-   * This way we can layout the legends into column wraps.
-   * @param paths - Array of layer paths.
-   * @returns List of array of layer paths
-   */
-  const updateLegendLayerListByWindowSize = useCallback(
-    (paths: string[]): void => {
-      const arrSize = getLegendLayerListSize();
-      const list = Array.from({ length: arrSize }, () => []) as Array<string[]>;
+    if (!layerPaths.length) return [];
 
-      paths.forEach((layerPath, index) => {
-        list[index % arrSize].push(layerPath);
-      });
+    const groupedLayerPaths = Array.from({ length: legendColumnCount }, () => []) as Array<string[]>;
+    layerPaths.forEach((layerPath, index) => {
+      groupedLayerPaths[index % legendColumnCount].push(layerPath);
+    });
 
-      // Format the list only if there is layers
-      setFormattedLegendLayersList(paths.length === 0 ? [] : list);
-    },
-    [getLegendLayerListSize]
-  );
-
-  // Memoize the window resize handler and use the hook to add listener to avoid many creation
-  const handleWindowResize = useCallback(() => {
-    // Update the layer list based on window size
-    updateLegendLayerListByWindowSize(layerPaths);
-  }, [layerPaths, updateLegendLayerListByWindowSize]);
-
-  // Wire a handler using a custom hook on the window resize event
-  useEventListener<Window>('resize', handleWindowResize, window);
-
-  // Handle initial layer setup
-  useEffect(() => {
-    // Log
-    logger.logTraceUseEffect('LEGEND - layer setup', layerPaths);
-
-    // Update the layer list based on window size
-    updateLegendLayerListByWindowSize(layerPaths);
-  }, [layerPaths, updateLegendLayerListByWindowSize]);
+    return groupedLayerPaths;
+  }, [layerPaths, legendColumnCount]);
 
   // Memoize the no layers content
   const memoNoLayersContent = useMemo(() => {
@@ -154,16 +123,31 @@ export function Legend({ containerType }: LegendType): JSX.Element | null {
     );
   }, [t, memoSxClasses]);
 
+  // Memoize loading content to avoid mounting large row trees while layers are still processing.
+  const memoLoadingContent = useMemo(() => {
+    return (
+      <Box sx={styles.noLayersContainer}>
+        <Typography component="p" sx={memoSxClasses.legendInstructionsBody}>
+          {t('layers.status.layerLoading')}
+        </Typography>
+      </Box>
+    );
+  }, [t, memoSxClasses]);
+
   // Memoize the rendered content based on whether there are legend layers
   const memoContent = useMemo(() => {
     // Log
-    logger.logTraceUseMemo('components/legend - content', formattedLegendLayerList.length);
+    logger.logTraceUseMemo('components/legend - content', memoFormattedLegendLayerList.length, layersAreLoading);
 
-    if (!formattedLegendLayerList.length) {
+    if (layersAreLoading) {
+      return memoLoadingContent;
+    }
+
+    if (!memoFormattedLegendLayerList.length) {
       return memoNoLayersContent;
     }
 
-    return formattedLegendLayerList.map((paths, idx) => (
+    const content = memoFormattedLegendLayerList.map((paths, idx) => (
       <List
         className="legendList"
         // eslint-disable-next-line react/no-array-index-key
@@ -178,7 +162,71 @@ export function Legend({ containerType }: LegendType): JSX.Element | null {
         ))}
       </List>
     ));
-  }, [formattedLegendLayerList, memoNoLayersContent, containerType, memoSxClasses]);
+
+    return content;
+  }, [memoFormattedLegendLayerList, memoNoLayersContent, containerType, memoSxClasses, layersAreLoading, memoLoadingContent]);
+
+  /**
+   * Handles opening the fullscreen legend panel.
+   */
+  const handleOpenFullscreen = useCallback((): void => {
+    setIsFullScreen(true);
+  }, []);
+
+  /**
+   * Handles closing the fullscreen legend panel.
+   */
+  const handleCloseFullscreen = useCallback((): void => {
+    setIsFullScreen(false);
+  }, []);
+
+  /**
+   * Get the size of list based on window size.
+   */
+  const getLegendLayerListSize = useCallback(() => {
+    if (containerTypeRef.current === CONTAINER_TYPE.APP_BAR) return 1;
+
+    const currentBreakpoints = breakpointsRef.current;
+
+    const { innerWidth } = window;
+    if (innerWidth < currentBreakpoints.sm) return 1;
+    if (innerWidth < currentBreakpoints.md) return 2;
+    if (innerWidth < currentBreakpoints.lg) return 3;
+    return 4;
+  }, []);
+
+  // Memoize the window resize handler and keep state updates stable when count does not change.
+  const handleWindowResize = useCallback(() => {
+    if (resizeRafRef.current !== undefined) return;
+
+    resizeRafRef.current = window.requestAnimationFrame(() => {
+      resizeRafRef.current = undefined;
+      const nextColumnCount = getLegendLayerListSize();
+      setLegendColumnCount((prevColumnCount) => (prevColumnCount === nextColumnCount ? prevColumnCount : nextColumnCount));
+    });
+  }, [getLegendLayerListSize]);
+
+  // Wire a handler using a custom hook on the window resize event
+  useEventListener<Window>('resize', handleWindowResize, window);
+
+  // Initialize/update column count when breakpoints or container type change.
+  useEffect(() => {
+    // Log
+    logger.logTraceUseEffect('LEGEND - update column count', containerType, memoBreakpoints);
+
+    const nextColumnCount = getLegendLayerListSize();
+    setLegendColumnCount((prevColumnCount) => (prevColumnCount === nextColumnCount ? prevColumnCount : nextColumnCount));
+  }, [containerType, memoBreakpoints, getLegendLayerListSize]);
+
+  // Cleanup any pending animation frame from resize handling.
+  useEffect(() => {
+    return () => {
+      if (resizeRafRef.current !== undefined) {
+        window.cancelAnimationFrame(resizeRafRef.current);
+        resizeRafRef.current = undefined;
+      }
+    };
+  }, []);
 
   // TODO: CLEANUP - Remove the commented code, we're trying to not unmount the Legend panel anymore to check performance 2026-04-07
   // Early return with empty fragment if not the active tab
@@ -186,18 +234,20 @@ export function Legend({ containerType }: LegendType): JSX.Element | null {
 
   return (
     <>
-      <LegendFullscreen
-        layerPaths={layerPaths}
-        mapId={mapId}
-        containerType={containerType}
-        isOpen={isFullScreen}
-        onClose={() => setIsFullScreen(false)}
-        buttonRef={fullScreenBtnRef}
-      />
+      {containerType === CONTAINER_TYPE.APP_BAR && (
+        <LegendFullscreen
+          layerPaths={layerPaths}
+          mapId={mapId}
+          containerType={containerType}
+          isOpen={isFullScreen}
+          onClose={handleCloseFullscreen}
+          buttonRef={fullScreenBtnRef}
+        />
+      )}
 
       <Box sx={memoSxClasses.toggleBar}>
         <ToggleAll containerType={containerType} source="legend" />
-        <LegendFullscreenButton containerType={containerType} onClick={() => setIsFullScreen(true)} buttonRef={fullScreenBtnRef} />
+        <LegendFullscreenButton containerType={containerType} onClick={handleOpenFullscreen} buttonRef={fullScreenBtnRef} />
       </Box>
       <Box
         sx={{ background: theme.palette.geoViewColor.bgColor.main, ...sxClassesMain.container }}

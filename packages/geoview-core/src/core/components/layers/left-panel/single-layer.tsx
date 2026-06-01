@@ -19,7 +19,8 @@ import {
 } from '@/ui';
 import {
   useStoreLayerDisplayState,
-  useStoreLayerSelectedLayerPath,
+  useStoreLayerIsSelected,
+  useStoreLayerHasSelectedDescendant,
   useStoreLayerName,
   useStoreLayerId,
   useStoreLayerStatus,
@@ -102,6 +103,17 @@ export function SingleLayer({
 
   // Ref to track if a reload has been requested
   const reloadRequestedRef = useRef<boolean>(false);
+  const layerIsSelectedRef = useRef<boolean>(false);
+  const layerStatusRef = useRef<string | undefined>(undefined);
+  const layerIdRef = useRef<string | undefined>(undefined);
+  const showLayerDetailsPanelRef = useRef<(layerId: string) => void>(() => undefined);
+  const layerControllerRef = useRef<ReturnType<typeof useLayerController> | undefined>(undefined);
+  const layerCreatorControllerRef = useRef<ReturnType<typeof useLayerCreatorController> | undefined>(undefined);
+  const isFirstRef = useRef<boolean>(false);
+  const isLastRef = useRef<boolean>(false);
+  const inVisibleRangeRef = useRef<boolean | undefined>(undefined);
+  const parentHiddenRef = useRef<boolean>(false);
+  const isZoomToVisibleScaleCapableRef = useRef<boolean>(false);
 
   // Internal state - WCAG accessibility for screen reader announcements
   const prevStatusRef = useRef<string | undefined>(undefined);
@@ -109,9 +121,8 @@ export function SingleLayer({
 
   // Get store states
   const mapId = useStoreGeoViewMapId();
-  const selectedLayerPath = useStoreLayerSelectedLayerPath();
   const displayState = useStoreLayerDisplayState();
-  const layerIsSelected = layerPath === selectedLayerPath && displayState === 'view';
+  const layerIsSelected = useStoreLayerIsSelected(layerPath);
   const isKeyboardNavigationMode = useStoreUIActiveTrapGeoView();
 
   const isVisible = useStoreLayerVisible(layerPath);
@@ -132,6 +143,27 @@ export function SingleLayer({
   // Ref to track previous selection state to distinguish initial render from user action
   const prevIsSelectedRef = useRef<boolean>(layerIsSelected);
 
+  // Keep latest values available to stable callbacks.
+  layerIsSelectedRef.current = layerIsSelected;
+  layerStatusRef.current = layerStatus;
+  layerIdRef.current = layerId;
+  showLayerDetailsPanelRef.current = showLayerDetailsPanel;
+  layerControllerRef.current = layerController;
+  layerCreatorControllerRef.current = layerCreatorController;
+  isFirstRef.current = isFirst;
+  isLastRef.current = isLast;
+  inVisibleRangeRef.current = inVisibleRange;
+  parentHiddenRef.current = parentHidden;
+
+  // Check if any descendant layer is selected.
+  const layerChildIsSelected = useStoreLayerHasSelectedDescendant(layerPath);
+
+  // Check if any layer in the subtree has visibility disabled
+  const isLayerAlwaysVisible = useStoreLayerHasDisabledVisibility(layerPath);
+
+  const itemsCount = layerItems?.filter((d) => d.isVisible !== false).length || 0;
+  const itemsTotalCount = layerItems?.length || 0;
+
   // Build unique ID format
   const panelCloseButtonId = `${mapId}-${containerType}-${TABS.LAYERS}-panel-close-btn`;
   const layerListItemButtonId = `${mapId}-${containerType}-${TABS.LAYERS}-${layerPath}`;
@@ -142,6 +174,7 @@ export function SingleLayer({
   // Is zoom to visible scale button visible?
   const isZoomToVisibleScaleCapable = !inVisibleRange && layerEntryType !== 'group';
   const isZoomToVisibleScaleButton = layerControls?.visibleScale ?? false;
+  isZoomToVisibleScaleCapableRef.current = isZoomToVisibleScaleCapable;
 
   // State to track if delete button should show for loading layers
   const [showDeleteOnLoading, setShowDeleteOnLoading] = useState(false);
@@ -152,41 +185,54 @@ export function SingleLayer({
   // Is visibility button disabled?
   const isLayerVisibleCapable = layerControls?.visibility;
 
+  const containerClassItems: string[] = ['layer-panel ', layerStatus ?? ''];
+
+  if (depth === 0) {
+    containerClassItems.push('bordered');
+  }
+
+  // if layer has selected child but its not itself selected
+  if (layerChildIsSelected && !layerIsSelected && !legendExpanded) {
+    containerClassItems.push('selectedLayer bordered-primary');
+  }
+
+  if (layerIsSelected) {
+    containerClassItems.push('selectedLayer bordered-primary');
+  }
+
+  const containerClass = containerClassItems.join(' ');
+
+  const listItemButtonSx = {
+    minHeight: '4.51rem',
+    ...(!inVisibleRange || parentHidden || !isVisible || layerStatus === 'error' ? memoSxClasses.outOfRange : {}),
+  };
+
   // Timer to show delete button after a delay for loading/processing layers so user can remove them to enable collapse/show all
   useEffect(() => {
     logger.logTraceUseEffect('SINGLE-LAYER - show delete button timer', layerStatus);
 
     if (layerStatus && ['newInstance', 'registered', 'processing', 'loading'].includes(layerStatus)) {
       const timer = setTimeout(() => {
-        setShowDeleteOnLoading(true);
+        setShowDeleteOnLoading((prev) => (prev ? prev : true));
       }, TIMEOUT.deleteLayerLoading);
 
       return () => {
         clearTimeout(timer);
-        setShowDeleteOnLoading(false);
+        setShowDeleteOnLoading((prev) => (prev ? false : prev));
       };
     }
-    setShowDeleteOnLoading(false);
+    setShowDeleteOnLoading((prev) => (prev ? false : prev));
     return undefined;
   }, [layerStatus]);
 
   // Scroll this list item into view if selected
   useEffect(() => {
-    logger.logTraceUseEffect('SINGLE-LAYER - scroll list item into view', layerIsSelected, layerId);
+    logger.logTraceUseEffect('SINGLE-LAYER - scroll list item into view', layerIsSelected);
 
-    if (layerIsSelected && layerId) {
-      const listItem = document.getElementById(layerId);
-      if (listItem) {
-        scrollListItemIntoView(listItem);
-      }
+    if (layerIsSelected && layerListItemRef.current) {
+      scrollListItemIntoView(layerListItemRef.current);
     }
-  }, [layerIsSelected, layerId]);
-
-  // Check if any descendant layer is selected — layer paths are hierarchical so startsWith works
-  const layerChildIsSelected = displayState === 'view' && !!selectedLayerPath && selectedLayerPath.startsWith(`${layerPath}/`);
-
-  // Check if any layer in the subtree has visibility disabled
-  const isLayerAlwaysVisible = useStoreLayerHasDisabledVisibility(layerPath);
+  }, [layerIsSelected]);
 
   // #region Handlers
 
@@ -207,14 +253,16 @@ export function SingleLayer({
    */
   const selectLayerIfNeeded = useCallback(
     (openPanel = true): void => {
-      if (!layerIsSelected && ['processed', 'loaded'].includes(layerStatus!)) {
-        layerController.setSelectedLayerPath(layerPath);
-        if (openPanel) {
-          showLayerDetailsPanel?.(layerId || '');
-        }
+      const currentLayerStatus = layerStatusRef.current;
+
+      if (layerIsSelectedRef.current || !currentLayerStatus || !['processed', 'loaded'].includes(currentLayerStatus)) return;
+
+      layerControllerRef.current?.setSelectedLayerPath(layerPath);
+      if (openPanel) {
+        showLayerDetailsPanelRef.current?.(layerIdRef.current || '');
       }
     },
-    [layerController, layerIsSelected, layerStatus, layerPath, layerId, showLayerDetailsPanel]
+    [layerPath]
   );
 
   /**
@@ -228,8 +276,8 @@ export function SingleLayer({
     selectLayerIfNeeded();
 
     // Set legend collapse value
-    layerController.toggleLegendCollapsed(layerPath);
-  }, [layerPath, selectLayerIfNeeded, layerController, blurOtherLayerButtons]);
+    layerControllerRef.current?.toggleLegendCollapsed(layerPath);
+  }, [layerPath, selectLayerIfNeeded, blurOtherLayerButtons]);
 
   /**
    * Handles keyboard events for expand/shrink of layer groups.
@@ -244,13 +292,13 @@ export function SingleLayer({
         selectLayerIfNeeded(false);
 
         // Set legend collapse value
-        layerController.toggleLegendCollapsed(layerPath);
+        layerControllerRef.current?.toggleLegendCollapsed(layerPath);
 
         // Prevent double-firing via native button click event
         event.preventDefault();
       }
     },
-    [layerPath, layerController, blurOtherLayerButtons, selectLayerIfNeeded]
+    [layerPath, blurOtherLayerButtons, selectLayerIfNeeded]
   );
 
   /**
@@ -258,7 +306,8 @@ export function SingleLayer({
    */
   const handleLayerClick = useCallback((): void => {
     // Only clickable if the layer status is processed or loaded
-    if (!['processed', 'loaded'].includes(layerStatus!)) {
+    const currentLayerStatus = layerStatusRef.current;
+    if (!currentLayerStatus || !['processed', 'loaded'].includes(currentLayerStatus)) {
       return;
     }
 
@@ -266,9 +315,9 @@ export function SingleLayer({
     blurOtherLayerButtons();
 
     // Set selected layer path
-    layerController.setSelectedLayerPath(layerPath);
-    showLayerDetailsPanel?.(layerId || '');
-  }, [layerController, layerPath, layerId, layerStatus, showLayerDetailsPanel, blurOtherLayerButtons]);
+    layerControllerRef.current?.setSelectedLayerPath(layerPath);
+    showLayerDetailsPanelRef.current?.(layerIdRef.current || '');
+  }, [layerPath, blurOtherLayerButtons]);
 
   /**
    * Handles clicking on the reorder arrow buttons.
@@ -279,14 +328,14 @@ export function SingleLayer({
       selectLayerIfNeeded();
 
       // Reorder
-      layerController.reorderLayer(layerPath, direction);
+      layerControllerRef.current?.reorderLayer(layerPath, direction);
 
       // Scroll into view after DOM updates (scrollListItemIntoView utility does not work well for this)
       requestAnimationFrame(() => {
         layerListItemRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
       });
     },
-    [layerPath, selectLayerIfNeeded, layerController]
+    [layerPath, selectLayerIfNeeded]
   );
 
   const handleArrowKeyDown = useCallback(
@@ -296,7 +345,7 @@ export function SingleLayer({
         selectLayerIfNeeded(false);
 
         // Reorder
-        layerController.reorderLayer(layerPath, direction);
+        layerControllerRef.current?.reorderLayer(layerPath, direction);
 
         // Prevent double-firing via native button click event
         event.preventDefault();
@@ -307,7 +356,7 @@ export function SingleLayer({
         });
       }
     },
-    [layerPath, selectLayerIfNeeded, layerController]
+    [layerPath, selectLayerIfNeeded]
   );
 
   const handleArrowKeyDownWrapper = useCallback(
@@ -316,7 +365,7 @@ export function SingleLayer({
       const direction = event.currentTarget.id.includes('up-order') ? -1 : 1;
 
       // Determine if button is disabled based on position
-      const isDisabled = direction === -1 ? isFirst : isLast;
+      const isDisabled = direction === -1 ? isFirstRef.current : isLastRef.current;
 
       // Prevent activation if disabled (but allow navigation keys like Tab)
       if (isDisabled && (event.key === 'Enter' || event.key === ' ')) {
@@ -326,7 +375,7 @@ export function SingleLayer({
 
       handleArrowKeyDown(event, direction);
     },
-    [handleArrowKeyDown, isFirst, isLast]
+    [handleArrowKeyDown]
   );
 
   const handleArrowClickWrapper = useCallback(
@@ -335,7 +384,7 @@ export function SingleLayer({
       const direction = event.currentTarget.id.includes('up-order') ? -1 : 1;
 
       // Determine if button is disabled based on position
-      const isDisabled = direction === -1 ? isFirst : isLast;
+      const isDisabled = direction === -1 ? isFirstRef.current : isLastRef.current;
 
       // Prevent action if disabled
       if (isDisabled) {
@@ -345,20 +394,20 @@ export function SingleLayer({
 
       handleArrowClick(direction);
     },
-    [handleArrowClick, isFirst, isLast]
+    [handleArrowClick]
   );
 
   const handleToggleVisibility = useCallback((): void => {
     // Early return if button is disabled
-    if (!inVisibleRange || parentHidden) {
+    if (!inVisibleRangeRef.current || parentHiddenRef.current) {
       return;
     }
     // Select the layer if not already selected
     selectLayerIfNeeded();
 
     // Toggle visibility
-    layerController.setOrToggleLayerVisibility(layerPath);
-  }, [layerPath, layerController, selectLayerIfNeeded, inVisibleRange, parentHidden]);
+    layerControllerRef.current?.setOrToggleLayerVisibility(layerPath);
+  }, [layerPath, selectLayerIfNeeded]);
 
   /**
    * Handles keyboard events for toggling layer visibility.
@@ -368,7 +417,7 @@ export function SingleLayer({
       // Only handle Enter and Space keys
       if (event.key === 'Enter' || event.key === ' ') {
         // Prevent activation if disabled (but allow navigation keys like Tab)
-        if (!inVisibleRange || parentHidden) {
+        if (!inVisibleRangeRef.current || parentHiddenRef.current) {
           event.preventDefault();
           return;
         }
@@ -377,18 +426,18 @@ export function SingleLayer({
         selectLayerIfNeeded(false);
 
         // Toggle visibility
-        layerController.setOrToggleLayerVisibility(layerPath);
+        layerControllerRef.current?.setOrToggleLayerVisibility(layerPath);
 
         // Prevent double-firing via native button click event
         event.preventDefault();
       }
     },
-    [layerPath, layerController, selectLayerIfNeeded, inVisibleRange, parentHidden]
+    [layerPath, selectLayerIfNeeded]
   );
 
   const handleZoomToLayerVisibleScale = useCallback((): void => {
     // Return early if button is disabled
-    if (!isZoomToVisibleScaleCapable) {
+    if (!isZoomToVisibleScaleCapableRef.current) {
       return;
     }
 
@@ -396,8 +445,8 @@ export function SingleLayer({
     selectLayerIfNeeded();
 
     // Zoom to visible scale
-    layerController.zoomToLayerVisibleScale(layerPath);
-  }, [layerPath, layerController, selectLayerIfNeeded, isZoomToVisibleScaleCapable]);
+    layerControllerRef.current?.zoomToLayerVisibleScale(layerPath);
+  }, [layerPath, selectLayerIfNeeded]);
 
   /**
    * Handles keyboard events for zooming to the layer's visible scale.
@@ -406,7 +455,7 @@ export function SingleLayer({
     (event: React.KeyboardEvent<HTMLButtonElement>): void => {
       if (event.key === 'Enter' || event.key === ' ') {
         // Guard: prevent activation if disabled (but allow navigation keys like Tab)
-        if (!isZoomToVisibleScaleCapable) {
+        if (!isZoomToVisibleScaleCapableRef.current) {
           event.preventDefault();
           return;
         }
@@ -415,13 +464,13 @@ export function SingleLayer({
         selectLayerIfNeeded(false);
 
         // Zoom to visible scale
-        layerController.zoomToLayerVisibleScale(layerPath);
+        layerControllerRef.current?.zoomToLayerVisibleScale(layerPath);
 
         // Prevent double-firing via native button click event
         event.preventDefault();
       }
     },
-    [layerPath, layerController, selectLayerIfNeeded, isZoomToVisibleScaleCapable]
+    [layerPath, selectLayerIfNeeded]
   );
 
   const handleReload = useCallback((): void => {
@@ -429,8 +478,8 @@ export function SingleLayer({
     selectLayerIfNeeded();
 
     // Reload layer
-    layerCreatorController.reloadLayer(layerPath);
-  }, [layerCreatorController, layerPath, selectLayerIfNeeded]);
+    layerCreatorControllerRef.current?.reloadLayer(layerPath);
+  }, [layerPath, selectLayerIfNeeded]);
 
   /**
    * Handles keyboard events for reloading the layer.
@@ -445,18 +494,18 @@ export function SingleLayer({
         reloadRequestedRef.current = true;
 
         // Reload layer
-        layerCreatorController.reloadLayer(layerPath);
+        layerCreatorControllerRef.current?.reloadLayer(layerPath);
 
         // Prevent double-firing via native button click event
         event.preventDefault();
       }
     },
-    [layerCreatorController, layerPath, selectLayerIfNeeded]
+    [layerPath, selectLayerIfNeeded]
   );
 
   // Handlers for keyboard navigation of the sorting arrows and action buttons for accessibility
   const handleFocusWithin = useCallback((): void => {
-    setHasFocusWithin(true);
+    setHasFocusWithin((prev) => (prev ? prev : true));
   }, []);
 
   /**
@@ -465,7 +514,7 @@ export function SingleLayer({
   const handleBlurWithin = useCallback((event: React.FocusEvent<HTMLElement>): void => {
     // Only blur if focus moved outside this layer item
     if (!event.currentTarget.contains(event.relatedTarget)) {
-      setHasFocusWithin(false);
+      setHasFocusWithin((prev) => (prev ? false : prev));
     }
   }, []);
 
@@ -474,7 +523,7 @@ export function SingleLayer({
   /**
    * Computes the layer description text.
    */
-  const memoLayerDescription = useMemo((): JSX.Element | string | null => {
+  const memoLayerDescription = useMemo((): string => {
     // Log
     logger.logTraceUseMemo('SINGLE-LAYER - memoLayerDescription', layerPath, layerStatus);
 
@@ -492,17 +541,14 @@ export function SingleLayer({
       return t('legend.subLayersCount', { count: layerChildPaths.length });
     }
 
-    const count = layerItems?.filter((d) => d.isVisible !== false).length || 0;
-    const totalCount = layerItems?.length || 0;
+    let itemsLengthDesc = t('legend.itemsCount', { count: itemsCount, totalCount: itemsTotalCount });
 
-    let itemsLengthDesc = t('legend.itemsCount', { count, totalCount });
-
-    if (totalCount <= 1) {
+    if (itemsTotalCount <= 1) {
       itemsLengthDesc = '';
     }
 
     return itemsLengthDesc;
-  }, [layerPath, layerStatus, parentHidden, t, layerChildPaths, layerItems]);
+  }, [layerPath, layerStatus, parentHidden, t, layerChildPaths, itemsCount, itemsTotalCount]);
 
   /**
    * Renders the edit mode buttons (reorder arrows).
@@ -712,7 +758,7 @@ export function SingleLayer({
     }
 
     return null;
-  }, [handleExpandGroupClick, handleExpandGroupKeyDown, layerChildPaths, legendExpanded, t]);
+  }, [handleExpandGroupClick, handleExpandGroupKeyDown, layerChildPaths?.length, legendExpanded, t]);
 
   /**
    * Renders the collapsible child layers list.
@@ -797,7 +843,7 @@ export function SingleLayer({
         });
       }
     }
-  }, [layerStatus, layerPath, reloadButtonId, layerListItemButtonId]);
+  }, [layerStatus, reloadButtonId, layerListItemButtonId]);
 
   /**
    * WCAG  - Tracks layer status changes for screen reader announcements.
@@ -850,8 +896,8 @@ export function SingleLayer({
   return (
     <ListItem
       ref={layerListItemRef}
-      className={memoContainerClass}
-      key={layerName}
+      className={containerClass}
+      key={layerPath}
       disablePadding={true}
       data-layer-depth={depth}
       onFocusCapture={handleFocusWithin}
@@ -874,7 +920,7 @@ export function SingleLayer({
             id={layerListItemButtonId}
             onClick={handleLayerClick}
             selected={layerIsSelected || (layerChildIsSelected && !legendExpanded)}
-            sx={memoListItemButtonSx}
+            sx={listItemButtonSx}
             className={!inVisibleRange ? 'out-of-range' : ''}
             aria-current={layerIsSelected ? true : undefined}
           >
