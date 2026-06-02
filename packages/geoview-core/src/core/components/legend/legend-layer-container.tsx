@@ -4,22 +4,20 @@ import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '@mui/material';
 
-import { useLightBox } from '@/core/components/common';
 import { Box, Button, Collapse, List } from '@/ui';
+import type { TypeGeoviewLayerType } from '@/api/types/layer-schema-types';
 import { getSxClasses } from './legend-styles';
 import { ItemsList } from './legend-layer-items';
 import type { LegendLayerProps } from './legend-layer';
+import { useLightBox } from '@/core/components/common';
 import { logger } from '@/core/utils/logger';
-import { layerHasClassItems, layerHasLegendImage } from '@/core/components/layers/types';
+import { layerHasClassItems, layerHasLegendImage, type TypeLegendItem } from '@/core/components/layers/types';
 import type { TypeContainerBox } from '@/core/types/global-types';
 import { useStoreGeoViewMapId } from '@/core/stores/geoview-store';
 import {
-  useStoreLayerChildPaths,
   useStoreLayerIcons,
-  useStoreLayerItems,
   useStoreLayerName,
   useStoreLayerStatus,
-  useStoreLayerSchemaTag,
   useStoreLayerLegendCollapsed,
   useStoreLayerStyleConfig,
 } from '@/core/stores/states/layer-state';
@@ -31,6 +29,9 @@ interface CollapsibleContentProps {
   containerType: TypeContainerBox;
   collapseContainerId: string;
   layerNameId: string;
+  layerChildPaths: string[] | undefined;
+  layerItems: TypeLegendItem[] | undefined;
+  schemaTag: TypeGeoviewLayerType | undefined;
 }
 
 interface WMSLegendImageProps {
@@ -49,15 +50,7 @@ interface WMSLegendImageProps {
  * Memoized to avoid re-rendering when parent CollapsibleContent re-renders due to unrelated state changes.
  */
 const WMSLegendImage = memo(
-  ({
-    imgSrc,
-    legendExpanded,
-    sxClasses,
-    title,
-    mapId,
-    containerType,
-    collapseContainerId,
-  }: WMSLegendImageProps): JSX.Element => {
+  ({ imgSrc, legendExpanded, sxClasses, title, mapId, containerType, collapseContainerId }: WMSLegendImageProps): JSX.Element => {
     // Log
     logger.logTraceRender('components/legend/legend-layer-container - WMSLegendImage');
 

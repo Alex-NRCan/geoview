@@ -4,9 +4,10 @@ import { useTranslation } from 'react-i18next';
 
 import { useTheme } from '@mui/material';
 
-import { useStoreGeoViewMapId } from '@/core/stores/geoview-store';
 import { Box, ListItem, ListItemText, IconButton, KeyboardArrowDownIcon, KeyboardArrowUpIcon, ProgressBar } from '@/ui';
 import { Typography } from '@/ui/typography/typography';
+import type { TypeGeoviewLayerType } from '@/api/types/layer-schema-types';
+import { useStoreGeoViewMapId } from '@/core/stores/geoview-store';
 import {
   useStoreLayerChildPaths,
   useStoreLayerItems,
@@ -19,7 +20,7 @@ import {
   useStoreLayerIcons,
 } from '@/core/stores/states/layer-state';
 import { LayerIcon } from '@/core/components/common/layer-icon';
-import { layerHasClassItems, layerHasLegendImage } from '@/core/components/layers/types';
+import { layerHasClassItems, layerHasLegendImage, type TypeLegendItem } from '@/core/components/layers/types';
 import { SecondaryControls } from './legend-layer-ctrl';
 import { CollapsibleContent } from './legend-layer-container';
 import { getSxClasses } from './legend-styles';
@@ -37,10 +38,13 @@ interface LegendLayerHeaderProps {
   layerPath: string;
   tooltip: string;
   onExpandClick: (event: React.MouseEvent) => void;
-  sxClasses: ReturnType<typeof getSxClasses>;
+  sxClasses: Record<string, object>;
   showControls: boolean;
   layerNameId: string;
   collapseContainerId: string;
+  layerChildPaths: string[] | undefined;
+  layerItems: TypeLegendItem[] | undefined;
+  schemaTag: TypeGeoviewLayerType | undefined;
 }
 
 /**
@@ -61,6 +65,9 @@ const LegendLayerHeader = memo(
     showControls,
     layerNameId,
     collapseContainerId,
+    layerChildPaths,
+    layerItems,
+    schemaTag,
   }: LegendLayerHeaderProps): JSX.Element => {
     // Log
     logger.logTraceRender('components/legend/legend-layer - LegendLayerHeader', layerPath);
@@ -69,11 +76,8 @@ const LegendLayerHeader = memo(
     const isCollapsed = useStoreLayerLegendCollapsed(layerPath);
     const layerHidden = useStoreLayerIsHiddenOnMap(layerPath);
     const layerName = useStoreLayerName(layerPath) ?? layerPath;
-    const layerItems = useStoreLayerItems(layerPath);
     const layerStyleConfig = useStoreLayerStyleConfig(layerPath);
-    const layerChildPaths = useStoreLayerChildPaths(layerPath);
     const layerIcons = useStoreLayerIcons(layerPath);
-    const schemaTag = useStoreLayerSchemaTag(layerPath);
     const layerStatus = useStoreLayerStatus(layerPath);
 
     // Has at least 2 layer items and style config
@@ -130,19 +134,17 @@ LegendLayerHeader.displayName = 'LegendLayerHeader';
  *
  * Triggers screen reader announcements when layer status changes between
  * loading/loaded/error states via ARIA live regions.
+ *
+ * Memoized to prevent the full row tree from re-rendering when unrelated sibling layers change
+ * (e.g. when a new layer is added to the list, existing rows keep their props and skip re-render).
  */
-export function LegendLayer({ layerPath, showControls, containerType }: LegendLayerProps): JSX.Element {
+export const LegendLayer = memo(function LegendLayer({ layerPath, showControls, containerType }: LegendLayerProps): JSX.Element {
   // Log
   logger.logTraceRender('components/legend/legend-layer', layerPath);
 
   // Hooks
   const { t } = useTranslation<string>();
   const theme = useTheme();
-  /** Memoized sx class definitions for the legend layer. */
-  const memoSxClasses = useMemo(() => {
-    logger.logTraceUseMemo('LEGEND-LAYER - memoSxClasses', theme);
-    return getSxClasses(theme);
-  }, [theme]);
 
   // Stores
   const mapId = useStoreGeoViewMapId();
@@ -151,11 +153,20 @@ export function LegendLayer({ layerPath, showControls, containerType }: LegendLa
   const collapseContainerId = `${mapId}-${containerType}-collapse-${id}`; // WCAG - IDs to link collapse buttons to collapsible content related to it (aria-controls)
   const layerStatus = useStoreLayerStatus(layerPath);
   const layerName = useStoreLayerName(layerPath) ?? layerPath;
+  const layerChildPaths = useStoreLayerChildPaths(layerPath);
+  const layerItems = useStoreLayerItems(layerPath);
+  const schemaTag = useStoreLayerSchemaTag(layerPath);
   const layerController = useLayerController();
 
   // Internal state
   const prevStatusRef = useRef<string | undefined>(undefined); // Ref to track previous status for status change detection
   const [statusMessage, setStatusMessage] = useState<string>('');
+
+  /** Memoized sx class definitions for the legend layer. */
+  const memoSxClasses = useMemo(() => {
+    logger.logTraceUseMemo('LEGEND-LAYER - memoSxClasses', theme);
+    return getSxClasses(theme);
+  }, [theme]);
 
   /**
    * Handles click on the layer expand/collapse toggle button.
@@ -212,6 +223,9 @@ export function LegendLayer({ layerPath, showControls, containerType }: LegendLa
         showControls={showControls}
         layerNameId={layerNameId}
         collapseContainerId={collapseContainerId}
+        layerChildPaths={layerChildPaths}
+        layerItems={layerItems}
+        schemaTag={schemaTag}
       />
       {/* WCAG - ARIA live region for screen reader announcements */}
       <Box sx={memoSxClasses.visuallyHidden} role="status" aria-live="polite" aria-atomic="true">
@@ -230,7 +244,12 @@ export function LegendLayer({ layerPath, showControls, containerType }: LegendLa
         containerType={containerType}
         collapseContainerId={collapseContainerId}
         layerNameId={layerNameId}
+        layerChildPaths={layerChildPaths}
+        layerItems={layerItems}
+        schemaTag={schemaTag}
       />
     </ListItem>
   );
-}
+});
+
+LegendLayer.displayName = 'LegendLayer';

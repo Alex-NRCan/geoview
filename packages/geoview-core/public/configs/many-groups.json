@@ -16,8 +16,15 @@
     },
     "listOfGeoviewLayerConfig": [
       {
-        "geoviewLayerType": "geoCore",
-        "geoviewLayerId": "44ef4d33-20b7-45fc-974c-d73a0a8fbae8"
+        "geoviewLayerId": "fisheries",
+        "geoviewLayerId__": "44ef4d33-20b7-45fc-974c-d73a0a8fbae8",
+        "metadataAccessPath": "https://egisp.dfo-mpo.gc.ca/arcgis/rest/services/open_data_donnees_ouvertes/marine_fisheries_atlas_2014_2018_en/MapServer",
+        "geoviewLayerType": "esriDynamic",
+        "listOfLayerEntryConfig": [
+          {
+            "layerId": "0"
+          }
+        ]
       }
     ]
   },
