@@ -15,7 +15,7 @@ import { CONTAINER_TYPE } from '@/core/utils/constant';
 import type { TypeContainerBox } from '@/core/types/global-types';
 import { useEventListener } from '@/core/components/common/hooks/use-event-listener';
 import { useStoreGeoViewMapId } from '@/core/stores/geoview-store';
-import { useStoreLayerAreLayersLoading, useStoreLayerTopLevelLayerPaths } from '@/core/stores/states/layer-state';
+import { useStoreLayerTopLevelLayerPaths } from '@/core/stores/states/layer-state';
 
 interface LegendType {
   containerType: TypeContainerBox;
@@ -58,10 +58,6 @@ export function Legend({ containerType }: LegendType): JSX.Element | null {
   // Hooks
   const { t } = useTranslation<string>();
   const theme = useTheme();
-  const memoSxClasses = useMemo(() => {
-    logger.logTraceUseMemo('LEGEND - memoSxClasses', theme);
-    return getSxClasses(theme);
-  }, [theme]);
 
   // State
   const [legendColumnCount, setLegendColumnCount] = useState(1);
@@ -74,7 +70,11 @@ export function Legend({ containerType }: LegendType): JSX.Element | null {
   // Store
   const mapId = useStoreGeoViewMapId();
   const layerPaths = useStoreLayerTopLevelLayerPaths();
-  const layersAreLoading = useStoreLayerAreLayersLoading();
+
+  const memoSxClasses = useMemo(() => {
+    logger.logTraceUseMemo('LEGEND - memoSxClasses', theme);
+    return getSxClasses(theme);
+  }, [theme]);
 
   // Memoize breakpoint values
   const memoBreakpoints = useMemo(() => {
@@ -123,25 +123,10 @@ export function Legend({ containerType }: LegendType): JSX.Element | null {
     );
   }, [t, memoSxClasses]);
 
-  // Memoize loading content to avoid mounting large row trees while layers are still processing.
-  const memoLoadingContent = useMemo(() => {
-    return (
-      <Box sx={styles.noLayersContainer}>
-        <Typography component="p" sx={memoSxClasses.legendInstructionsBody}>
-          {t('layers.status.layerLoading')}
-        </Typography>
-      </Box>
-    );
-  }, [t, memoSxClasses]);
-
   // Memoize the rendered content based on whether there are legend layers
   const memoContent = useMemo(() => {
     // Log
-    logger.logTraceUseMemo('components/legend - content', memoFormattedLegendLayerList.length, layersAreLoading);
-
-    if (layersAreLoading) {
-      return memoLoadingContent;
-    }
+    logger.logTraceUseMemo('components/legend - content', memoFormattedLegendLayerList.length);
 
     if (!memoFormattedLegendLayerList.length) {
       return memoNoLayersContent;
@@ -164,7 +149,7 @@ export function Legend({ containerType }: LegendType): JSX.Element | null {
     ));
 
     return content;
-  }, [memoFormattedLegendLayerList, memoNoLayersContent, containerType, memoSxClasses, layersAreLoading, memoLoadingContent]);
+  }, [memoFormattedLegendLayerList, memoNoLayersContent, containerType, memoSxClasses]);
 
   /**
    * Handles opening the fullscreen legend panel.
