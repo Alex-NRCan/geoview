@@ -16,6 +16,7 @@ import type { TypeContainerBox } from '@/core/types/global-types';
 import { useEventListener } from '@/core/components/common/hooks/use-event-listener';
 import { useStoreGeoViewMapId } from '@/core/stores/geoview-store';
 import { useStoreLayerTopLevelLayerPaths } from '@/core/stores/states/layer-state';
+import { useStoreUIActiveAppBarTab, useStoreUIActiveFooterBarTab } from '@/core/stores/states/ui-state';
 
 interface LegendType {
   containerType: TypeContainerBox;
@@ -70,6 +71,8 @@ export function Legend({ containerType }: LegendType): JSX.Element | null {
   // Store
   const mapId = useStoreGeoViewMapId();
   const layerPaths = useStoreLayerTopLevelLayerPaths();
+  const activeFooterBarTab = useStoreUIActiveFooterBarTab();
+  const activeAppBarTab = useStoreUIActiveAppBarTab();
 
   const memoSxClasses = useMemo(() => {
     logger.logTraceUseMemo('LEGEND - memoSxClasses', theme);
@@ -213,9 +216,8 @@ export function Legend({ containerType }: LegendType): JSX.Element | null {
     };
   }, []);
 
-  // TODO: CLEANUP - Remove the commented code, we're trying to not unmount the Legend panel anymore to check performance 2026-04-07
-  // Early return with empty fragment if not the active tab
-  // if (activeFooterBarTab.tabId !== 'legend' && activeAppBarTab.tabId !== 'legend') return null;
+  // TODO: PERFORMANCE - Early return when the legend isn't the active tab in either appBar or footerBar. Search id: 39c51cfc
+  if (activeFooterBarTab.tabId !== 'legend' && activeAppBarTab.tabId !== 'legend') return null;
 
   return (
     <>
