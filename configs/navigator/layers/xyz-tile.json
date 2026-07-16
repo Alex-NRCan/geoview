@@ -11,6 +11,20 @@
     },
     "listOfGeoviewLayerConfig": [
       {
+        "geoviewLayerId": "xyzTilesBlue",
+        "geoviewLayerName": "GNOSIS Blue Marble",
+        "metadataAccessPath": "https://maps.gnosis.earth/ogcapi/collections/blueMarble/map/tiles/WebMercatorQuad",
+        "geoviewLayerType": "xyzTiles",
+        "listOfLayerEntryConfig": [
+          {
+            "layerId": "blueMarble",
+            "source": {
+              "dataAccessPath": "https://maps.gnosis.earth/ogcapi/collections/blueMarble/map/tiles/WebMercatorQuad/{z}/{y}/{x}.jpg"
+            }
+          }
+        ]
+      },
+      {
         "geoviewLayerId": "xyzTilesWikimedia",
         "geoviewLayerName": "Wikimedia",
         "geoviewLayerType": "xyzTiles",
