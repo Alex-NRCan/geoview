@@ -11,6 +11,7 @@ import * as Utilities from '@/core/utils/utilities';
 import { Projection } from '@/geo/utils/projection';
 import type { MapViewer } from '@/geo/map/map-viewer';
 import { GeoUtilities } from '@/geo/utils/utilities';
+import { GeoviewRenderer } from '@/geo/utils/renderer/geoview-renderer';
 import { LayerApi } from '@/geo/layer/layer';
 
 import { initMapDivFromFunctionCall, unmountMap } from '@/app';
@@ -37,6 +38,7 @@ export class API {
     geo: GeoUtilities,
     projection: Projection,
     date: DateMgt,
+    renderer: GeoviewRenderer,
   };
 
   /** List of available maps */
