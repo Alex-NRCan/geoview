@@ -2,7 +2,6 @@
       .map-section h3 { margin-bottom: 10px; font-size: 18px; }
       .map-section p { margin-bottom: 10px; color: #666; }</style><script src="cgpv-main.js"></script></head><body><div id="page-header">AppBar Reflow Tests</div><div class="back-to-main"><a href="./index.html?tab=demos">← Back to Main</a></div><div class="map-section"><h3>1. Short Map Height (Forces appBar Scrolling)</h3><p>200px height forces scrollbar with moderate button count</p><div id="map1" class="geoview-map" data-lang="en" data-config="{
           'map': {
-            'interaction': 'dynamic',
             'viewSettings': { 'projection': 3978, 'initialView': { 'zoomAndCenter': [4, [-90, 60]] } },
             'basemapOptions': { 'basemapId': 'transport', 'shaded': false, 'labeled': true },
             'listOfGeoviewLayerConfig': []
@@ -17,7 +16,6 @@
           'theme': 'geo.ca'
         }" style="height: 200px;"></div></div><div class="map-section"><h3>2. Minimal AppBar (No Scrolling)</h3><p>Just 2 buttons - no scrolling needed</p><div id="map2" class="geoview-map" data-lang="en" data-config="{
           'map': {
-            'interaction': 'dynamic',
             'viewSettings': { 'projection': 3978, 'initialView': { 'zoomAndCenter': [4, [-90, 60]] } },
             'basemapOptions': { 'basemapId': 'transport', 'shaded': false, 'labeled': true },
             'listOfGeoviewLayerConfig': []
@@ -32,7 +30,6 @@
           'theme': 'geo.ca'
         }" style="height: 600px;"></div></div><div class="map-section"><h3>3. Maximum AppBar (Tests Scrolling)</h3><p>All tabs enabled - scrollbar should appear</p><div id="map3" class="geoview-map" data-lang="en" data-config="{
           'map': {
-            'interaction': 'dynamic',
             'viewSettings': { 'projection': 3978, 'initialView': { 'zoomAndCenter': [4, [-90, 60]] } },
             'basemapOptions': { 'basemapId': 'transport', 'shaded': false, 'labeled': true },
             'listOfGeoviewLayerConfig': []
@@ -47,7 +44,6 @@
           'theme': 'geo.ca'
         }" style="height: 360px;"></div></div><div class="map-section"><h3>4. Empty AppBar</h3><p>No panel buttons - only export, notifications, version</p><div id="map4" class="geoview-map" data-lang="en" data-config="{
           'map': {
-            'interaction': 'dynamic',
             'viewSettings': { 'projection': 3978, 'initialView': { 'zoomAndCenter': [4, [-90, 60]] } },
             'basemapOptions': { 'basemapId': 'transport', 'shaded': false, 'labeled': true },
             'listOfGeoviewLayerConfig': []
@@ -56,7 +52,6 @@
           'theme': 'geo.ca'
         }" style="height: 600px;"></div></div><div class="map-section"><h3>5. Guide Button Only</h3><p>Guide gets marginTop: auto - should be at bottom</p><div id="map5" class="geoview-map" data-lang="en" data-config="{
           'map': {
-            'interaction': 'dynamic',
             'viewSettings': { 'projection': 3978, 'initialView': { 'zoomAndCenter': [4, [-90, 60]] } },
             'basemapOptions': { 'basemapId': 'transport', 'shaded': false, 'labeled': true },
             'listOfGeoviewLayerConfig': []
