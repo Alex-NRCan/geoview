@@ -183,20 +183,51 @@ function SliderUI(props: SliderProps): JSX.Element {
    */
   const handleChange = useCallback(
     (event: React.SyntheticEvent | Event, newValue: number | number[], activeThumb: number): void => {
+      let correctedValue = newValue;
+      let correctedThumb = activeThumb;
+
+      // GV Fix for MUI Slider overlapping thumbs bug: when both thumbs are at the same value,
+      // GV MUI's internal algorithm always picks the lower-index thumb (left). When the user clicks
+      // GV to the right, MUI moves thumb 0 rightward past thumb 1 — we detect this crossing and
+      // GV swap to correctly attribute the movement to thumb 1 (right thumb).
+      // GV When thumbs are at different values, we manually prevent crossing (replaces disableSwap
+      // GV which blocks the correction above from working).
+      if (Array.isArray(correctedValue) && correctedValue.length === 2 && Array.isArray(sliderValue) && sliderValue.length === 2) {
+        if (sliderValue[0] === sliderValue[1]) {
+          // Thumbs were overlapping — correct MUI's potentially wrong thumb selection
+          if (correctedThumb === 0 && correctedValue[0] > sliderValue[1]) {
+            // MUI moved left thumb right past overlap — should be right thumb moving
+            correctedValue = [sliderValue[0], correctedValue[0]];
+            correctedThumb = 1;
+          } else if (correctedThumb === 1 && correctedValue[1] < sliderValue[0]) {
+            // MUI moved right thumb left past overlap — should be left thumb moving
+            correctedValue = [correctedValue[1], sliderValue[1]];
+            correctedThumb = 0;
+          }
+        } else {
+          // Thumbs at different values — prevent crossing (manual disableSwap)
+          if (correctedThumb === 0) {
+            correctedValue = [Math.min(correctedValue[0], sliderValue[1]), correctedValue[1]];
+          } else {
+            correctedValue = [correctedValue[0], Math.max(correctedValue[1], sliderValue[0])];
+          }
+        }
+      }
+
       // Track active thumb for refocusing after arrow key interactions (see handleKeyDown workaround)
-      activeThumbRef.current = activeThumb;
+      activeThumbRef.current = correctedThumb;
 
       // Update the internal state if not controlled, meaning 'value' isn't provided by the parent component
       if (!isControlled) {
-        setInternalValue(newValue);
+        setInternalValue(correctedValue);
       }
 
       event.preventDefault();
 
       // Callback
-      onChange?.(newValue, activeThumb);
+      onChange?.(correctedValue, correctedThumb);
     },
-    [isControlled, onChange, setInternalValue]
+    [isControlled, onChange, setInternalValue, sliderValue]
   );
 
   /**
@@ -389,7 +420,6 @@ function SliderUI(props: SliderProps): JSX.Element {
       min={min}
       max={max}
       marks={memoProcessedMarks}
-      disableSwap
       valueLabelDisplay={valueLabelDisplayOption}
       valueLabelFormat={onValueLabelFormat}
       getAriaValueText={onValueDisplayAriaLabel}
