@@ -41,23 +41,23 @@ _(Config properties, public API methods, event names — affects external consum
 
 ### MapViewer — New Methods
 
-| Method              | Description                                                                    | PR    |
-| ------------------- | ------------------------------------------------------------------------------ | ----- |
-| `updateViewPadding()` | Updates OL View padding to account for the map-info bar height               | #3562 |
+| Method                | Description                                                    | PR    |
+| --------------------- | -------------------------------------------------------------- | ----- |
+| `updateViewPadding()` | Updates OL View padding to account for the map-info bar height | #3562 |
 
 ### LayerApi — Removed / Deprecated Methods
 
-| Method              | Status     | Replacement    | PR    |
-| ------------------- | ---------- | -------------- | ----- |
+| Method              | Status     | Replacement                                     | PR    |
+| ------------------- | ---------- | ----------------------------------------------- | ----- |
 | `getOLLayerAsync()` | Deprecated | Use GV layer types instead of OL types directly | #3562 |
 
 ### LayerApi — Signature Changes
 
-| Method                                      | Change                                                                   | PR    |
-| ------------------------------------------- | ------------------------------------------------------------------------ | ----- |
-| `zoomToLayerExtent(layerPath, fitOptions?)` | New signature: `zoomToLayerExtent(layerPath, useAnimation, fitOptions?)` | #3544 |
+| Method                                      | Change                                                                                | PR    |
+| ------------------------------------------- | ------------------------------------------------------------------------------------- | ----- |
+| `zoomToLayerExtent(layerPath, fitOptions?)` | New signature: `zoomToLayerExtent(layerPath, useAnimation, fitOptions?)`              | #3544 |
 | `waitForLayerRegistered(layerPath)`         | New signature: `waitForLayerRegistered(layerPath, timeout?)` — added optional timeout | #3562 |
-| `waitForAllLayersStatus(layerStatus)`       | Now `async` (was returning a raw promise chain)                          | #3562 |
+| `waitForAllLayersStatus(layerStatus)`       | Now `async` (was returning a raw promise chain)                                       | #3562 |
 
 ### Controller — Renames
 
@@ -67,17 +67,17 @@ _(Config properties, public API methods, event names — affects external consum
 
 ### Type Changes
 
-| Item                           | Change                                              | PR    |
-| ------------------------------ | --------------------------------------------------- | ----- |
-| `degreeRotation`               | Type changed from `string` to `number`              | #3544 |
-| `whenThisThen` default timeout | Changed from 10 seconds to `undefined` (no timeout) | #3544 |
-| `emitLayerFilterApplied`       | Privatized — no longer accessible externally        | #3544 |
-| `createGeoviewLayerConfig` / `processGeoviewLayerConfig` | All layer types now accept `TypeLayerEntryShell[]` instead of `layerIds[]`, giving callers more flexibility | #3562 |
-| `ConfigApi.processLayerFromType` | Parameter renamed from `layerIds` to `layerEntries` (`TypeLayerEntryShell[]`) | #3562 |
-| `onceEventPromise`             | Now accepts an optional `timeout` parameter (replaces short-lived `onceEventPromiseWithTimeout`) | #3562 |
-| `CallbackNewMetadataDelegate`  | Removed — replaced by `FetchWithProxyResult<T>` return wrapper in `GeoUtilities` | #3562 |
-| `GeoUtilities.fetchWMSMetadata` / `fetchWFSMetadata` / `fetchWMTSMetadata` | Now return `FetchWithProxyResult<T>` instead of raw data + callback | #3562 |
-| `OVERVIEW_MAP_MIN_CONTAINER_WIDTH` | Changed from `900` to `700` px | #3562 |
+| Item                                                                       | Change                                                                                                      | PR    |
+| -------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------- | ----- |
+| `degreeRotation`                                                           | Type changed from `string` to `number`                                                                      | #3544 |
+| `whenThisThen` default timeout                                             | Changed from 10 seconds to `undefined` (no timeout)                                                         | #3544 |
+| `emitLayerFilterApplied`                                                   | Privatized — no longer accessible externally                                                                | #3544 |
+| `createGeoviewLayerConfig` / `processGeoviewLayerConfig`                   | All layer types now accept `TypeLayerEntryShell[]` instead of `layerIds[]`, giving callers more flexibility | #3562 |
+| `ConfigApi.processLayerFromType`                                           | Parameter renamed from `layerIds` to `layerEntries` (`TypeLayerEntryShell[]`)                               | #3562 |
+| `onceEventPromise`                                                         | Now accepts an optional `timeout` parameter (replaces short-lived `onceEventPromiseWithTimeout`)            | #3562 |
+| `CallbackNewMetadataDelegate`                                              | Removed — replaced by `FetchWithProxyResult<T>` return wrapper in `GeoUtilities`                            | #3562 |
+| `GeoUtilities.fetchWMSMetadata` / `fetchWFSMetadata` / `fetchWMTSMetadata` | Now return `FetchWithProxyResult<T>` instead of raw data + callback                                         | #3562 |
+| `OVERVIEW_MAP_MIN_CONTAINER_WIDTH`                                         | Changed from `900` to `700` px                                                                              | #3562 |
 
 ## Breaking Changes — Developer-Only (Internal)
 
@@ -140,6 +140,8 @@ _(Fixes discovered or applied during this cycle)_
 - Fixed scale control accessibility labeling by correcting the aria-label translation key wiring for map info scale output (#3581)
 - Fixed overview-map visible on load when `hideOnZoom` threshold should hide it (e.g., outlier-elections-2019.html) (#3562)
 - Fixed Swiper layer opacity handling by rewriting clip logic for features based on slider position (#3562)
+- Fixed Swiper rendering isolation so clipping is applied only to selected layers and their descendants (#3597)
+- Fixed time-slider reset behavior and dual-handle constraints so registered defaults are preserved and handles remain separated (#3569, #3599)
 - Fixed abort controller in add-new-layer component when clicking 'back' then completing steps to add a layer (#3562)
 - Fixed WMS CRS override when layers are behind a proxy — was re-encoding the entire string instead of only adjusting CRS and BBOX properties (#3562)
 - Fixed zoom-to-feature-geometry working even when the geometry field is not included in the outFields configuration (#3562)
@@ -182,6 +184,7 @@ _(Optimizations, refactors, structural changes)_
 - `ConfigApi.fetchStyleFromWMS` now uses `FetchWithProxyResult` internally (#3562)
 - New `onceEventPromise` timeout parameter for creating one-shot event listeners that auto-reject after a deadline (#3562)
 - New `RUN_DEBUG_ONLY` flag in test-suite package for isolating individual test execution during development (#3562)
+- Enforced type safety in style files: replaced `theme: any` with `theme: Theme`, replaced return type `: any` with `: SxStyles`, removed `@typescript-eslint/no-explicit-any` suppressions across all packages (geoview-core, about-panel, aoi-panel, custom-legend, filter-panel, stac-browser, swiper, time-slider)
 
 ## Accessibility (WCAG)
 
@@ -194,6 +197,15 @@ _(WCAG fixes and improvements)_
 - Fixed nav bar reflow at high zoom and constrained viewport sizes with scrollable overflow behavior, improved expand/collapse affordance, and map-info overlap fixes (#3581)
 - Fixed map info bar reflow with horizontal overflow handling and improved expand/collapse state management for constrained layouts (#3581)
 - Improved responsive popper behavior for version, attribution, notifications, and nav bar panel components with enhanced focus management and keyboard handling (#3558)
+- Fixed guide anchor links with unique ID prefixes to prevent duplicate anchor conflicts, enabling proper scroll navigation within guide sections (#3524)
+- Updated footer bar interaction to use declarative React pattern for tab selection (#3418)
+- Fixed details panel scrolling issue when navigating between features with prev/next buttons — focus now stays on the button without viewport scroll (#3567)
+- Fixed critical WCAG bug where entering fullscreen mode deactivated WCAG mode due to zero-movement mousemove events during browser resize animation — now only real mouse movement (movementX/Y !== 0) exits WCAG mode (#3591)
+- Improved legend panel styling: moved inline CSS to legend-styles, added spacing between subtitle and icon buttons, improved button divider spacing, added ARIA to layer icon groups
+- Fixed export panel reflow issues: removed breakpoint hiding export icon button in appBar, updated layout for usability at smaller viewports and 400% zoom level (#3594)
+- Fixed time-slider reflow issues: panel header "time filtering" label now wraps for legibility at high zoom, simplified CSS consolidation (#3595)
+- Updated A11Y documentation: documented ESC key behavior in fullscreen mode and focus trap behavior when multiple panels auto-open simultaneously (#3490)
+- Improved about panel styling: replaced hard-coded values with theme tokens, consolidated CSS into about-panel-style.ts (#3477)
 
 ## Documentation & Cleanup
 
@@ -233,6 +245,8 @@ _(Tests added, moved, removed, or reorganized)_
 - Updated test for JSON behind CORS (URL blocked by NRCan) (#3562)
 - Configured new proxy in test-suite for upcoming proxy features (#3562)
 - New `RUN_DEBUG_ONLY` flag for isolating test execution during development (#3562)
+- Added a swiper rendering-isolation regression test covering descendant path resolution, per-target OL render handlers, CSS clip-path removal, and listener cleanup
+- Added `suite-time-slider` with reset-to-default and dual-handle overlap constraint regression tests, plus a dedicated temporal-layer test map
 
 ## Config Schema Changes
 
