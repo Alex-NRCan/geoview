@@ -114,6 +114,8 @@ _(User-facing features added or enabled)_
 
 _(Fixes discovered or applied during this cycle)_
 
+- Fixed large ESRI Feature layers (~30k+ features) failing to load on the first attempt: `EsriFeature.#fetchEsriFeaturesByChunk` fired every paged chunk request at once with no concurrency cap or retry, so a single load-induced `500 | Error performing query operation` on one chunk dropped the entire layer (it only worked on reload once the ArcGIS server had cached the queries). The loader now throttles concurrent chunk requests (`Math.min(10, hardwareConcurrency * 2)`, mirroring the ESRI worker) and retries transient failures (HTTP 5xx / ESRI embedded query error / network / timeout) with exponential backoff, so the layer loads reliably on the first try (#3613)
+- Fixed missing loading indicator when opening the data table for a vector layer: on the first click there was no visual feedback (no layer-box progress bar, no skeleton) while the table built, because vector layers have no real query (features are already downloaded) and the heavy synchronous table build blocked the first paint. Clicking a layer now sets a loading state that shows the left-panel progress bar and the right-panel skeleton, the table mount is deferred a frame so the skeleton paints first, and a table-rendered callback clears the indicator once the table is ready
 - Fixed viewer crash when opening the data table for a layer that exposes an empty/blank field name (e.g. a GeoPackage/GDAL unnamed column): Material React Table threw `Columns require an id when using an accessorFn`. Inferred vector layers (GeoJSON/CSV) now skip empty field names at outfield creation (`AbstractGeoViewVector.processFeatureInfoConfig`); the data-table column builders guard against blank keys (which is what protects GeoPackage, whose outfields are built by `GeoPackageReader` and bypass that inference); and the details panel drops label-less fields (#3621)
 - Fixed WMS layer querying through WFS to also consider filtering when layer has style but feature is not symbolized (Cities query) without breaking behavior when no symbologies could be read for WFS (Major Projects query) (#3555)
 - Improved projection information reading from metadata for all layer types — now stored in store for layer-info panel (#3555)
@@ -217,6 +219,9 @@ _(WCAG fixes and improvements)_
 - Updated A11Y documentation: documented ESC key behavior in fullscreen mode and focus trap behavior when multiple panels auto-open simultaneously (#3490)
 - Improved about panel styling: replaced hard-coded values with theme tokens, consolidated CSS into about-panel-style.ts (#3477)
 - Implemented comprehensive focus indicator system with new `IGeoViewFocusIndicator` interface (outline + halo colors) in all themes, `getFocusIndicatorStyles()` helper for WCAG 2.1 SC 2.4.7 compliance, and consistent 3px outline width across all interactive components (#3236)
+- Fixed the footer panel close button breaking the focus trap when viewing the guide (#3618)
+- Fixed the count styling next to duplicated notification items in the notifications panel (#3622)
+- Enforced unique, `mapId`-scoped DOM element IDs across the viewer to prevent duplicate-ID conflicts with multiple map instances: removed unused IDs from drawer buttons, crosshair, and the `GeoCaIcon`/north-arrow decorative paths; `mapId`-scoped the remaining drawer button, north-arrow group (`NorthArrowIcon` now takes a `mapId` prop), export button, and keyboard-navigation (WCAG) modal button IDs; and refactored `FocusTrapContainer`'s ambiguous `id` prop into a clearly-named, `mapId`-scoped `focusTrapContainerId` across all 4 call sites (panel, geolocator, version, tab-panel) (#3220)
 
 ## Documentation & Cleanup
 
