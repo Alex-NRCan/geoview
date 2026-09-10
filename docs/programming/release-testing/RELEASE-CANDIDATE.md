@@ -108,11 +108,13 @@ _(User-facing features added or enabled)_
 - New `MapViewer.updateViewPadding()` and `mapController.updateViewPadding()` for dynamic map-info bar padding (#3562)
 - New `waitForLayerQueryToFinish` timeout parameter on `AllFeatureInfoLayerSet` (#3562)
 - Development builds (local `rush serve` / `rush build-dev` and the gh-pages develop preview) now show a `-dev.<shortHash>` suffix in the app bar Version popover (e.g. `v.2.3.0-dev.a1b2c3d`) so users can distinguish them from official releases, which stay clean (`v.2.3.0`) (#3610)
+- Added built-in `canada.ca` display theme with Government of Canada-inspired colors and typography (#3609)
 
 ## Bug Fixes
 
 _(Fixes discovered or applied during this cycle)_
 
+- Fixed viewer crash when opening the data table for a layer that exposes an empty/blank field name (e.g. a GeoPackage/GDAL unnamed column): Material React Table threw `Columns require an id when using an accessorFn`. Inferred vector layers (GeoJSON/CSV) now skip empty field names at outfield creation (`AbstractGeoViewVector.processFeatureInfoConfig`); the data-table column builders guard against blank keys (which is what protects GeoPackage, whose outfields are built by `GeoPackageReader` and bypass that inference); and the details panel drops label-less fields (#3621)
 - Fixed WMS layer querying through WFS to also consider filtering when layer has style but feature is not symbolized (Cities query) without breaking behavior when no symbologies could be read for WFS (Major Projects query) (#3555)
 - Improved projection information reading from metadata for all layer types — now stored in store for layer-info panel (#3555)
 - Greatly improved `Projection` class flexibility in function parameters and stability (#3555)
@@ -153,6 +155,12 @@ _(Fixes discovered or applied during this cycle)_
 - Fixed broken layer in performance.json template demo (#3562)
 - Fixed creationDate field type in metadata (#3562)
 - Added precision slack on zoom-to-extent to compensate for minor floating-point precision issues (#3562)
+- Fixed WMS services with duplicate group `<Name>` values at different nesting levels (e.g. `canimage_en`: `canimage → canimage → canimage-030`) causing crashes — `RangeError: Maximum call stack size exceeded` in the Add Layer tree and an infinite loop on config-based add. Layer lookups now resolve by full view path instead of bare-id first-match (#3521)
+- Fixed WMS layers whose defined (native) CRS is a deprecated or non-existent EPSG code (e.g. `EPSG:42304`) killing layer creation — the invalid bounding-box/native CRS is now skipped so the layer still renders when the map projection is supported, and a `warning.layer.projectionNotValid` notification is shown to the user (#3521)
+- Fixed `zoomToExtentRestricted()` to respect effective min/max scale visibility boundaries without preventing valid close-range zooms — the previous logic interpreted the layer min scale too aggressively and blocked otherwise valid zoom-in operations.
+- Improved WMS extent/feature-query fallback handling so WFS-derived output is parsed across multiple response formats instead of assuming only JSON, matching the broader `fetchWithFormatFallback()` behavior used elsewhere.
+- Corrected `FeatureInfoLayerSet` public result mapping so callers receive feature-info results with the associated `layerPath` while internal status bookkeeping remains separate and stable.
+- Added regression coverage for geometry availability when a layer config excludes the geometry field from `outFields`, and for zoom-to-extent behavior on empty, single-feature, and many-feature scenarios.
 
 ## Build & Dependencies
 
@@ -208,6 +216,7 @@ _(WCAG fixes and improvements)_
 - Fixed time-slider reflow issues: panel header "time filtering" label now wraps for legibility at high zoom, simplified CSS consolidation (#3595)
 - Updated A11Y documentation: documented ESC key behavior in fullscreen mode and focus trap behavior when multiple panels auto-open simultaneously (#3490)
 - Improved about panel styling: replaced hard-coded values with theme tokens, consolidated CSS into about-panel-style.ts (#3477)
+- Implemented comprehensive focus indicator system with new `IGeoViewFocusIndicator` interface (outline + halo colors) in all themes, `getFocusIndicatorStyles()` helper for WCAG 2.1 SC 2.4.7 compliance, and consistent 3px outline width across all interactive components (#3236)
 
 ## Documentation & Cleanup
 
@@ -230,6 +239,7 @@ _(Doc updates, demo cleanup, code organization)_
 
 _(Tests added, moved, removed, or reorganized)_
 
+- Added automated `suite-data-table` test `testEmptyFieldNameDoesNotCrashDataTable` (DataTableTester) guarding the empty-field data-table crash: a new GeoPackage fixture (`datasets/geopackages/railways-emptyfieldname.gpkg`, table `carto_fer_debarcadere` under layer `railwaysEmptyField`) with a blank-named column exposes an empty-named field; the test opens the data table for that layer and asserts the table element renders (i.e. MRT does not throw `Columns require an id when using an accessorFn`). GeoPackage is used because it preserves a blank column verbatim (via `GeoPackageReader.#processFeatureInfoConfig`), whereas GeoJSON/CSV go through the filtered inference path (`suite-data-table` 12 → 13; `00-automated-suite` total 272 → 273).
 - New automated test case for group layer with `defaultVisibility: false` (#3544)
 - New `suite-data-table` test suite (12 tests): allFeaturesDataArray populated, geoviewID hidden, mapFilteredRecord, global filter + DOM disabled check, column filters set/clear, column visibility toggle, rowsFilteredRecord, filter-by-extent absent for esriDynamic, filter-by-extent on GeoJSON, showUnsymbolizedFeatures pre-filter
 - New `suite-details` tests (6 total): details panel query, clear all highlights, zoom to feature, nameField as label, summary false hides field, field alias renames field
@@ -252,19 +262,24 @@ _(Tests added, moved, removed, or reorganized)_
 - Added fixed-height map layout tests for maps with and without a footer bar (#3601)
 - Audited suite totals against active full-suite tester calls: corrected `suite-map-config` to 39; debug-only and commented-out calls remain excluded
 - Fixed sequential execution in `suite-core` so the XYZ tile URL test is awaited before the following test
+- Added 3 manual layers tests for WMS services with duplicate group `<Name>` values at different nesting levels (#3521): Add Layer UI selection of the `canimage` group (no `RangeError`) plus a new config-based Map 10 (`rt-08-layers.html`) verifying the `canimage`/`canimage` duplicate group loads and renders without hanging
+- Added automated `suite-layer` test `testAddWMSDuplicateGroupNames` (LayerTester) guarding issue #3521 — loads the `canimage_en` WMS by its duplicate top group id, asserts the nested `canimage/canimage` path is built and a deep leaf loads without infinite-looping (`suite-layer` total 41 → 43: +1 for the new test and +1 for correctly counting the heavy-conditional test that was previously excluded)
+- Added regression tests covering the feature-info geometry fallback when `outFields` omits the geometry column, and `zoomToExtent` behavior for empty, single-feature, and many-feature layer cases.
 
 ## Config Schema Changes
 
 _(Properties added, renamed, or with changed defaults)_
 
+- Added `canada.ca` as a valid `theme` configuration value; default remains `geo.ca` (#3609)
+
 ## Updated Counts
 
 | Metric        | Before | After |
 | ------------- | ------ | ----- |
-| Total tests   | 901    | 903   |
+| Total tests   | 901    | 906   |
 | Automated (A) | 60     | 62    |
 | Candidate (C) | 169    | 169   |
-| Manual (M)    | 672    | 672   |
+| Manual (M)    | 672    | 675   |
 
 ## Notes for Release Notes Author
 
