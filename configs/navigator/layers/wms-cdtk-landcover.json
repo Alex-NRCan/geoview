@@ -16,35 +16,20 @@
         "geoviewLayerType": "ogcWms",
         "listOfLayerEntryConfig": [
           {
-            "layerId": "landcover_2010_19classes",
-            "initialSettings": {
-              "controls": {
-                "visibility": false
-              }
-            }
+            "layerId": "landcover_2010_19classes"
           },
           {
-            "layerId": "landcover_2015_19classes",
-            "initialSettings": {
-              "controls": {
-                "visibility": false
-              }
-            }
+            "layerId": "landcover_2015_19classes"
           },
           {
-            "layerId": "landcover_2020_19classes",
-            "initialSettings": {
-              "controls": {
-                "visibility": false
-              }
-            }
+            "layerId": "landcover_2020_19classes"
           }
         ]
       },
       {
-        "geoviewLayerId": "lancover-direct",
-        "geoviewLayerName": "Landcover Direct",
-        "metadataAccessPath": "https://qgis-stage.cdtk.geogc.ca/ows/nrcan/landcover_2010_15_20_en",
+        "geoviewLayerId": "landcover-xml-group-no-style",
+        "geoviewLayerName": "Landcover 2010-2020 NoStyle (XML)",
+        "metadataAccessPath": "./datasets/wms/landcover_groupe_nostyle.xml",
         "geoviewLayerType": "ogcWms",
         "listOfLayerEntryConfig": [
           {
@@ -77,6 +62,38 @@
         "geoviewLayerId": "landcover-vrt-group-explicit",
         "geoviewLayerName": "Landcover VRT Grp Explicit",
         "metadataAccessPath": "https://qgis-stage.cdtk.geogc.ca/ows/nrcan/landcover_vrt_fr",
+        "geoviewLayerType": "ogcWms",
+        "listOfLayerEntryConfig": [
+          {
+            "layerId": "landcover_2010_19classes",
+            "initialSettings": {
+              "states": {
+                "visible": false
+              }
+            }
+          },
+          {
+            "layerId": "landcover_2015_19classes",
+            "initialSettings": {
+              "states": {
+                "visible": false
+              }
+            }
+          },
+          {
+            "layerId": "landcover_2020_19classes",
+            "initialSettings": {
+              "states": {
+                "visible": false
+              }
+            }
+          }
+        ]
+      },
+      {
+        "geoviewLayerId": "lancover-direct",
+        "geoviewLayerName": "Landcover Direct (Bad?)",
+        "metadataAccessPath": "https://qgis-stage.cdtk.geogc.ca/ows/nrcan/landcover_2010_15_20_en",
         "geoviewLayerType": "ogcWms",
         "listOfLayerEntryConfig": [
           {
@@ -254,7 +271,7 @@
               "landcover-xml-group/base-group/landcover_2015_19classes",
               "landcover-xml-group/base-group/landcover_2020_19classes"
             ],
-            "title": "Land Cover Slider",
+            "title": "Landcover 2010-2020 (XML)",
             "filtering": true,
             "timeDimension": {
               "default": [
