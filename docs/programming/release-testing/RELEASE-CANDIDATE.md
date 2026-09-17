@@ -109,6 +109,9 @@ _(User-facing features added or enabled)_
 - New `waitForLayerQueryToFinish` timeout parameter on `AllFeatureInfoLayerSet` (#3562)
 - Development builds (local `rush serve` / `rush build-dev` and the gh-pages develop preview) now show a `-dev.<shortHash>` suffix in the app bar Version popover (e.g. `v.2.3.0-dev.a1b2c3d`) so users can distinguish them from official releases, which stay clean (`v.2.3.0`) (#3610)
 - Added built-in `canada.ca` display theme with Government of Canada-inspired colors and typography (#3609)
+- Improved WMS style and ESRI Image raster-function selection to Layer Settings, including metadata-driven initial selections.
+- Added temporal metadata to Layer Info, including normalized range values, ISO 8601 duration intervals, and grouped-dimension status.
+- Added support to the special QGIS group dimension configuration allowing time-dimension WMS rasters to function with the time-slider.
 
 ## Bug Fixes
 
@@ -147,6 +150,8 @@ _(Fixes discovered or applied during this cycle)_
 - Fixed Swiper layer opacity handling by rewriting clip logic for features based on slider position (#3562)
 - Fixed Swiper rendering isolation so clipping is applied only to selected layers and their descendants (#3597)
 - Fixed time-slider reset behavior and dual-handle constraints so registered defaults are preserved and handles remain separated (#3569, #3599)
+- Improved WMS temporal metadata handling by retaining ISO 8601 interval durations, resolving supported OGC `current` values during parsing, and synchronizing supported parent-group dimensions across direct sibling layers.
+- Improved ESRI Image identify and raster-function preview requests, including reuse of in-flight preview requests.
 - Fixed abort controller in add-new-layer component when clicking 'back' then completing steps to add a layer (#3562)
 - Fixed WMS CRS override when layers are behind a proxy — was re-encoding the entire string instead of only adjusting CRS and BBOX properties (#3562)
 - Fixed zoom-to-feature-geometry working even when the geometry field is not included in the outFields configuration (#3562)
