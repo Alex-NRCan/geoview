@@ -87,6 +87,7 @@ _(Internal code patterns, MUI props, build tooling — does NOT affect external 
 - MUI v7→v9: `PopperProps` replaced by `slotProps.popper` in MuiTooltip theme config (#3545)
 - MUI v7→v9: Inline system props (padding, direction, fontSize, visibility) moved to `sx={{}}` (#3545)
 - MUI v7→v9: 3 icon renames (`*Outline` → `*Outlined` suffix), Tabs `ScrollButtonComponent` removed (#3545)
+- DOM id convention: several viewer element IDs were flipped from `suffix-${mapId}` to the canonical `${mapId}-suffix` format — `shell-${mapId}`→`${mapId}-shell`, `map-${mapId}`→`${mapId}-map`, `main-map-${mapId}`→`${mapId}-main-map`, `mapTargetElement-${mapId}`→`${mapId}-mapTargetElement`, `toplink-/bottomlink-${mapId}`→`${mapId}-toplink`/`${mapId}-bottomlink`. Plugins, tests, or CSS that query these element IDs directly must update (in-repo swiper and test-suite already updated) (#3221)
 
 ## New Features
 
@@ -109,6 +110,8 @@ _(User-facing features added or enabled)_
 - New `waitForLayerQueryToFinish` timeout parameter on `AllFeatureInfoLayerSet` (#3562)
 - Development builds (local `rush serve` / `rush build-dev` and the gh-pages develop preview) now show a `-dev.<shortHash>` suffix in the app bar Version popover (e.g. `v.2.3.0-dev.a1b2c3d`) so users can distinguish them from official releases, which stay clean (`v.2.3.0`) (#3610)
 - Added built-in `canada.ca` display theme with Government of Canada-inspired colors and typography (#3609)
+- New `cgpv.api.utilities.dom` public surface exposing the map-scoped DOM helpers (`buildGVElementId`, `getGVRootElement`, `getGVElementById`, `getGVElementByFullId`, `getGVMapTargetElement`, `getGVShellElement`, `getGVGuidebox`, `queryGVSelector`/`queryGVSelectorAll`) so plugins and framework consumers can resolve map-scoped elements without deep-importing internal modules (#3221)
+- Layers hidden on the map now stay listed in the data table, details, geochart, and time slider panels under a separate **Hidden layers** section (greyed/italic, non-interactive) with an inline eye toggle to restore visibility directly from the list, so a table/chart/slider for a hidden layer stays discoverable without opening the Layers panel. Includes a new `LayerController.setLayerVisibleIncludingParents()` that crawls parent groups (a child hidden only because its group is hidden becomes visible again) and a new `useStoreLayerInVisibleRangeSet()` store selector; out-of-scale-range filtering, the Legend, and the Layers panel are unchanged (#3635)
 - Improved WMS style and ESRI Image raster-function selection to Layer Settings, including metadata-driven initial selections.
 - Added temporal metadata to Layer Info, including normalized range values, ISO 8601 duration intervals, and grouped-dimension status.
 - Added support to the special QGIS group dimension configuration allowing time-dimension WMS rasters to function with the time-slider.
@@ -168,8 +171,9 @@ _(Fixes discovered or applied during this cycle)_
 - Improved WMS extent/feature-query fallback handling so WFS-derived output is parsed across multiple response formats instead of assuming only JSON, matching the broader `fetchWithFormatFallback()` behavior used elsewhere.
 - Corrected `FeatureInfoLayerSet` public result mapping so callers receive feature-info results with the associated `layerPath` while internal status bookkeeping remains separate and stable.
 - Added regression coverage for geometry availability when a layer config excludes the geometry field from `outFields`, and for zoom-to-extent behavior on empty, single-feature, and many-feature scenarios.
-- Fixed viewer freeze when querying details for an ESRI Dynamic feature whose geometry is pathologically complex (e.g. a huge polygon with thousands of holes near the Labrador Sea in the CNFASAR Priority Place service): highlighting the feature forced OpenLayers to re-rasterize thousands of ring subpaths on every animation frame, blocking the main thread — which also starved the ESRI image-load callbacks and tripped the `warning.layer.slowRender` warning. `FeatureHighlight.highlightFeature` now counts the geometry's vertices and, above 50000, skips highlighting and shows a `warning.layer.geometryTooComplexToHighlight` notification (once per feature) instead of freezing; zoom-to-feature-extent still works since it uses the feature extent (#3162)
 - Fixed viewer freeze when querying details for an ESRI Dynamic feature whose geometry is pathologically complex (e.g. a multipolygon with thousands of holes spanning the whole layer extent, like the CNFASAR Priority Place service near the Labrador Sea): highlighting the feature forced OpenLayers to re-rasterize thousands of ring subpaths on every animation frame, blocking the main thread — which also starved the ESRI image-load callbacks and tripped the `warning.layer.slowRender` warning. Geometries above `GeometryApi.MAX_RENDERABLE_COORDINATES` (50000 vertices) are now considered too complex: `FeatureHighlight.highlightFeature` skips rendering them and shows a `warning.layer.geometryTooComplexToHighlight` notification (once per feature). Zoom-to-feature stays enabled in both the details panel and the data table (it uses the feature extent), and only the details keep-highlight button is disabled for such features (via `GeometryApi.canRenderGeometry`) (#3162)
+- Fixed guide search on multi-map pages navigating/scrolling the first map's guide instead of the current map's (it used a global `document.querySelectorAll`); navigation is now scoped to the current map's `.guidebox-container[data-map-id]` and targets the visible guide box so scroll also works while the guide is fullscreen (#3221)
+- Fixed the selected layer not scrolling into view in the Layers panel: the effect targeted a bare, non-`mapId`-scoped element id that no element actually used; it now scrolls the real list-item element (`${mapId}-${containerType}-layers-${layerPath}`) (#3221)
 
 ## Build & Dependencies
 
@@ -204,6 +208,8 @@ _(Optimizations, refactors, structural changes)_
 - New `onceEventPromise` timeout parameter for creating one-shot event listeners that auto-reject after a deadline (#3562)
 - New `RUN_DEBUG_ONLY` flag in test-suite package for isolating individual test execution during development (#3562)
 - Enforced type safety in style files: replaced `theme: any` with `theme: Theme`, replaced return type `: any` with `: SxStyles`, removed `@typescript-eslint/no-explicit-any` suppressions across all packages (geoview-core, about-panel, aoi-panel, custom-legend, filter-panel, stac-browser, swiper, time-slider)
+- Added map-scoped DOM access helpers in `@/core/utils/dom-helper` (`buildGVElementId`, `getGVElementById`, `getGVElementByFullId`, `getGVRootElement`, `queryGVSelector`/`queryGVSelectorAll`) plus the `useGVElementById` hook, and migrated every in-repo `document.getElementById`/`querySelector` lookup to them so DOM ids are always `mapId`-scoped and queries are restricted to a single map's subtree; added an ESLint `no-restricted-syntax` guard (warning-level, wrapper file exempt) banning direct `document.getElementById`/`querySelector`/`querySelectorAll`, with justified inline exceptions for genuinely global lookups (script tags, the lightbox singleton overlay, mapId-less UI components, body-portaled elements) (#3221)
+- Extended the map-scoped DOM helpers with named landmark getters (`getGVMapTargetElement`, `getGVShellElement`, `getGVGuidebox`) plus a `GV_DOM_SUFFIX` constant as the single source of truth for landmark id suffixes, and a reactive `useStoreAppMapTargetElement` hook; `useStoreAppShellContainer` now delegates to `useGVElementById`, and the guide's fullscreen-portaled guidebox lookup (previously duplicated across `guide.tsx`/`guide-search.tsx`) is centralized in `getGVGuidebox`. Documented the reactive-hook-vs-imperative-getter rule in best-practices §18 (#3221)
 
 ## Accessibility (WCAG)
 
@@ -229,6 +235,13 @@ _(WCAG fixes and improvements)_
 - Fixed the footer panel close button breaking the focus trap when viewing the guide (#3618)
 - Fixed the count styling next to duplicated notification items in the notifications panel (#3622)
 - Enforced unique, `mapId`-scoped DOM element IDs across the viewer to prevent duplicate-ID conflicts with multiple map instances: removed unused IDs from drawer buttons, crosshair, and the `GeoCaIcon`/north-arrow decorative paths; `mapId`-scoped the remaining drawer button, north-arrow group (`NorthArrowIcon` now takes a `mapId` prop), export button, and keyboard-navigation (WCAG) modal button IDs; and refactored `FocusTrapContainer`'s ambiguous `id` prop into a clearly-named, `mapId`-scoped `focusTrapContainerId` across all 4 call sites (panel, geolocator, version, tab-panel) (#3220)
+- Fixed a focus-trap loop when a map/crosshair click opened the Details panel while `details` was configured in **both** the footer bar and the app bar — two MUI focus traps competed for focus. `openDetailsPanelOnMapClick` now opens details in the footer only when the footer hosts it (preferring footer, matching `useNavigateToTab`), so a single focus trap is ever active (#3221)
+- Removed the legacy `.keyboard-focused` class-tracking JS/CSS in favor of native `:focus-visible`/MUI `.Mui-focusVisible`; crosshair activation logic renamed from `#manageKeyboardFocus` to `#manageMapCrosshairOnFocus` (#3607)
+- Added keyboard-only focus indicators for MUI form controls (TextField, Select, Autocomplete, date-pickers) via a new `getFormControlFocusIndicatorStyles` helper, scoped to a React-managed `.geoview-keyboard-active` class on the shell so mouse clicks never trigger the outline (`:focus-visible` alone leaks on text inputs); unified the Slider thumb focus ring to the shared `getFocusIndicatorStyles` helper (#3630)
+- Fixed lightbox prev/next navigation buttons losing keyboard focus at the first/last slide by using `aria-disabled` instead of the native `disabled` attribute, restoring vendor CSS button styling (#3637)
+- Fixed the nav bar "Expand Drawing tools group" icon button losing keyboard focus after being pressed in WCAG mode (#3630)
+- Fixed an empty `<ul>` element appearing in the generated legend layer container HTML (#3630)
+- Hidden-layers panel lists render as two separate semantic lists ("Available layers" / "Hidden layers") with `aria-labelledby` headings and an `aria-live` region announcing when a layer moves between lists; hidden rows are non-interactive (`tabIndex=-1`, no click/keydown handlers) with the eye toggle as the sole control, and focus is restored by stable id after a layer is re-enabled (the item re-mounts when moving between the two lists) (#3635)
 
 ## Documentation & Cleanup
 
@@ -246,6 +259,9 @@ _(Doc updates, demo cleanup, code organization)_
 - Improved add-new-layer component to resolve ESLint warning about `react/no-unstable-nested-components` (#3562)
 - Clearer static-image-errors.json template (#3562)
 - Improved HTML descriptions of all test suites (#3562)
+- Documented the map-scoped DOM access rules: new best-practices §18 (wrappers vs. the root store hook/getter, the ban on direct `document.*`, and the legitimate-exception pattern), cross-links in using-store.md and test-templates.md, and a summary note in copilot-instructions.md (#3221)
+- Migrated Add Layer and Focus Trap inline `sx` styles to external `add-new-layer-style.ts` / `containers-style.ts` files (#3630)
+- Documented the "Hidden layers" section + inline eye toggle in the guide (en/fr) across the Details, Data Table, Time Slider, and Chart panels; added a "Hidden Layers in Component Panel Lists" subsection to copilot-instructions.md capturing the composite `layerHiddenSet` vs `inVisibleRangeSet` split, `setLayerVisibleIncludingParents`, clear-selection-on-hide, and the two-list/remount focus patterns (#3635)
 
 ## Test Plan Changes
 
@@ -277,6 +293,10 @@ _(Tests added, moved, removed, or reorganized)_
 - Added 3 manual layers tests for WMS services with duplicate group `<Name>` values at different nesting levels (#3521): Add Layer UI selection of the `canimage` group (no `RangeError`) plus a new config-based Map 10 (`rt-08-layers.html`) verifying the `canimage`/`canimage` duplicate group loads and renders without hanging
 - Added automated `suite-layer` test `testAddWMSDuplicateGroupNames` (LayerTester) guarding issue #3521 — loads the `canimage_en` WMS by its duplicate top group id, asserts the nested `canimage/canimage` path is built and a deep leaf loads without infinite-looping (`suite-layer` total 41 → 43: +1 for the new test and +1 for correctly counting the heavy-conditional test that was previously excluded)
 - Added regression tests covering the feature-info geometry fallback when `outFields` omits the geometry column, and `zoomToExtent` behavior for empty, single-feature, and many-feature layer cases.
+- Added automated `suite-layer` test `testSetLayerVisibleIncludingParents` (LayerTester) for the hidden-layers feature (#3635): adds a GeoJSON group with a visible child, hides the parent group, and asserts the child is flagged hidden on the map (`getStoreLayerIsHiddenOnMap`) while staying in scale range (`getStoreLayerInVisibleRangeLayerPaths`) — i.e. it would appear in the panels' "Hidden layers" section rather than be filtered out as out-of-range — then calls `LayerController.setLayerVisibleIncludingParents()` and asserts the parent crawl restores the child's effective visibility (moving it back to the available list). Bumped `suite-layer` `getTestsTotalFinal` 42 → 43 to include the new test; `test-catalog.md` and `00-automated-suite.md` already read 43 and now match the actual count.
+- Added automated `suite-ui` test `testControllerGetFooterHeight` (UITester) proving a non-React consumer can reach the combined store+DOM getter `UIController.getFooterHeight()` via the controller registry (`suite-ui` 1 → 2; `00-automated-suite` total 273 → 274; `test-catalog` declared total 229 → 230). Introduced `getGVRootDataAttribute` (dom-helper, DOM half) and `UIController.getFooterHeight()` (combines the consumer `data-footer-height` attribute with the store `appHeight` fallback); footer-bar now reads the attribute via `getGVRootDataAttribute` while keeping the reactive `useStoreAppHeight` hook (#3221)
+
+- Added 7 manual tests in `08-layers.md` for the actual Available/Hidden DOM lists in Details, Data Table, Chart, and Time Slider; the custom slider remains Available with either its main path or only an additional path visible, enters Hidden only when all four backing layers are hidden, and restores all four with one eye click without enabling an unrelated group. Grouped Airborne station tests verify parent visibility restoration from each consumer panel; keyboard tests cover native labelled lists, non-interactive hidden rows, eye activation, announcements, and focus after remount. Added Map 11 and its configuration snippet to `rt-08-layers.html`, using one shared `08-hidden-layer-lists.json` derived from the existing custom time-slider and Airborne chart demos. No automated tests added. Synchronized issue section counts and README counts, including existing Details/Global Settings drift; recounted manual-plan totals are 913 (60 A / 169 C / 684 M), with Layers at 133 (1 A / 23 C / 109 M).
 
 ## Config Schema Changes
 
@@ -288,10 +308,10 @@ _(Properties added, renamed, or with changed defaults)_
 
 | Metric        | Before | After |
 | ------------- | ------ | ----- |
-| Total tests   | 901    | 906   |
-| Automated (A) | 60     | 62    |
+| Total tests   | 901    | 913   |
+| Automated (A) | 60     | 60    |
 | Candidate (C) | 169    | 169   |
-| Manual (M)    | 672    | 675   |
+| Manual (M)    | 672    | 684   |
 
 ## Notes for Release Notes Author
 
