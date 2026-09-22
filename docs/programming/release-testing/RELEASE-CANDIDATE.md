@@ -103,6 +103,7 @@ _(User-facing features added or enabled)_
 - New `ConfigValidation.isListOfLayerEntryConfigValidated` to prevent double-validation in `addGeoviewLayer()` (#3544)
 - Map configuration `map.interaction` is no longer mandatory in schema; when omitted, runtime defaults to `dynamic` (#3584)
 - New `waitForLayerConfigRegistered` in layer-domain and enhanced `waitForLayerRegistered` with optional timeout (#3562)
+- New `waitForLoadedOnce` lifecycle wait on GV layers; group layers wait for all descendant leaf layers before resolving
 - New `getRendererContainer` function on `AbstractBaseGVLayer` (#3562)
 - New `waitForDomElement`, `waitForDomContent`, and `waitForDomChange` test utilities for explicit React UI tracking (#3562)
 - Map view now uses `viewOptions.padding` to account for the map-info bar height (#3562)
@@ -153,6 +154,7 @@ _(Fixes discovered or applied during this cycle)_
 - Fixed Swiper layer opacity handling by rewriting clip logic for features based on slider position (#3562)
 - Fixed Swiper rendering isolation so clipping is applied only to selected layers and their descendants (#3597)
 - Fixed time-slider reset behavior and dual-handle constraints so registered defaults are preserved and handles remain separated (#3569, #3599)
+- Fixed Add Layer WMS group selection so selecting every child preserves the parent group `layerId` and lets WMS expand its sub-layers during layer creation instead of serializing duplicate child entries.
 - Improved WMS temporal metadata handling by retaining ISO 8601 interval durations, resolving supported OGC `current` values during parsing, and synchronizing supported parent-group dimensions across direct sibling layers.
 - Improved ESRI Image identify and raster-function preview requests, including reuse of in-flight preview requests.
 - Fixed abort controller in add-new-layer component when clicking 'back' then completing steps to add a layer (#3562)
@@ -184,6 +186,8 @@ _(Fixes discovered or applied during this cycle)_
 - Corrected notification severity/namespace for two messages: "Unable to zoom, the provided extent is invalid" is now a warning (`warning.map.invalidZoomExtent`), and the layer-loading progress bar's aria-label moved out of the error namespace (`map.status.loadingLayers`) (#3388)
 - Shapefile layers now log a warning when a configured `layerId` doesn't match the shapefile inside the archive (previously silently ignored) (#3388)
 - `getLocalizedMessage` now returns plugin-provided raw text verbatim instead of logging a misleading "missing message key" error, so `notifications.showXxx`/`addNotificationXxx` accept literal strings from external devs (#3388)
+- Fixed the same panel being allowed in both `appBar.tabs.core` and `footerBar.tabs.core`, which produced two instances of the panel and caused UI bugs (e.g. competing focus traps when `details` was in both bars). `MapFeatureConfig` now detects panels declared in both bars after merge, keeps the app bar occurrence, drops the duplicates from the footer bar, and shows a single `warning.config.duplicatedPanels` notification naming the removed panels. Also fixed schema drift where the footer bar enum was missing `guide` (present in the TS type and defaults), which had been triggering a spurious generic schema warning (#3648)
+- Fixed ESRI Dynamic identify highlighting the wrong polygon when a single click at a shared boundary/junction returns multiple coincident features: the Details panel showed one feature's attributes (e.g. Saskatchewan) while a neighbouring feature's polygon (e.g. Nunavut) was highlighted, on both the initial click and prev/next navigation. `GVEsriDynamic.getFeatureInfoAtLonLat()` assigned the separately-fetched geometries to entries by array index, but the geometry `query` returns features in OBJECTID order while `identify` returns them in draw order — so each entry received a neighbour's geometry. Geometries are now paired to their entry by OBJECTID instead of by position (#3636)
 
 ## Build & Dependencies
 
@@ -303,9 +307,11 @@ _(Tests added, moved, removed, or reorganized)_
 - Fixed sequential execution in `suite-core` so the XYZ tile URL test is awaited before the following test
 - Added 3 manual layers tests for WMS services with duplicate group `<Name>` values at different nesting levels (#3521): Add Layer UI selection of the `canimage` group (no `RangeError`) plus a new config-based Map 10 (`rt-08-layers.html`) verifying the `canimage`/`canimage` duplicate group loads and renders without hanging
 - Added automated `suite-layer` test `testAddWMSDuplicateGroupNames` (LayerTester) guarding issue #3521 — loads the `canimage_en` WMS by its duplicate top group id, asserts the nested `canimage/canimage` path is built and a deep leaf loads without infinite-looping (`suite-layer` total 41 → 43: +1 for the new test and +1 for correctly counting the heavy-conditional test that was previously excluded)
+- Added automated `suite-layer` coverage for the local CDT landcover WMS fixture: selecting the parent group verifies group-dimension metadata, while selecting the three child layers directly verifies the group-dimension flag is absent; `suite-time-slider` also verifies the group and all three children are registered in the time-slider store.
 - Added regression tests covering the feature-info geometry fallback when `outFields` omits the geometry column, and `zoomToExtent` behavior for empty, single-feature, and many-feature layer cases.
 - Added automated `suite-layer` test `testSetLayerVisibleIncludingParents` (LayerTester) for the hidden-layers feature (#3635): adds a GeoJSON group with a visible child, hides the parent group, and asserts the child is flagged hidden on the map (`getStoreLayerIsHiddenOnMap`) while staying in scale range (`getStoreLayerInVisibleRangeLayerPaths`) — i.e. it would appear in the panels' "Hidden layers" section rather than be filtered out as out-of-range — then calls `LayerController.setLayerVisibleIncludingParents()` and asserts the parent crawl restores the child's effective visibility (moving it back to the available list). Bumped `suite-layer` `getTestsTotalFinal` 42 → 43 to include the new test; `test-catalog.md` and `00-automated-suite.md` already read 43 and now match the actual count.
 - Added automated `suite-ui` test `testControllerGetFooterHeight` (UITester) proving a non-React consumer can reach the combined store+DOM getter `UIController.getFooterHeight()` via the controller registry (`suite-ui` 1 → 2; `00-automated-suite` total 273 → 274; `test-catalog` declared total 229 → 230). Introduced `getGVRootDataAttribute` (dom-helper, DOM half) and `UIController.getFooterHeight()` (combines the consumer `data-footer-height` attribute with the store `appHeight` fallback); footer-bar now reads the attribute via `getGVRootDataAttribute` while keeping the reactive `useStoreAppHeight` hook (#3221)
+- Added automated `suite-layer` test `testEsriDynamicJunctionGeometryPairing` (LayerTester) for issue #3636: adds the GNWT `Boundaries_LCC/0` ESRI Dynamic layer, zooms to a known shared boundary/junction (`[-101.513948, 59.990713]`), queries there, waits for the separate geometry query, then asserts each returned entry's geometry pairs to its **own** OBJECTID — the entry extent center is within 50 km of the ground-truth geometry independently fetched via `getRecordsByOIDs([oid], mapSR)`, far below inter-territory distances (a neighbour swap would be hundreds of km). Bumped `suite-layer` `getTestsTotalFinal` 43 → 44; `00-automated-suite` total 275 → 277 (runs on both LCC and WM maps); `test-catalog` suite-layer 43 → 44. The corresponding manual row in `10-details.md` is now flagged `A`.
 
 - Added 7 manual tests in `08-layers.md` for the actual Available/Hidden DOM lists in Details, Data Table, Chart, and Time Slider; the custom slider remains Available with either its main path or only an additional path visible, enters Hidden only when all four backing layers are hidden, and restores all four with one eye click without enabling an unrelated group. Grouped Airborne station tests verify parent visibility restoration from each consumer panel; keyboard tests cover native labelled lists, non-interactive hidden rows, eye activation, announcements, and focus after remount. Added Map 11 and its configuration snippet to `rt-08-layers.html`, using one shared `08-hidden-layer-lists.json` derived from the existing custom time-slider and Airborne chart demos. No automated tests added. Synchronized issue section counts and README counts, including existing Details/Global Settings drift; recounted manual-plan totals are 913 (60 A / 169 C / 684 M), with Layers at 133 (1 A / 23 C / 109 M).
 
@@ -314,16 +320,19 @@ _(Tests added, moved, removed, or reorganized)_
 _(Properties added, renamed, or with changed defaults)_
 
 - Added `canada.ca` as a valid `theme` configuration value; default remains `geo.ca` (#3609)
+- Added `guide` to the footer bar `tabs.core` and `selectedTab` enums in `schema.json` to match the TypeScript type and defaults (fixes schema drift; non-breaking, additive) (#3648)
 
 ## Updated Counts
 
 | Metric        | Before | After |
 | ------------- | ------ | ----- |
-| Total tests   | 901    | 913   |
-| Automated (A) | 60     | 60    |
+| Total tests   | 901    | 916   |
+| Automated (A) | 60     | 62    |
 | Candidate (C) | 169    | 169   |
-| Manual (M)    | 672    | 684   |
+| Manual (M)    | 672    | 685   |
 
 ## Notes for Release Notes Author
 
-_(Anything the release note author should highlight)_
+Highlight the temporal-layer improvements: WMS group dimensions now synchronize supported sibling layers with the time slider, normalized metadata retains ISO 8601 interval durations, and Layer Info exposes the resulting temporal metadata. Layer Settings also provides metadata-aware WMS style and ESRI Image raster-function selection.
+
+Call out the new hidden-layer workflow in Details, Data Table, Chart, and Time Slider panels, including parent visibility restoration and accessible list behavior. The release includes regression coverage for WMS group dimensions, duplicate WMS group names, large ESRI Feature loading, and ESRI Dynamic geometry pairing.
