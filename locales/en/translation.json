@@ -249,14 +249,16 @@
     "errorNoBounds": "Couldn't find bounds for layer '{{layerPath}}'.",
     "errorNoExtent": "No extent for layer '{{layerPath}}'.",
     "errorInvalidExtent": "Invalid extent '{{extent}}'.",
-    "errorNonreloadableLayer": "This layer cannot be reloaded. Make sure it was loaded at least once before.",
+    "errorNonreloadableLayer": "This layer cannot be reloaded because its original configuration is unavailable.",
     "layerReloaded": "Layer '{{layerName}}' reloaded successfully.",
     "fetchProgress": "Fetching data for '{{layerName}}'... Retrieved {{processed}} of {{total}} records.",
     "fetchDone": "Data fetched for '{{layerName}}' - {{total}} records.",
     "fetchStart": "Fetching data for '{{layerName}}'...",
     "only": "only",
     "opacity": "Opacity (%)",
+    "opacityAriaLabel": "{{name}} layer {{label}}",
     "opacityMax": "Maximum from parent",
+    "opacityValueText": "{{value}}%",
     "outOfVisibleRange": "out of visible range",
     "reloadLayer": "Reload layer",
     "reloadSublayers": "Reload all layers in error",
@@ -282,6 +284,8 @@
     "layerPath": "Layer Path",
     "layerType": "Type: ",
     "layerOgcVersion": "OGC Version",
+    "layerVectorStructureFullUrl": "Vector Structure: ",
+    "layerWmsGetStylesFullUrl": "WMS GetStyles: ",
     "layerBounds": "Bounds ({{mapProjectionEPSG}})",
     "layerBounds4326": "Bounds (EPSG:4326)",
     "layerMaxScale": "Max Scale",
@@ -462,7 +466,11 @@
     "changeDisplayLanguage": "Only 'en' and 'fr' are supported",
     "changeDisplayTheme": "Theme unsupported",
     "changeDisplayProjection": "Projection unsupported",
-    "invalidConfig": "Invalid JSON config, default configuration applied."
+    "invalidConfig": "Invalid JSON config, default configuration applied.",
+    "wfsRenderer": {
+      "getStylesInvalidResponse": "Invalid StyledLayerDescriptor (SLD). Check the 'GetStyles' response.",
+      "getStylesNotSupported": "Not Supported Styles: {{cause}}"
+    }
   },
   "exportModal": {
     "title": "Map preview",
@@ -482,7 +490,8 @@
     "letter": "Letter",
     "legal": "Legal",
     "tabloid": "Tabloid",
-    "previewAlt": "Export Preview"
+    "previewAlt": "Export Preview",
+    "loadingPreview": "Loading preview..."
   },
   "geolocator": {
     "title": "Geolocator",
@@ -577,8 +586,11 @@
   "footerBar": {
     "resizeTooltip": "Resize",
     "resizeAriaLabel": "Resize footer panel",
+    "footerPanelHeight": "Footer panel height",
+    "resizeValueText": "{{value}}%",
     "noTab": "No tab",
-    "tabsLabel": "Footer panel tabs"
+    "tabsLabel": "Footer panel tabs",
+    "tabsSelectionLabel": "Panel selection"
   },
   "toggleAll": {
     "show": "Show All",

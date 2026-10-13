@@ -1,0 +1,166 @@
+{
+  "configMeta": {
+    "description": "Experimental: WFS vector layer examples from multiple services including feature-info overrides and BBOX loading. This demo page showcases WFS services without an associated WMS layer.<ul><li>Cities Experimental: Test of a WFS using its associated WMS.</li><li>Cities Experimental (explicit): Test of a WFS using its associated explicitely defined WMS. It's not necessary in this case, because the application can infer these parameters (proof the other Cities layer works), but it's to show how one can configure it.</li><li>Débit de circulation: Test of a WFS with incomplete ogc Filters for some class rendering styling.</li><li>Condition routière hivernale du réseau routier: Test of a WFS with incomplete ogc Filters for some class rendering styling.</li><li>Élement de drainage: Test of a WFS using its associated WMS with linear style.</li><li>Réseau routier - RTSS: Test of a WFS with class rendering style acting strangely depending on the zoom level, explanation?</li><li>Sous-ministériat aux territoires: Test of a WFS using its associated WMS with polygon style.</li><li>Radar photo: Test of a WFS failing to use their associated WMS with point style due to incomplete PointSymbolizer information in the GetStyles.</li><li>Site d'investigation géotechnique: Test of a WFS failing to use their associated WMS with point style due to incomplete PointSymbolizer information in the GetStyles.</li><li>Sortie d'autoroute: Test of a WFS failing to use their associated WMS with point style due to incomplete PointSymbolizer information in the GetStyles.</li><li>Aéroport: Test of a WFS failing to use their associated WMS with point style due to incomplete PointSymbolizer information in the GetStyles.</li><li>Potential de glissement - Surface: Test of WFS with style coming from its associated WMS GetStyles.</li><li>Potential de glissement - Ligne: Test of WFS with style coming from its associated WMS GetStyles.</li><li>Potential de glissement - Index: Test of WFS with style coming from its associated WMS GetStyles.</li><li>Couche publique des historiques d'embâcle: Test of a WFS only partly successing in creating the style from the incomplete style information in the GetStyles of the WMS. Also, investigate why there is no time-slider getting activated whereas the WMS equivalent does have a time-slider?</li><li>Limites territoriales (MSP): Test of a WFS which fails when querying the GetFeature for vector data queries due to the proxy not strong enough to return all the data.</li><li>Casernes de pompiers: Test of a WFS failing to use their associated WMS with point style due to incomplete PointSymbolizer information in the GetStyles.</li></ul>"
+  },
+  "map": {
+    "viewSettings": {
+      "projection": 3857
+    },
+    "basemapOptions": {
+      "basemapId": "transport",
+      "shaded": false,
+      "labeled": true
+    },
+    "listOfGeoviewLayerConfig": [
+      {
+        "geoviewLayerId": "cities",
+        "geoviewLayerName": "Cities Experimental",
+        "metadataAccessPath": "https://demo.mapserver.org/cgi-bin/wfs",
+        "geoviewLayerType": "ogcWfs",
+        "listOfLayerEntryConfig": [
+          {
+            "layerId": "ms:cities",
+            "source": {
+              "featureInfo": {
+                "nameField": "NAME"
+              }
+            }
+          }
+        ]
+      },
+      {
+        "geoviewLayerId": "cities-explicit",
+        "geoviewLayerName": "Cities Experimental (explicit)",
+        "metadataAccessPath": "https://demo.mapserver.org/cgi-bin/wfs",
+        "geoviewLayerType": "ogcWfs",
+        "listOfLayerEntryConfig": [
+          {
+            "layerId": "ms:cities",
+            "wmsUrl": "https://demo.mapserver.org/cgi-bin/wms",
+            "wmsLayerId": "cities",
+            "source": {
+              "featureInfo": {
+                "nameField": "NAME"
+              }
+            },
+            "initialSettings": {
+              "states": { "visible": false }
+            }
+          }
+        ]
+      },
+      {
+        "geoviewLayerId": "transports",
+        "geoviewLayerName": "Transports",
+        "metadataAccessPath": "https://ws.mapserver.transports.gouv.qc.ca/swtq",
+        "geoviewLayerType": "ogcWfs",
+        "listOfLayerEntryConfig": [
+          {
+            "layerId": "ms:circulation_routier"
+          },
+          {
+            "layerId": "ms:conditions_routieres"
+          },
+          {
+            "layerId": "ms:iit_v_drang_condu_permn_ligne"
+          },
+          {
+            "layerId": "ms:bgr_v_sous_route_res_sup_act"
+          },
+          {
+            "layerId": "ms:bgr_v_dirct_genrl_geomt_act"
+          },
+          {
+            "layerId": "ms:radars_photos"
+          },
+          {
+            "layerId": "ms:site_inv_geotech_p"
+          },
+          {
+            "layerId": "ms:sortie_aut"
+          },
+          {
+            "layerId": "ms:aeroport"
+          },
+          {
+            "entryType": "group",
+            "layerId": "glissements-terrain",
+            "layerName": "Zone potentiellement exposée aux glissements de terrain (ZPEGT)",
+            "listOfLayerEntryConfig": [
+              {
+                "layerId": "ms:zpegt_cgt_s"
+              },
+              {
+                "layerId": "ms:zpegt_cgt_l"
+              },
+              {
+                "layerId": "ms:zpegt_index_cgt_s"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "geoviewLayerId": "gouv-ouvert",
+        "geoviewLayerName": "Gouv Ouvert (proxied)",
+        "metadataAccessPath": "https://geoegl.msp.gouv.qc.ca/ws/igo_gouvouvert.fcgi",
+        "geoviewLayerType": "ogcWfs",
+        "listOfLayerEntryConfig": [
+          {
+            "layerId": "ms:vg_observation_v_inondation_embacle_wmst",
+            "layerName": "Couche publique des historiques d'embâcle répertorié au MSP"
+          },
+          {
+            "layerId": "ms:MSP_DIRECTION_REG_COG_S",
+            "layerName": "Limites territoriales (MSP)"
+          },
+          {
+            "layerId": "ms:CASERNE",
+            "layerName": "Casernes de pompiers"
+          }
+        ]
+      }
+    ]
+  },
+  "components": [
+    "overview-map",
+    "north-arrow"
+  ],
+  "overviewMap": {
+    "hideOnZoom": 7
+  },
+  "navBar": [
+    "zoom",
+    "rotation",
+    "fullscreen",
+    "home",
+    "location",
+    "measurement",
+    "basemap-select",
+    "projection"
+  ],
+  "appBar": {
+    "tabs": {
+      "core": [
+        "geolocator",
+        "legend",
+        "details",
+        "export"
+      ]
+    }
+  },
+  "footerBar": {
+    "tabs": {
+      "core": [
+        "layers",
+        "data-table",
+        "time-slider"
+      ]
+    }
+  },
+  "corePackages": [],
+  "theme": "geo.ca",
+  "serviceUrls": {
+    "proxyUrl": "https://proxy.app-dev.geo.ca"
+  }
+}

@@ -249,14 +249,16 @@
     "errorNoBounds": "Impossible de trouver les limites pour la couche '{{layerPath}}'.",
     "errorNoExtent": "Aucune étendue définie pour la couche '{{layerPath}}'.",
     "errorInvalidExtent": "Étendue invalide '{{extent}}'.",
-    "errorNonreloadableLayer": "Cette couche ne peut être rechargée. Assurez-vous qu'elle a déjà été chargée au moins une fois.",
+    "errorNonreloadableLayer": "Cette couche ne peut pas être rechargée, car sa configuration d’origine est introuvable.",
     "layerReloaded": "La couche '{{layerName}}' a été rechargée avec succès.",
     "fetchProgress": "Téléchargement des données pour « {{layerName}} »... Téléchargé {{processed}} de {{total}} enregistrements.",
     "fetchDone": "Données téléchargées pour « {{layerName}} » - {{total}} enregistrements.",
     "fetchStart": "Téléchargement des données pour « {{layerName}} »...",
     "only": "seulement",
     "opacity": "Opacité (%)",
+    "opacityAriaLabel": "{{label}} de la couche {{name}}",
     "opacityMax": "Maximum du parent",
+    "opacityValueText": "{{value}} %",
     "outOfVisibleRange": "hors de la plage visible",
     "reloadLayer": "Recharger la couche",
     "reloadSublayers": "Recharger toutes les couches en erreur",
@@ -282,6 +284,8 @@
     "layerPath": "Chemin de la couche",
     "layerType": "Type : ",
     "layerOgcVersion": "Version OGC",
+    "layerVectorStructureFullUrl": "Url structure vectorielle: ",
+    "layerWmsGetStylesFullUrl": "Url GetStyles : ",
     "layerBounds": "Étendu ({{mapProjectionEPSG}})",
     "layerBounds4326": "Étendu (EPSG:4326)",
     "layerMaxScale": "Échelle maximale",
@@ -462,7 +466,11 @@
     "changeDisplayLanguage": "Seulement 'en' et 'fr' sont supporées",
     "changeDisplayTheme": "Theme non supporté",
     "changeDisplayProjection": "Projection non supportée",
-    "invalidConfig": "Configuration JSON non valide, configuration par défaut appliquée."
+    "invalidConfig": "Configuration JSON non valide, configuration par défaut appliquée.",
+    "wfsRenderer": {
+      "getStylesInvalidResponse": "Descriptor de couche stylée (SLD) invalide. Vérifiez la réponse 'GetStyles'.",
+      "getStylesNotSupported": "Styles non supportés : {{cause}}"
+    }
   },
   "exportModal": {
     "title": "Aperçu de la carte",
@@ -482,7 +490,8 @@
     "letter": "Lettre",
     "legal": "Légal",
     "tabloid": "Tabloïd",
-    "previewAlt": "Aperçu de l'exportation de la carte"
+    "previewAlt": "Aperçu de l'exportation de la carte",
+    "loadingPreview": "Chargement de l'aperçu..."
   },
   "geolocator": {
     "title": "Géolocalisation",
@@ -577,8 +586,11 @@
   "footerBar": {
     "resizeTooltip": "Redimensionner",
     "resizeAriaLabel": "Redimensionner le panneau de pied de page",
+    "footerPanelHeight": "Hauteur du panneau de pied de page",
+    "resizeValueText": "{{value}} %",
     "noTab": "Pas d'onglet",
-    "tabsLabel": "Onglets du panneau de pied de page"
+    "tabsLabel": "Onglets du panneau de pied de page",
+    "tabsSelectionLabel": "Sélection du panneau"
   },
   "toggleAll": {
     "show": "Afficher tout",
