@@ -551,7 +551,7 @@
     "showAll": "Tout afficher",
     "hideAll": "Tout masquer"
   },
-  "geochart": {
+  "geoChart": {
     "noChartAvailable": "Cliquer sur une couche de la carte qui contient un graphique"
   },
   "testSuite": {
