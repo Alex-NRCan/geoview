@@ -1049,6 +1049,8 @@ export function AddNewLayer(): JSX.Element {
 
     if (activeStep === 0) {
       // Focus the upload button using the ref
+      // GV Here, the delay isn't expected to crash. It's safe to use 'void' keyword and disable the eslint to simplify code management
+      // eslint-disable-next-line @typescript-eslint/no-floating-promises
       void delay(0).then(() => {
         uploadButtonRef.current?.focus();
       });
