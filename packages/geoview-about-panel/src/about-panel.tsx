@@ -73,18 +73,15 @@ function MarkdownFromPath(props: TypeMarkdownFromPathProps): JSX.Element {
   useEffect(() => {
     logger.logTraceUseEffect('ABOUT PANEL - FETCH MARKDOWN', mdPath);
 
-    const fetchMarkdown = async (): Promise<void> => {
-      try {
-        const text = await Fetch.fetchText(mdPath);
+    void Fetch.fetchText(mdPath)
+      .then((text: string): void => {
         setContent(text);
-      } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-        logger.logError('Error fetching markdown file:', err);
+      })
+      .catch((fetchError: unknown): void => {
+        const errorMessage = fetchError instanceof Error ? fetchError.message : 'Unknown error';
+        logger.logError('Error fetching markdown file:', fetchError);
         setError(errorMessage);
-      }
-    };
-
-    fetchMarkdown().catch((err) => logger.logError('ABOUT PANEL - Failed to convert markdown file: ', err));
+      });
   }, [mdPath]);
 
   if (error) {
