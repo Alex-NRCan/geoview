@@ -79,15 +79,15 @@ This catalog lists every test in the GeoView test suite, organized by group, sui
 | 1. Core / Utility | `suite-utilities`       | `UtilitiesCoreTester`, `UtilitiesDateTester`, `UtilitiesGeoTester`, `UtilitiesProjectionTester` | 53         | Parallel                    |
 | 2. Layers         | `suite-layer`           | `LayerTester`                                                                                   | 49         | Mixed parallel + sequential |
 | 2. Layers         | `suite-layer-functions` | `LayerTester`                                                                                   | 9          | Mixed parallel + sequential |
-| 3. Map            | `suite-map`             | `MapTester`                                                                                     | 16         | Complex mixed               |
+| 3. Map            | `suite-map`             | `MapTester`                                                                                     | 17         | Complex mixed               |
 | 3. Map            | `suite-map-config`      | `MapConfigTester`, `MapTester`                                                                  | 57         | Fully sequential            |
 | 4. Components     | `suite-ui`              | `UITester`                                                                                      | 2          | Parallel                    |
 | 4. Components     | `suite-details`         | `DetailsTester`                                                                                 | 6          | Guarded sequential          |
-| 4. Components     | `suite-data-table`      | `DataTableTester`                                                                               | 13         | Guarded sequential          |
+| 4. Components     | `suite-data-table`      | `DataTableTester`                                                                               | 15         | Guarded sequential          |
 | 5. Packages       | `suite-geochart`        | `GeochartTester`                                                                                | 2          | Guarded sequential          |
-| 5. Packages       | `suite-swiper`          | `SwiperTester`                                                                                  | 6          | Guarded sequential          |
+| 5. Packages       | `suite-swiper`          | `SwiperTester`                                                                                  | 7          | Guarded sequential          |
 | 5. Packages       | `suite-time-slider`     | `TimeSliderTester`                                                                              | 3          | Guarded sequential          |
-| **Total**         |                         |                                                                                                 | **271**    |                             |
+| **Total**         |                         |                                                                                                 | **274**    |                             |
 
 ---
 
@@ -112,7 +112,7 @@ This catalog lists every test in the GeoView test suite, organized by group, sui
 | 6   | `testValidateAndPingUrlWmsService`      | test      | Test validateAndPingUrl with a WMS service URL...                                     |
 | 7   | `testGeometryCollectionLegendStyles`    | test      | Test GeometryCollection legend style generation...                                    |
 | 8   | `testEsriPictureFillLegendStyles`       | test      | Test ESRI picture fill legend style generation...                                     |
-| 9   | `testWfsStyleWithTextOnlyRule`          | test      | Test WFS SLD conversion with a text-only rule...                                     |
+| 9   | `testWfsStyleWithTextOnlyRule`          | test      | Test WFS SLD conversion with a text-only rule...                                      |
 | 10  | `testProxyGetWMSServiceMetadata`        | test      | Test GeoUtilities.getWMSServiceMetadata with Forest Burn (proxy fallback)...          |
 | 11  | `testProxyGetWMSServiceMetadataBadUrl`  | testError | Test GeoUtilities.getWMSServiceMetadata with bad URL...                               |
 | 12  | `testProxyGetWFSServiceMetadata`        | test      | Test GeoUtilities.getWFSServiceMetadata with Belgium WFS (proxy fallback)...          |
@@ -521,11 +521,11 @@ This catalog lists every test in the GeoView test suite, organized by group, sui
 
 [↑ Back to top](#table-of-contents)
 
-| #   | Method                                          | Type | Description                                                                    |
-| --- | ----------------------------------------------- | ---- | ------------------------------------------------------------------------------ |
-| 37  | `testAddWMSZpegtGroupWithSiblingLayer`          | test | Test WMS ZPEGT metadata names with a sibling layer...                           |
-| 38  | `testAddWMSZpegtGroupWithGeoviewLayerName`      | test | Test WMS ZPEGT group name with a configured GeoView layer name...               |
-| 39  | `testAddWMSZpegtGroupWithoutGeoviewLayerName`   | test | Test WMS ZPEGT group name without a configured GeoView layer name...            |
+| #   | Method                                        | Type | Description                                                          |
+| --- | --------------------------------------------- | ---- | -------------------------------------------------------------------- |
+| 37  | `testAddWMSZpegtGroupWithSiblingLayer`        | test | Test WMS ZPEGT metadata names with a sibling layer...                |
+| 38  | `testAddWMSZpegtGroupWithGeoviewLayerName`    | test | Test WMS ZPEGT group name with a configured GeoView layer name...    |
+| 39  | `testAddWMSZpegtGroupWithoutGeoviewLayerName` | test | Test WMS ZPEGT group name without a configured GeoView layer name... |
 
 ---
 
@@ -588,24 +588,25 @@ This catalog lists every test in the GeoView test suite, organized by group, sui
 **Suite:** `suite-map` · **File:** `tests/suites/suite-map-functions.ts` · **Tester:** `MapTester` (`tests/testers/map-tester.ts`)
 **Execution:** Complex mixed — sequential `await` for state-modifying tests · **Guard:** None
 
-| #   | Method                                 | Type | Description                                                            |
-| --- | -------------------------------------- | ---- | ---------------------------------------------------------------------- |
-| 1   | `testInitialMapState`                  | test | Test projection                                                        |
-| 2   | `testMapZoom`                          | test | Test zoom                                                              |
-| 3   | `testSwitchProjectionAndExtent`        | test | Test switch projection back and forth, zoom and zoom to initial extent |
-| 4   | `testGeometryGroupZIndex`              | test | Test geometry group z-index get/set operations                         |
-| 5   | `testZoomToExtent`                     | test | Test zoom to lon/lat extent                                            |
-| 6   | `testZoomToCoordinate`                 | test | Test zoom to lon/lat coordinate                                        |
-| 7   | `testFooterBarSelectTab`               | test | Test footer bar select tab                                             |
-| 8   | `testAppBarSelectTab`                  | test | Test app bar select tab                                                |
-| 9   | `testFooterBarCreateTab`               | test | Test footer bar create custom tab                                      |
-| 10  | `testSetLanguage`                      | test | Test set language to French                                            |
-| 11  | `testCreateAndSetBasemap`              | test | Test create and set basemap                                            |
-| 12  | `testNorthArrowRotationLCC`            | test | Test north arrow rotation in LCC projection for British Columbia       |
-| 13  | `testNonQueryableLayerNotInDetails`    | test | Test non-queryable layer not in details after map click                |
-| 14  | `testLayerHoverableState`              | test | Test layer hoverable state in hoverFeatureInfoLayerSet                 |
-| 15  | `testDetailsLayerSelectionPersistence` | test | Test details layer selection persistence across map clicks             |
-| 16  | `testVectorTileProjectionWarning`      | test | Test vector tile projection warning on projection switch               |
+| #   | Method                                 | Type | Description                                                                                  |
+| --- | -------------------------------------- | ---- | -------------------------------------------------------------------------------------------- |
+| 1   | `testInitialMapState`                  | test | Test projection                                                                              |
+| 2   | `testMapZoom`                          | test | Test zoom                                                                                    |
+| 3   | `testSwitchProjectionAndExtent`        | test | Test switch projection back and forth, zoom and zoom to initial extent                       |
+| 4   | `testGeometryGroupZIndex`              | test | Test geometry group z-index get/set operations                                               |
+| 5   | `testZoomToExtent`                     | test | Test zoom to lon/lat extent                                                                  |
+| 6   | `testZoomToCoordinate`                 | test | Test zoom to lon/lat coordinate                                                              |
+| 7   | `testFooterBarSelectTab`               | test | Test footer bar select tab                                                                   |
+| 8   | `testAppBarSelectTab`                  | test | Test app bar select tab                                                                      |
+| 9   | `testFooterBarCreateTab`               | test | Test footer bar create custom tab                                                            |
+| 10  | `testSetLanguage`                      | test | Test set language to French                                                                  |
+| 11  | `testCreateAndSetBasemap`              | test | Test create and set basemap                                                                  |
+| 12  | `testNorthArrowRotationLCC`            | test | Test north arrow rotation in LCC projection for British Columbia                             |
+| 13  | `testNonQueryableLayerNotInDetails`    | test | Test non-queryable layer not in details after map click                                      |
+| 14  | `testLayerHoverableState`              | test | Test layer hoverable state in hoverFeatureInfoLayerSet                                       |
+| 15  | `testDetailsLayerSelectionPersistence` | test | Test details layer selection persistence across map clicks                                   |
+| 16  | `testVectorTileProjectionWarning`      | test | Test vector tile projection warning on projection switch                                     |
+| 17  | `testFullscreenViewRestoration`        | test | Test exact view restoration without interaction and current view retention after interaction |
 
 ---
 
@@ -833,18 +834,20 @@ its expected error. Finalizers restore the host width, map target, and usable vi
 | #   | Method                                             | Type | Description                                                                      |
 | --- | -------------------------------------------------- | ---- | -------------------------------------------------------------------------------- |
 | 1   | `testAllFeaturesDataArrayPopulated`                | test | Test allFeaturesDataArray is populated for GeoJSON layer...                      |
-| 2   | `testRowCountMatchesStore`                         | test | Test row count matches allFeaturesDataArray length...                            |
+| 2   | `testAllFeaturesDataArrayPopulated`                | test | Test allFeaturesDataArray is populated for the 600-feature Esri layer...         |
 | 3   | `testGeoviewIdColumnHiddenByDefault`               | test | Test geoviewID column hidden by default...                                       |
-| 4   | `testMapFilteredRecordDefault`                     | test | Test mapFilteredRecord is true by default...                                     |
-| 5   | `testSetMapFilteredRecordFalse`                    | test | Test setting mapFilteredRecord to false...                                       |
-| 6   | `testGlobalFilterRecord`                           | test | Test global filter record updates store...                                       |
-| 7   | `testClearFiltersResetsState`                      | test | Test clear filters resets columnFiltersRecord...                                 |
-| 8   | `testColumnVisibilityToggle`                       | test | Test column visibility toggle updates store...                                   |
-| 9   | `testRowsFilteredRecordCount`                      | test | Test rowsFilteredRecord updates in store...                                      |
-| 10  | `testFilterByExtentUnavailableForEsriDynamic`      | test | Test filter-by-extent toggle absent for Esri Dynamic layer...                    |
-| 11  | `testFilterByExtentOnGeoJSON`                      | test | Test filter-by-extent on GeoJSON layer (zoom to Ontario)...                      |
-| 12  | `testShowUnsymbolizedFeaturesFalsePrefiltersTable` | test | Test showUnsymbolizedFeatures false pre-filters data table...                    |
-| 13  | `testEmptyFieldNameDoesNotCrashDataTable`          | test | Test a layer with an empty field name renders the data table without crashing... |
+| 4   | `testEmptyFieldNameDoesNotCrashDataTable`          | test | Test a layer with an empty field name renders the data table without crashing... |
+| 5   | `testMapFilteredRecordDefault`                     | test | Test mapFilteredRecord is true by default...                                     |
+| 6   | `testSetMapFilteredRecordFalse`                    | test | Test setting mapFilteredRecord to false...                                       |
+| 7   | `testGlobalFilterRecord`                           | test | Test global filter record updates store...                                       |
+| 8   | `testCitiesNameFilterCount`                        | test | Test Cities name filter for "mo" returns 30; population minimum 1,000,000 returns 6; maximum 1,750,000 returns 3... |
+| 9   | `testClearFiltersResetsState`                      | test | Test clear filters resets columnFiltersRecord...                                 |
+| 10  | `testColumnVisibilityToggle`                       | test | Test column visibility toggle updates store...                                  |
+| 11  | `testRowsFilteredRecordCount`                      | test | Test rowsFilteredRecord updates in store...                                      |
+| 12  | `testFilterByExtentUnavailableForEsriDynamic`      | test | Test filter-by-extent toggle absent for Esri Dynamic layer...                    |
+| 13  | `testFilterByExtentOnGeoJSONOntario`               | test | Test filter-by-extent on GeoJSON layer (zoom to Ontario)...                     |
+| 14  | `testShowUnsymbolizedFeaturesFalsePrefiltersTable` | test | Test showUnsymbolizedFeatures false pre-filters data table...                    |
+| 14  | `testTemporaryZoomHighlightExpires`                | test | Test temporary zoom highlight is removed automatically...                        |
 
 ---
 
@@ -881,9 +884,8 @@ its expected error. Finalizers restore the host width, map target, and usable vi
 | 3   | `testSwiperPerLayerSides`           | test | Test Swiper per-layer side semantics...                                                  |
 | 4   | `testSwiperProgressiveRegistration` | test | Test Swiper progressive layer registration...                                            |
 | 5   | `testSwiperConfigPersistence`       | test | Test Swiper interactive configuration persistence...                                     |
-| 6   | `testSwiperSettingsGating`          | test | Test Swiper settings-panel gating...                                                     |
-
-`testSwiperHoverSuppression` also exists on the tester but is not currently registered in the full suite; it is excluded from the suite total.
+| 6   | `testSwiperHoverSuppression`        | test | Test Swiper hover-query suppression over the bar and handle...                           |
+| 7   | `testSwiperSettingsGating`          | test | Test Swiper settings-panel gating...                                                     |
 
 ---
 

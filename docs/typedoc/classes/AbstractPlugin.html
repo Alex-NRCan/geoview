@@ -14,7 +14,7 @@
 <div class="tsd-comment tsd-typography"><p>Plugin abstract base class.</p>
 </div></section><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/d3e14cc2e5f444641d053ff86bb1db9a0e4c12b3/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L13">packages/geoview-core/src/api/plugin/abstract-plugin.ts:13</a></li></ul></aside>
+<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/0a8d724b199598208a15dc1eb38cef737d795519/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L12">packages/geoview-core/src/api/plugin/abstract-plugin.ts:12</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -26,8 +26,7 @@
 </div></section>
 <section class="tsd-index-section">
 <h3 class="tsd-index-heading tsd-anchor-link" id="properties">Properties<a href="#properties" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<div class="tsd-index-list"><a href="#controllerregistry" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>controller<wbr/>Registry</span></a>
-<a href="#createroot" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>create<wbr/>Root</span></a>
+<div class="tsd-index-list"><a href="#createroot" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>create<wbr/>Root</span></a>
 <a href="#mapviewer" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>map<wbr/>Viewer</span></a>
 <a href="#pluginid" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>plugin<wbr/>Id</span></a>
 <a href="#pluginprops" class="tsd-index-link"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>plugin<wbr/>Props?</span></a>
@@ -59,7 +58,7 @@
 <h3 class="tsd-anchor-link" id="constructor"><span>constructor</span><a href="#constructor" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
 <li class="">
-<div class="tsd-signature tsd-anchor-link" id="constructorabstractplugin"><span class="tsd-signature-keyword">new</span> <span class="tsd-kind-constructor-signature">AbstractPlugin</span><span class="tsd-signature-symbol">(</span><br/>    <span class="tsd-kind-parameter">pluginId</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">mapViewer</span><span class="tsd-signature-symbol">:</span> <a href="MapViewer.html" class="tsd-signature-type tsd-kind-class">MapViewer</a><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">controllerRegistry</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">ControllerRegistry</span><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">props</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">,</span><br/><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <a href="" class="tsd-signature-type tsd-kind-class">AbstractPlugin</a><a href="#constructorabstractplugin" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
+<div class="tsd-signature tsd-anchor-link" id="constructorabstractplugin"><span class="tsd-signature-keyword">new</span> <span class="tsd-kind-constructor-signature">AbstractPlugin</span><span class="tsd-signature-symbol">(</span><br/>    <span class="tsd-kind-parameter">pluginId</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">mapViewer</span><span class="tsd-signature-symbol">:</span> <a href="MapViewer.html" class="tsd-signature-type tsd-kind-class">MapViewer</a><span class="tsd-signature-symbol">,</span><br/>    <span class="tsd-kind-parameter">props</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">,</span><br/><span class="tsd-signature-symbol">)</span><span class="tsd-signature-symbol">:</span> <a href="" class="tsd-signature-type tsd-kind-class">AbstractPlugin</a><a href="#constructorabstractplugin" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></div>
 <div class="tsd-description">
 <div class="tsd-comment tsd-typography"><p>Creates an instance of the plugin.</p>
 </div>
@@ -72,25 +71,15 @@
 <li><span><span class="tsd-kind-parameter">mapViewer</span>: <a href="MapViewer.html" class="tsd-signature-type tsd-kind-class">MapViewer</a></span>
 <div class="tsd-comment tsd-typography"><p>The map viewer</p>
 </div></li>
-<li><span><span class="tsd-kind-parameter">controllerRegistry</span>: <span class="tsd-signature-type">ControllerRegistry</span></span>
-<div class="tsd-comment tsd-typography"><p>The controller registry</p>
-</div></li>
 <li><span><span class="tsd-kind-parameter">props</span>: <span class="tsd-signature-type">unknown</span></span>
 <div class="tsd-comment tsd-typography"><p>Optional plugin options and properties</p>
 </div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <a href="" class="tsd-signature-type tsd-kind-class">AbstractPlugin</a></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/d3e14cc2e5f444641d053ff86bb1db9a0e4c12b3/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L50">packages/geoview-core/src/api/plugin/abstract-plugin.ts:50</a></li></ul></aside></div></li></ul></section></section></details>
+<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/0a8d724b199598208a15dc1eb38cef737d795519/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L45">packages/geoview-core/src/api/plugin/abstract-plugin.ts:45</a></li></ul></aside></div></li></ul></section></section></details>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Properties"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
 <h2 class="tsd-anchor-link" id="properties-1">Properties<a href="#properties-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
 <section>
-<section class="tsd-panel tsd-member">
-<h3 class="tsd-anchor-link" id="controllerregistry"><span>controller<wbr/>Registry</span><a href="#controllerregistry" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<div class="tsd-signature"><span class="tsd-kind-property">controllerRegistry</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">ControllerRegistry</span></div>
-<div class="tsd-comment tsd-typography"><p>The controller registry for the plugin</p>
-</div><aside class="tsd-sources">
-<ul>
-<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/d3e14cc2e5f444641d053ff86bb1db9a0e4c12b3/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L21">packages/geoview-core/src/api/plugin/abstract-plugin.ts:21</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="createroot"><span>create<wbr/>Root</span><a href="#createroot" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">createRoot</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">(</span><span class="tsd-kind-parameter">container</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">Container</span><span class="tsd-signature-symbol">,</span> <span class="tsd-kind-parameter">options</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">RootOptions</span><span class="tsd-signature-symbol">)</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type">Root</span></div>
@@ -116,49 +105,49 @@
 <h4 class="tsd-anchor-link" id="see">See<a href="#see" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h4><p><a href="https://react.dev/reference/react-dom/client/createRoot">API Reference for <code>createRoot</code></a></p>
 </div></div></li></ul></li></ul></div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/d3e14cc2e5f444641d053ff86bb1db9a0e4c12b3/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L33">packages/geoview-core/src/api/plugin/abstract-plugin.ts:33</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/0a8d724b199598208a15dc1eb38cef737d795519/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L29">packages/geoview-core/src/api/plugin/abstract-plugin.ts:29</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="mapviewer"><span>map<wbr/>Viewer</span><a href="#mapviewer" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">mapViewer</span><span class="tsd-signature-symbol">:</span> <a href="MapViewer.html" class="tsd-signature-type tsd-kind-class">MapViewer</a></div>
 <div class="tsd-comment tsd-typography"><p>The map viewer for the plugin</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/d3e14cc2e5f444641d053ff86bb1db9a0e4c12b3/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L18">packages/geoview-core/src/api/plugin/abstract-plugin.ts:18</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/0a8d724b199598208a15dc1eb38cef737d795519/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L17">packages/geoview-core/src/api/plugin/abstract-plugin.ts:17</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="pluginid"><span>plugin<wbr/>Id</span><a href="#pluginid" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">pluginId</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div>
 <div class="tsd-comment tsd-typography"><p>The id of the plugin</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/d3e14cc2e5f444641d053ff86bb1db9a0e4c12b3/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L15">packages/geoview-core/src/api/plugin/abstract-plugin.ts:15</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/0a8d724b199598208a15dc1eb38cef737d795519/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L14">packages/geoview-core/src/api/plugin/abstract-plugin.ts:14</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="pluginprops"><code class="tsd-tag">Optional</code><span>plugin<wbr/>Props</span><a href="#pluginprops" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">pluginProps</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">unknown</span></div>
 <div class="tsd-comment tsd-typography"><p>The plugin properties</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/d3e14cc2e5f444641d053ff86bb1db9a0e4c12b3/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L24">packages/geoview-core/src/api/plugin/abstract-plugin.ts:24</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/0a8d724b199598208a15dc1eb38cef737d795519/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L20">packages/geoview-core/src/api/plugin/abstract-plugin.ts:20</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="react"><span>react</span><a href="#react" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">react</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">__module</span></div>
 <div class="tsd-comment tsd-typography"><p>The plugin react object</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/d3e14cc2e5f444641d053ff86bb1db9a0e4c12b3/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L30">packages/geoview-core/src/api/plugin/abstract-plugin.ts:30</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/0a8d724b199598208a15dc1eb38cef737d795519/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L26">packages/geoview-core/src/api/plugin/abstract-plugin.ts:26</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="translate"><code class="tsd-tag">Optional</code><span>translate</span><a href="#translate" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">translate</span><span class="tsd-signature-symbol">?:</span> <span class="tsd-signature-type">__module</span></div>
 <div class="tsd-comment tsd-typography"><p>The plugin translate object</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/d3e14cc2e5f444641d053ff86bb1db9a0e4c12b3/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L39">packages/geoview-core/src/api/plugin/abstract-plugin.ts:39</a></li></ul></aside></section>
+<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/0a8d724b199598208a15dc1eb38cef737d795519/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L35">packages/geoview-core/src/api/plugin/abstract-plugin.ts:35</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="usetheme"><span>use<wbr/>Theme</span><a href="#usetheme" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">useTheme</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type tsd-kind-type-parameter">T</span> <span class="tsd-signature-symbol">=</span> <span class="tsd-signature-type">Theme</span><span class="tsd-signature-symbol">&gt;</span><span class="tsd-signature-symbol">()</span> <span class="tsd-signature-symbol">=&gt;</span> <span class="tsd-signature-type tsd-kind-type-parameter">T</span></div>
 <div class="tsd-comment tsd-typography"><p>The plugin useTheme object</p>
 </div><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/d3e14cc2e5f444641d053ff86bb1db9a0e4c12b3/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L36">packages/geoview-core/src/api/plugin/abstract-plugin.ts:36</a></li></ul></aside></section></section></details>
+<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/0a8d724b199598208a15dc1eb38cef737d795519/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L32">packages/geoview-core/src/api/plugin/abstract-plugin.ts:32</a></li></ul></aside></section></section></details>
 <details class="tsd-panel-group tsd-member-group tsd-accordion" open><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
 <h2 class="tsd-anchor-link" id="methods-1">Methods<a href="#methods-1" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h2></summary>
 <section>
@@ -172,7 +161,7 @@
 </div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/d3e14cc2e5f444641d053ff86bb1db9a0e4c12b3/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L131">packages/geoview-core/src/api/plugin/abstract-plugin.ts:131</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/0a8d724b199598208a15dc1eb38cef737d795519/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L125">packages/geoview-core/src/api/plugin/abstract-plugin.ts:125</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="defaultconfig"><code class="tsd-tag">Abstract</code><span>default<wbr/>Config</span><a href="#defaultconfig" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -183,7 +172,7 @@
 </div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">unknown</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/d3e14cc2e5f444641d053ff86bb1db9a0e4c12b3/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L96">packages/geoview-core/src/api/plugin/abstract-plugin.ts:96</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/0a8d724b199598208a15dc1eb38cef737d795519/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L90">packages/geoview-core/src/api/plugin/abstract-plugin.ts:90</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="defaulttranslations"><span>default<wbr/>Translations</span><a href="#defaulttranslations" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -195,7 +184,7 @@
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">Record</span><span class="tsd-signature-symbol">&lt;</span><span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">,</span> <span class="tsd-signature-type">unknown</span><span class="tsd-signature-symbol">&gt;</span></h4><p>The translations object</p>
 <aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/d3e14cc2e5f444641d053ff86bb1db9a0e4c12b3/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L104">packages/geoview-core/src/api/plugin/abstract-plugin.ts:104</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/0a8d724b199598208a15dc1eb38cef737d795519/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L98">packages/geoview-core/src/api/plugin/abstract-plugin.ts:98</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="displaylanguage"><span>display<wbr/>Language</span><a href="#displaylanguage" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -207,7 +196,7 @@
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">string</span></h4><p>The language, 'en' (English) by default</p>
 <aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/d3e14cc2e5f444641d053ff86bb1db9a0e4c12b3/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L84">packages/geoview-core/src/api/plugin/abstract-plugin.ts:84</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/0a8d724b199598208a15dc1eb38cef737d795519/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L78">packages/geoview-core/src/api/plugin/abstract-plugin.ts:78</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="getconfig"><span>get<wbr/>Config</span><a href="#getconfig" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -219,7 +208,7 @@
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">unknown</span></h4><p>The config</p>
 <aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/d3e14cc2e5f444641d053ff86bb1db9a0e4c12b3/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L75">packages/geoview-core/src/api/plugin/abstract-plugin.ts:75</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/0a8d724b199598208a15dc1eb38cef737d795519/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L69">packages/geoview-core/src/api/plugin/abstract-plugin.ts:69</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-protected">
 <h3 class="tsd-anchor-link" id="onadd"><code class="tsd-tag">Protected</code> <code class="tsd-tag">Abstract</code><span>on<wbr/>Add</span><a href="#onadd" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-protected">
@@ -230,7 +219,7 @@
 </div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/d3e14cc2e5f444641d053ff86bb1db9a0e4c12b3/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L111">packages/geoview-core/src/api/plugin/abstract-plugin.ts:111</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/0a8d724b199598208a15dc1eb38cef737d795519/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L105">packages/geoview-core/src/api/plugin/abstract-plugin.ts:105</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-protected">
 <h3 class="tsd-anchor-link" id="onadded"><code class="tsd-tag">Protected</code> <code class="tsd-tag">Optional</code><span>on<wbr/>Added</span><a href="#onadded" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-protected">
@@ -241,7 +230,7 @@
 </div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/d3e14cc2e5f444641d053ff86bb1db9a0e4c12b3/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L116">packages/geoview-core/src/api/plugin/abstract-plugin.ts:116</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/0a8d724b199598208a15dc1eb38cef737d795519/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L110">packages/geoview-core/src/api/plugin/abstract-plugin.ts:110</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-protected">
 <h3 class="tsd-anchor-link" id="onremove"><code class="tsd-tag">Protected</code> <code class="tsd-tag">Abstract</code><span>on<wbr/>Remove</span><a href="#onremove" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-protected">
@@ -252,7 +241,7 @@
 </div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/d3e14cc2e5f444641d053ff86bb1db9a0e4c12b3/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L121">packages/geoview-core/src/api/plugin/abstract-plugin.ts:121</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/0a8d724b199598208a15dc1eb38cef737d795519/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L115">packages/geoview-core/src/api/plugin/abstract-plugin.ts:115</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-protected">
 <h3 class="tsd-anchor-link" id="onremoved"><code class="tsd-tag">Protected</code> <code class="tsd-tag">Optional</code><span>on<wbr/>Removed</span><a href="#onremoved" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-protected">
@@ -263,7 +252,7 @@
 </div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/d3e14cc2e5f444641d053ff86bb1db9a0e4c12b3/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L126">packages/geoview-core/src/api/plugin/abstract-plugin.ts:126</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/0a8d724b199598208a15dc1eb38cef737d795519/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L120">packages/geoview-core/src/api/plugin/abstract-plugin.ts:120</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member tsd-is-protected">
 <h3 class="tsd-anchor-link" id="onselect"><code class="tsd-tag">Protected</code><span>on<wbr/>Select</span><a href="#onselect" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures tsd-is-protected">
@@ -274,7 +263,7 @@
 </div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/d3e14cc2e5f444641d053ff86bb1db9a0e4c12b3/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L175">packages/geoview-core/src/api/plugin/abstract-plugin.ts:175</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/0a8d724b199598208a15dc1eb38cef737d795519/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L169">packages/geoview-core/src/api/plugin/abstract-plugin.ts:169</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="remove"><span>remove</span><a href="#remove" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -285,7 +274,7 @@
 </div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/d3e14cc2e5f444641d053ff86bb1db9a0e4c12b3/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L148">packages/geoview-core/src/api/plugin/abstract-plugin.ts:148</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/0a8d724b199598208a15dc1eb38cef737d795519/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L142">packages/geoview-core/src/api/plugin/abstract-plugin.ts:142</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="schema"><code class="tsd-tag">Abstract</code><span>schema</span><a href="#schema" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -296,7 +285,7 @@
 </div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">unknown</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/d3e14cc2e5f444641d053ff86bb1db9a0e4c12b3/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L91">packages/geoview-core/src/api/plugin/abstract-plugin.ts:91</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/0a8d724b199598208a15dc1eb38cef737d795519/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L85">packages/geoview-core/src/api/plugin/abstract-plugin.ts:85</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="select"><span>select</span><a href="#select" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -307,7 +296,7 @@
 </div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/d3e14cc2e5f444641d053ff86bb1db9a0e4c12b3/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L165">packages/geoview-core/src/api/plugin/abstract-plugin.ts:165</a></li></ul></aside></div></li></ul></section>
+<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/0a8d724b199598208a15dc1eb38cef737d795519/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L159">packages/geoview-core/src/api/plugin/abstract-plugin.ts:159</a></li></ul></aside></div></li></ul></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="setconfig"><span>set<wbr/>Config</span><a href="#setconfig" aria-label="Permalink" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <ul class="tsd-signatures">
@@ -324,7 +313,7 @@
 </div></li></ul></div>
 <h4 class="tsd-returns-title">Returns <span class="tsd-signature-type">void</span></h4><aside class="tsd-sources">
 <ul>
-<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/d3e14cc2e5f444641d053ff86bb1db9a0e4c12b3/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L66">packages/geoview-core/src/api/plugin/abstract-plugin.ts:66</a></li></ul></aside></div></li></ul></section></section></details></div>
+<li>Defined in <a href="https://github.com/Alex-NRCan/geoview/blob/0a8d724b199598208a15dc1eb38cef737d795519/packages/geoview-core/src/api/plugin/abstract-plugin.ts#L60">packages/geoview-core/src/api/plugin/abstract-plugin.ts:60</a></li></ul></aside></div></li></ul></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
@@ -343,7 +332,7 @@
 <details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Constructors"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Constructors</summary>
 <div><a href="#constructor"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Constructor"><use href="../assets/icons.svg#icon-512"></use></svg><span>constructor</span></a></div></details>
 <details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Properties"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Properties</summary>
-<div><a href="#controllerregistry"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>controller<wbr/>Registry</span></a><a href="#createroot"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>create<wbr/>Root</span></a><a href="#mapviewer"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>map<wbr/>Viewer</span></a><a href="#pluginid"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>plugin<wbr/>Id</span></a><a href="#pluginprops"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>plugin<wbr/>Props</span></a><a href="#react"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>react</span></a><a href="#translate"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>translate</span></a><a href="#usetheme"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>use<wbr/>Theme</span></a></div></details>
+<div><a href="#createroot"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>create<wbr/>Root</span></a><a href="#mapviewer"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>map<wbr/>Viewer</span></a><a href="#pluginid"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>plugin<wbr/>Id</span></a><a href="#pluginprops"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>plugin<wbr/>Props</span></a><a href="#react"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>react</span></a><a href="#translate"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>translate</span></a><a href="#usetheme"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Property"><use href="../assets/icons.svg#icon-1024"></use></svg><span>use<wbr/>Theme</span></a></div></details>
 <details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-Methods"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>Methods</summary>
 <div><a href="#add"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>add</span></a><a href="#defaultconfig"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>default<wbr/>Config</span></a><a href="#defaulttranslations"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>default<wbr/>Translations</span></a><a href="#displaylanguage"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>display<wbr/>Language</span></a><a href="#getconfig"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>get<wbr/>Config</span></a><a href="#onadd" class="tsd-is-protected"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>on<wbr/>Add</span></a><a href="#onadded" class="tsd-is-protected"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>on<wbr/>Added</span></a><a href="#onremove" class="tsd-is-protected"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>on<wbr/>Remove</span></a><a href="#onremoved" class="tsd-is-protected"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>on<wbr/>Removed</span></a><a href="#onselect" class="tsd-is-protected"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>on<wbr/>Select</span></a><a href="#remove"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>remove</span></a><a href="#schema"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>schema</span></a><a href="#select"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>select</span></a><a href="#setconfig"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="Method"><use href="../assets/icons.svg#icon-2048"></use></svg><span>set<wbr/>Config</span></a></div></details></div></details></div>
 <div class="site-menu">

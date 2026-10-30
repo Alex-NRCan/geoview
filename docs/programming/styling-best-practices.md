@@ -26,21 +26,40 @@ const memoSxClasses = useMemo((): SxStyles => getSxClasses(theme), [theme]);
 
 This standardized style memo needs neither JSDoc nor trace logging. Combine conditional styles with
 the MUI array syntax, for example `[memoSxClasses.base, condition && memoSxClasses.extra] as SxProps`.
+When sources are typed as `SxProps` (including entries in `SxStyles`), use `composeSxProps` from
+`@/ui/style/types` instead: a source may already be an array, and nested `sx` arrays are not supported.
+For example, `composeSxProps(memoSxClasses.base, { opacity: selected ? 1 : 0 })` flattens the sources
+without requiring a type assertion.
 
 ## 2- Theme tokens and external-theme safety
 
-Use `geoViewColor` and `geoViewFontSize` tokens rather than hard-coded colors and font sizes.
-Spacing and border radius have their own conventions in the sections below.
+For application UI, prefer semantic MUI palette roles over hard-coded colors: use roles such as
+`primary`, `text`, and `background` for controls, text, and surfaces. Use `surface.low` and
+`surface.high` for depth levels, `inverseContent` for deliberately contrast-reversed surfaces, and
+`layerVisibility` for checked and unchecked legend markers.
+
+Use `geoViewColor` where a GeoView-specific color or color ramp is needed, especially for map
+rendering and OpenLayers, and `geoViewFontSize` for GeoView font-size tokens. Spacing and border
+radius have their own conventions in the sections below.
 
 Reusable `@/ui` and `core/components/ui` components may receive a standard external MUI theme,
 which does not contain GeoView's custom extensions. Access those extensions with optional chaining,
 for example `theme.palette.geoViewColor?.primary.main`. Apply the same protection to other
 non-standard extensions rather than assuming every caller supplies a GeoView theme.
 
+Scrollbar colours are inherited from each viewer's uniquely identified shell, using `primary.main`
+for the thumb and `surface.low` for the track. Keep these declarations map-scoped: shared shell
+classes and unqualified MUI portal selectors can leak one viewer's palette into another viewer or
+the host application. GeoView must not set scrollbar colours on `html` or `body`. Portals outside
+the shell do not inherit its scrollbar colours and require a separate map-ownership strategy.
+
 ## 3- UI wrappers and translated labels
 
-Import UI components and icons from the `@/ui` barrel. Only MUI hooks, utilities, and types are
-imported directly from MUI. GeoView wrappers provide additional behavior: for example, IconButton
+Inside `geoview-core`, import UI components and icons from their defining `@/ui/...` module (for example
+`@/ui/button/button`, `@/ui/layout`, `@/ui/icons`, `@/ui/mui-reexports/mui-reexports`), never from the `@/ui`
+barrel or directly from MUI. Only MUI hooks, utilities, and types are imported directly from MUI. Plugins keep
+using the public `geoview-core/ui` entry. See [Best Practices §7](best-practices.md#7--how-we-order-the-import-statements)
+for the direct-import rule. GeoView wrappers provide additional behavior: for example, IconButton
 requires `aria-label`, uses it as the fallback tooltip, and exposes additional tooltip, ref, and
 visibility props. Inspect the wrapper rather than assuming it has the same interface as MUI.
 
@@ -95,6 +114,8 @@ margin: theme.spacing(0),
 margin: 0,
 margin: '0px',
 ```
+
+**Unitless zero for other CSS lengths.** For CSS length values outside the spacing properties covered above, prefer `0` over a zero with a unit (such as `'0px'`) when CSS permits it. This convention does not replace `theme.spacing(0)` for in-scope spacing declarations. Preserve units where they affect meaning or are required, such as `%` in `0%`.
 
 - **Exception — inline `sx` props in JSX:** shorthand is acceptable there, but per [best-practices.md](./best-practices.md) inline styles should generally be minimized — prefer moving styles into a `*-style.ts` module using explicit `theme.spacing()` instead of reaching for inline `sx`.
 
