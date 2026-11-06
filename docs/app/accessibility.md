@@ -56,7 +56,7 @@ In keyboard navigation mode, activating a panel (e.g., Layers, Legend, Details) 
 - Close the active panel or selection by pressing **Esc** — focus returns to the associated button
 - A **Close** or **Exit** button is provided within each trapped panel for explicit closure
 
-With the crosshair active, pressing Enter on a feature opens Details and focuses the panel-header Close button. Focus remains there as the feature attributes load. Pressing Enter on Close closes Details and returns focus to the map for another crosshair query.
+With the crosshair active, pressing Enter on a feature opens Details and focuses the panel-header Close button. Focus remains there as the feature attributes load. Pressing Enter on Close or pressing Esc closes Details and returns focus to the map for another crosshair query.
 
 Sub-panels provide similar functionality.
 Scrollable right-panel content is also a keyboard stop; focus it and use the arrow keys to scroll
