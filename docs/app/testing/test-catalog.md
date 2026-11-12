@@ -630,7 +630,7 @@ This catalog lists every test by group, suite, and tester. Each entry gives the 
 | `testFullscreenViewRestoration`        | test | Test exact view restoration without interaction and current view retention after interaction |
 | `testGuideDetailsPanelTopAnchor`       | test | Test selecting the Details panel and verifying the guide’s Top anchor behavior               |
 | `testControllerGetFooterHeight`        | test | Test `UIController.getFooterHeight()` from a non-React consumer                              |
-| 18  | `testCrosshairCoordinates`             | test | Test SVG artwork center alignment, stale pointer reset, and Enter/Space drawing with padding, panning, and rotation |
+| `testCrosshairCoordinates`             | test | Test SVG artwork center alignment, stale pointer reset, and Enter/Space drawing with padding, panning, and rotation |
 
 ---
 
