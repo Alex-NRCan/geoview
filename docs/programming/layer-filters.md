@@ -238,7 +238,7 @@ User types in data table column filter
 → MRT onChange event fires with column filter state
 → buildFilterList() converts each column filter to a SQL-like string
 → filterMap() joins strings with ' and '
-→ DataTableController.applyMapFilters(layerPath, filterString)
+→ DataTableController.applyMapFilters(filterString)
   → layer.setLayerFiltersData(filterString)
     → LayerFilters.setDataFilter(filterString)
     → emits LayerFilterChangedEvent (category: 'data')
@@ -246,10 +246,6 @@ User types in data table column filter
     → setStoreDataTableFilter(mapId, layerPath, filter)
   → applyViewFilterOnSource() applies filter to OL source
 ```
-
-Each table passes its own layer path so a pending filter effect cannot target a newly selected layer.
-Removing the selected layer clears the data-table selection. Filter effects for layers already removed
-are skipped with a debug log rather than throwing during React effect processing.
 
 ### Filter String Generation
 
