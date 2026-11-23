@@ -297,21 +297,6 @@ In `packages/geoview-core/public/templates/tests.html`, create a map div:
 ></div>
 ```
 
-### Test duration and suite starvation
-
-Testers expose `getDurationMs()` for the sum of recorded full test lifecycle durations and
-`getDurationTestMs()` for the sum of recorded execution callback durations, excluding assertions and cleanup.
-Tests without the corresponding start and end timestamps do not contribute, so these totals may be partial
-while tests are running or when failed callbacks have no recorded end time. Concurrent test durations can overlap.
-Resetting the tests resets these aggregates.
-
-Testers and suites expose `getDurationStarvationMs()` as the maximum estimated event-loop starvation
-duration among their tests; suites also expose `getDurationStarvationFormatted()`.
-Resetting the tests resets this maximum. Taking the maximum avoids summing overlapping delays from concurrent tests.
-This is a per-test maximum, not a measurement of suite wall-clock starvation or the longest individual heartbeat delay.
-The results page shows the maximum in orange parentheses beside the suite's elapsed launch duration when it exceeds one second,
-in both individual-map and Run All tables.
-
 ## Key Rules
 
 1.  **Always use `test.addStep()`** — logs progress in the test UI
