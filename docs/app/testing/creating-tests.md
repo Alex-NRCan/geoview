@@ -158,18 +158,46 @@ this.removeLayerConfigAndAssert(test, layerPath); // Cleanup
 
 For successful layer setup, use a fixture-specific `addLayer...` helper on `GVAbstractTester`,
 such as `addLayerEsriDynamicHistoFloodEvents(test)` or `addLayerEsriFeatureForestIndustry(test)`.
-These helpers create the fixture configuration, add it to the map, and return the selected
-layer after loading and legend resolution. Multi-layer fixtures also wait for the required
-siblings. Assertions, the behavior under test, and cleanup remain in the tester.
+Each helper immediately returns `{ layerPath, promiseLayer }`: capture `layerPath` synchronously,
+then await `promiseLayer` for the selected layer after loading and legend resolution.
 
-Fixture helpers own ID generation; callers derive runtime paths from the returned layer's
-`getLayerPath()` instead of creating IDs or paths before the test. GeoCore fixtures use their service
-UUID rather than a generated ID. For a test that returns query data or other observations, return
-the fixture alongside those observations (for example, `{ gvLayer, data: queryResult }`), so
-assertions and cleanup can use `result.gvLayer.getLayerPath()`. Multi-layer tests retain the returned
-layer instances and derive sibling or parent paths from those instances.
-Keep VPN/projection skip guards in the test before calling the helper. Tests expecting addition
-or loading errors continue using the lower-level helpers inside `testError()`.
+When writing a fixture helper, create its configuration with normal synchronous setup code and
+reuse `addLayerOnMapAndWait()` for addition, loading, and legend readiness:
+
+```typescript
+addLayerEsriFeatureTopProjects<T>(test: Test<T>): GVLayerFixtureResult<GVEsriFeature> {
+  const gvLayerId = generateId();
+  const layerPath = `${gvLayerId}/${GVAbstractTester.TOP_PROJECTS_900A_LAYER_ID}`;
+  test.addStep('Creating the Top Projects Esri Feature configuration...');
+  const gvConfig = EsriFeature.createGeoviewLayerConfig(
+    gvLayerId,
+    GVAbstractTester.TOP_PROJECTS_900A_LAYER_NAME,
+    GVAbstractTester.TOP_PROJECTS_900A_URL_MAP_SERVER,
+    false,
+    [{ id: GVAbstractTester.TOP_PROJECTS_900A_LAYER_ID }]
+  );
+  const promiseLayer = this.addLayerOnMapAndWait<T, GVEsriFeature>(test, gvConfig, layerPath);
+  return { layerPath, selectedLayerPath: layerPath, promiseLayer };
+}
+```
+
+Synchronous setup exceptions propagate directly from the helper. Addition, loading, and readiness
+failures reject `promiseLayer` without hiding the error, so callers can retain the returned cleanup
+path before awaiting it. Start genuinely asynchronous setup (such as reading a GeoPackage) with its
+own promise, then chain configuration selection, addition, and readiness. Chain required sibling
+waits in order rather than running them concurrently.
+Pass `true` as the fourth argument to `addLayerOnMapAndWait()` when empty or no-data legends are
+valid. Fixtures with GeoCore or metadata-dependent selection retain their specialized setup chains.
+
+Fixture helpers own ID generation. Use the resolved layer's `getLayerPath()` for assertions and
+layer-specific operations. Retain the immediate `layerPath` for finalizer cleanup before awaiting
+`promiseLayer`, so a rejected add/load still leaves a cleanup scope. For metadata-derived children
+whose exact path is not known synchronously, or fixtures that add siblings, `layerPath` may be the
+GeoView root ID; root-scope cleanup removes its configured entries. GeoCore fixtures use their
+service UUID rather than a generated ID. For a test that returns query data or other observations,
+return the fixture alongside those observations (for example, `{ gvLayer, data: queryResult }`).
+Keep VPN/projection skip guards in the test before calling the helper. Tests expecting addition or
+loading errors continue using the lower-level helpers inside `testError()`.
 
 **Static helpers** on `LayerTester` (require explicit `mapId`):
 
@@ -232,12 +260,28 @@ export class GVTestSuiteMyFeature extends GVAbstractTestSuite {
 }
 ```
 
+When the tests called by `onLaunchTestSuite()` change, review and update `getDescriptionAsHtml()` so
+the suite description accurately summarizes the current coverage.
+
 `getTestsTotalFinal()` is required for every concrete suite. Keep it equal to the full
 `onLaunchTestSuite()` call count, including heavy tests gated by `getIsRunningHeavyTests()` and
 excluding debug-only or commented-out calls. The test catalog is an unnumbered inventory, and the
 automated release checklist tracks pass status without test totals. Update catalog entries when test
 methods are added, removed, or renamed; update checklist rows only when the suite list or execution
 variants change. There are no documentation totals to reconcile.
+
+For work performed by a suite outside an individual test, call `this.addStep(message, level, color)`.
+Suite steps appear as separate rows among the test rows in the order they are reported, in both the map
+and Run All tables. They are cleared when the suite is reset and do not count as tests. For example:
+
+```typescript
+this.addStep('Waiting for exclusive page access', 'major');
+const exclusive = await this.waitForPageExclusivity();
+this.addStep(exclusive ? 'Exclusive access acquired' : 'Timed out; continuing without exclusivity');
+```
+
+Listeners can subscribe to `onSuiteUpdated` on the suite or the test-suite plugin; the plugin event
+includes the originating `suite`. The event also fires for suite launch status changes.
 
 ### Conditional Execution
 
@@ -297,6 +341,21 @@ In `packages/geoview-core/public/templates/tests.html`, create a map div:
 ></div>
 ```
 
+### Test duration and suite starvation
+
+Testers expose `getDurationMs()` for the sum of recorded full test lifecycle durations and
+`getDurationTestMs()` for the sum of recorded execution callback durations, excluding assertions and cleanup.
+Tests without the corresponding start and end timestamps do not contribute, so these totals may be partial
+while tests are running or when failed callbacks have no recorded end time. Concurrent test durations can overlap.
+Resetting the tests resets these aggregates.
+
+Testers and suites expose `getDurationStarvationMs()` as the maximum estimated event-loop starvation
+duration among their tests; suites also expose `getDurationStarvationFormatted()`.
+Resetting the tests resets this maximum. Taking the maximum avoids summing overlapping delays from concurrent tests.
+This is a per-test maximum, not a measurement of suite wall-clock starvation or the longest individual heartbeat delay.
+The results page shows the maximum in orange parentheses beside the suite's elapsed launch duration when it exceeds one second,
+in both individual-map and Run All tables.
+
 ## Key Rules
 
 1.  **Always use `test.addStep()`** — logs progress in the test UI
@@ -348,14 +407,24 @@ testIsolated(): Promise<Test<void>> {
 ```
 
 Map configuration tests belong in `MapConfigTester` and run sequentially in `suite-map-config`.
-`#helperCreateMapConfig(test, mapId, overrides)` deletes the previous viewer, creates a new one with
+`#helperCreateMapConfig(test, mapId, mapConfig)` deletes the previous viewer, creates a new one with
 `createMapFromConfigFast`, reassigns the tester's viewer **and controllers** using
-`reassignMapViewerAndControllers`, and waits for layer loading.
-Overrides are dot-path/value pairs; `null` removes a property to test absence/defaults.
+`assignMapViewerAndControllers`, and waits for layer loading.
+Overrides are nested configuration objects deep-merged with the helper's base fixture.
+The helper disables current-config inheritance in `replaceMap()` so previous tests' extent targets,
+zoom constraints, and other settings cannot leak into the new map. Other `replaceMap()` callers
+inherit the current configuration by default; pass `false` as its fifth argument for an isolated configuration.
 Use `#helperCreateMapConfigWithInitialSettings` for a flat layer,
 `#helperCreateMapConfigWithGroupInitialSettings` for parent/child states, and
 `#helperCreateMapConfigWithNestedGroupInitialSettings` for full three-level settings.
 Never retain controllers from the destroyed map.
+
+Suites run sequentially but can share a map ID whose viewer is replaced by an earlier suite.
+Before eligibility checks, each GeoView suite binds the current API-registered viewer and its controllers
+to itself and all its testers. During execution, `replaceMap()` notifies the owning suite to update
+those references together. Getters return the assigned references without refreshing them.
+Use those getters after a replacement rather than keeping viewer or controller references from before it.
+See the [test-suite maintenance reference](https://github.com/Canadian-Geospatial-Platform/geoview/blob/develop/.github/ai/test-suite.md#gotchas--pitfalls).
 
 ### Descriptive Test Names
 

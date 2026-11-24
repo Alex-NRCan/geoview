@@ -599,7 +599,48 @@ This catalog lists every test by group, suite, and tester. Each entry gives the 
 | --------------------------------- | ---- | ------------------------------------------------------------------------------------------------------- |
 | `testSetOrToggleLayerVisibility` | test | Test explicit visibility values and no-argument toggles through `LayerApi.setOrToggleLayerVisibility` |
 
+#### 2.2.6 Layer Naming (sequential)
+
+[↑ Back to top](#table-of-contents)
+
+| Method                                     | Type | Description                                                                                      |
+| ------------------ | ---- | --------------------------------------------------------------------------------------------------- |
+| `testSetLayerName` | test | Test repeated `LayerApi.setLayerName` calls update runtime, legend store, and the rendered Layers panel label |
+
+#### 2.2.7 Layer Opacity (sequential)
+
+[↑ Back to top](#table-of-contents)
+
+| Method                | Type | Description                                                                                      |
+| --------------------- | ---- | ------------------------------------------------------------------------------------------------ |
+| `testSetLayerOpacity` | test | Test parent-to-child opacity propagation, independent child updates, parent caps, legend-store limits, and restoration from transparency |
+
 ---
+
+#### 2.2.8 Queryable and Hoverable (sequential)
+
+[↑ Back to top](#table-of-contents)
+
+| Method | Type | Description |
+| ------ | ---- | ----------- |
+| `testSetLayerQueryable` | test | Test public queryable transitions and repeated assignments synchronize runtime/store flags |
+| `testSetLayerHoverable` | test | Test public hoverable transitions and repeated assignments synchronize runtime/store flags |
+
+#### 2.2.9 Text Visibility (sequential)
+
+[↑ Back to top](#table-of-contents)
+
+| Method | Type | Description |
+| ------ | ---- | ----------- |
+| `testSetLayerTextVisibility` | test | Test controller text-visibility transitions and repeated assignments synchronize the runtime flag and legend store |
+
+#### 2.2.10 WMS Styles (sequential)
+
+[↑ Back to top](#table-of-contents)
+
+| Method | Type | Description |
+| ------ | ---- | ----------- |
+| `testSetLayerWmsStyle` | test | Test named/repeated WMS style assignments synchronize runtime, source STYLES, and legend store; undefined/empty selections preserve the active style |
 
 ## 3. Map
 
@@ -628,12 +669,13 @@ This catalog lists every test by group, suite, and tester. Each entry gives the 
 | `testNorthArrowRotationLCC`            | test | Test north arrow rotation in LCC projection for British Columbia                             |
 | `testNonQueryableLayerNotInDetails`    | test | Test non-queryable layer not in details after map click                                      |
 | `testLayerHoverableState`              | test | Test layer hoverable state in hoverFeatureInfoLayerSet                                       |
-| `testDetailsLayerSelectionPersistence` | test | Test details layer selection persistence across map clicks                                   |
 | `testVectorTileProjectionWarning`      | test | Test vector tile projection warning on projection switch                                     |
 | `testFullscreenViewRestoration`        | test | Test exact view restoration without interaction and current view retention after interaction |
 | `testGuideDetailsPanelTopAnchor`       | test | Test selecting the Details panel and verifying the guide’s Top anchor behavior               |
 | `testControllerGetFooterHeight`        | test | Test `UIController.getFooterHeight()` from a non-React consumer                              |
 | `testCrosshairCoordinates`             | test | Test SVG artwork center alignment, stale pointer reset, and Enter/Space drawing with padding, panning, and rotation |
+
+> **TODO:** Add back `testPageScrollLock` (two cases, release newest/oldest first) in `MapTester` and register it in this suite (then update `getTestsTotalFinal()`). It checks that overlapping `DomHelper.lockPageScroll` locks keep the page locked until the last release, that repeated releases are harmless, and that the original overflow styles are restored. It was removed to avoid conflicts with the ongoing testing refactor; the implementation is in commit `a65be1b9ea` (#3742).
 
 ---
 
@@ -682,6 +724,12 @@ its expected error. Finalizers restore the host width, map target, and usable vi
 | `testDuplicatedPanelsRemovedFromFooter`   | test | Test panels declared in both appBar and footerBar are removed from the footer bar (kept in app bar)                     |
 | `testNoNavBarHasDefaults`                 | test | Test no navBar config value creates default navigation controls                                                         |
 | `testEmptyNavBarHasZoomRotate`            | test | Test navBar with empty array has only zoom and rotate                                                                   |
+
+#### Feature Info Configuration
+
+| Method                              | Type | Description |
+| ----------------------------------- | ---- | ----------- |
+| `testDetailsForGeoJSONOntarioAlberta` | test | Test Ontario/Alberta Details queries, layer/item visibility, feature zoom, nameField configuration, summary:false field exclusion, and custom field aliases... |
 
 #### 3.2.2 Initial View
 
@@ -826,19 +874,19 @@ its expected error. Finalizers restore the host width, map target, and usable vi
 [↑ Back to top](#table-of-contents)
 
 **Suite:** `suite-details` · **File:** `tests/suites/suite-details.ts` · **Tester:** `DetailsTester` (`tests/testers/details-tester.ts`)
-**Execution:** Sequential + parallel · **Guard:** `details` must be in `footerBar.tabs.core`
+**Execution:** Sequential · **Guard:** `details` must be in the app bar
 
 | Method                       | Type | Description                                          |
 | ---------------------------- | ---- | ---------------------------------------------------- |
-| `testDetailsOnLayer`         | test | Test Details on layer _{layerPath}_ ...              |
 | `testClearAllHighlights`     | test | Test Clear all highlights on layer _{layerPath}_ ... |
-| `testZoomToFeature`          | test | Test Zoom to feature on layer _{layerPath}_ ...      |
-| `testZoomToResultsGroupExtent` | test | Test Zoom to all results for layer _{layerPath}_ ... |
-| `testZoomToFeatureBoundAndPan` | test | Test Zoom to point feature bound and pan to next feature on layer _{layerPath}_ ... |
-| `testZoomToResultsButtonUnavailableUntilViewChanges` | test | Test Zoom to all results button is unavailable until the map view changes on layer _{layerPath}_ ... |
-| `testNameFieldAsLabel`       | test | Test nameField as label in query results...          |
-| `testSummaryFalseHidesField` | test | Test summary false hides field from query results... |
-| `testFieldAliasRenamesField` | test | Test field alias renames field in query results...   |
+| `testPolygonFeatureDetailsTable` | test | Check polygon Details field labels, values, images, and map-configured date formatting using a temporary fixture... |
+| `testAirborneFeatureDetailsTable` | test | Check rendered Airborne WMS/WFS location, province, and string date fields; requires VPN and restores the map extent... |
+| `testCitiesFeatureDetailsTable` | test | Check rendered Cities WMS/WFS name and population using a temporary fixture... |
+| `testShowCoordinateInfoToggle` | test | Toggle coordinate information, check decimal and DMS values after map clicks, hide content while disabled, and re-enable for the latest location... |
+| `testZoomToResultsGroupExtent` | test | Test group-result zoom using its own polygon fixture; removes the fixture and restores the map extent... |
+| `testZoomToFeatureBoundAndPan` | test | Test bounded feature zoom and navigation using its own polygon fixture; removes the fixture and restores the map extent... |
+| `testZoomToResultsButtonUnavailableUntilViewChanges` | test | Test zoom-button availability using its own polygon fixture; removes the fixture and restores the map extent... |
+| `testLayerSelectionPersistence` | test | Test Details layer selection persistence across map clicks using added GeoJSON polygons and Top Projects fixtures... |
 
 ---
 
@@ -851,21 +899,12 @@ its expected error. Finalizers restore the host width, map target, and usable vi
 
 | Method                                             | Type | Description                                                                      |
 | -------------------------------------------------- | ---- | -------------------------------------------------------------------------------- |
-| `testAllFeaturesDataArrayPopulated`                | test | Test allFeaturesDataArray is populated for GeoJSON layer...                      |
-| `testAllFeaturesDataArrayPopulated`                | test | Test allFeaturesDataArray is populated for the 600-feature Esri layer...         |
-| `testGeoviewIdColumnHiddenByDefault`               | test | Test geoviewID column hidden by default...                                       |
+| `testAddGeoJsonCheckDataTablePopulated`            | test | Test GeoJSON population, hidden geoviewID, column visibility changes, row-count updates, default/disabled map filtering, province/date/global filters, Ontario extent filtering, and temporary row-zoom highlight expiry... |
+| `testAddCommemorativeCheckDataTablePopulated`      | test | Test the 600-feature Esri layer populates the store and rendered table, visible cells contain loaded feature values, the localized summary reports 600 features, empty range filters are excluded, and clearing resets column filters... |
 | `testEmptyFieldNameDoesNotCrashDataTable`          | test | Test a layer with an empty field name renders the data table without crashing... |
-| `testMapFilteredRecordDefault`                     | test | Test mapFilteredRecord is true by default...                                     |
-| `testSetMapFilteredRecordFalse`                    | test | Test setting mapFilteredRecord to false...                                       |
-| `testGlobalFilterRecord`                           | test | Test global filter record updates store...                                       |
 | `testCitiesNameFilterCount`                        | test | Test Cities name filter for "mo" returns 30; population minimum 1,000,000 returns 6; maximum 1,750,000 returns 3... |
-| `testClearFiltersResetsState`                      | test | Test clear filters resets columnFiltersRecord...                                 |
-| `testColumnVisibilityToggle`                       | test | Test column visibility toggle updates store...                                  |
-| `testRowsFilteredRecordCount`                      | test | Test rowsFilteredRecord updates in store...                                      |
 | `testFilterByExtentUnavailableForEsriDynamic`      | test | Test filter-by-extent toggle absent for Esri Dynamic layer...                    |
-| `testFilterByExtentOnGeoJSONOntario`               | test | Test filter-by-extent on GeoJSON layer (zoom to Ontario)...                     |
 | `testShowUnsymbolizedFeaturesFalsePrefiltersTable` | test | Test showUnsymbolizedFeatures false pre-filters data table...                    |
-| `testTemporaryZoomHighlightExpires`                | test | Test temporary zoom highlight is removed automatically...                        |
 
 ---
 
@@ -882,7 +921,7 @@ its expected error. Finalizers restore the host width, map target, and usable vi
 
 | Method                                       | Type | Description                              |
 | -------------------------------------------- | ---- | ---------------------------------------- |
-| `testGeochartOpenForLayerMapClick`           | test | Test Geochart on layer _{layerPath}_ ... |
+| `testGeochartPolygonsClick`                 | test | Test Geochart on the polygon layer ... |
 | `testAddGeocoreLayerUUIDForGeochartAirborne` | test | Test Geochart (Geocore Airborne)         |
 | `testAddGeocoreLayerUUIDForGeochart`         | test | Test Geochart (Geocore UUID)             |
 
