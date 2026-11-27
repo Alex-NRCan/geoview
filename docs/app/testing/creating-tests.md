@@ -150,51 +150,43 @@ map root. It throws `TestError` if the container is missing; reuse this root rat
 appending fixture maps to the runner page.
 
 ```typescript
-this.addLayerOnMap(test, gvConfig); // Add layer and wait for creation
-this.addLayerOnMapFromUUID(test, uuid); // Add from GeoCore UUID
+this.addLayerOnMap(test, gvConfig, layerPath); // Add layer and wait for configuration registration
+this.addLayerOnMapFromUUID(test, uuid, layerPath); // Add from GeoCore UUID
 this.waitLayerAtLayerPath(test, layerPath); // Wait for loading and legend resolution
 this.removeLayerConfigAndAssert(test, layerPath); // Cleanup
 ```
 
 For successful layer setup, use a fixture-specific `addLayer...` helper on `GVAbstractTester`,
 such as `addLayerEsriDynamicHistoFloodEvents(test)` or `addLayerEsriFeatureForestIndustry(test)`.
-Each helper immediately returns `{ layerPath, promiseLayer }`: capture `layerPath` synchronously,
-then await `promiseLayer` for the selected layer after loading and legend resolution.
-
-When writing a fixture helper, create its configuration with normal synchronous setup code and
-reuse `addLayerOnMapAndWait()` for addition, loading, and legend readiness:
+Each helper returns one promise resolving to the selected layer after loading and legend resolution.
+Pass optional callbacks as the last argument to capture the GeoView root and selected configuration paths
+and inspect the registered configuration. The configuration callback may be asynchronous and is awaited before the helper starts
+its load and legend waits; the layer can nevertheless load while the callback is running.
+The lower-level `addLayerOnMap` and `addLayerOnMapFromUUID` helpers accept these callbacks
+and invoke them during addition.
 
 ```typescript
-addLayerEsriFeatureTopProjects<T>(test: Test<T>): GVLayerFixtureResult<GVEsriFeature> {
-  const gvLayerId = generateId();
-  const layerPath = `${gvLayerId}/${GVAbstractTester.TOP_PROJECTS_900A_LAYER_ID}`;
-  test.addStep('Creating the Top Projects Esri Feature configuration...');
-  const gvConfig = EsriFeature.createGeoviewLayerConfig(
-    gvLayerId,
-    GVAbstractTester.TOP_PROJECTS_900A_LAYER_NAME,
-    GVAbstractTester.TOP_PROJECTS_900A_URL_MAP_SERVER,
-    false,
-    [{ id: GVAbstractTester.TOP_PROJECTS_900A_LAYER_ID }]
-  );
-  const promiseLayer = this.addLayerOnMapAndWait<T, GVEsriFeature>(test, gvConfig, layerPath);
-  return { layerPath, selectedLayerPath: layerPath, promiseLayer };
-}
+const layer = await this.addLayerEsriFeatureTopProjects(test, {
+  onLayerPath: (rootPath, configPath): void => {
+    rootLayerPath = rootPath;
+    configLayerPath = configPath;
+  },
+  onConfig: async (config): Promise<void> => {
+    /* Inspect registered configuration. */
+  },
+});
 ```
 
-Synchronous setup exceptions propagate directly from the helper. Addition, loading, and readiness
-failures reject `promiseLayer` without hiding the error, so callers can retain the returned cleanup
-path before awaiting it. Start genuinely asynchronous setup (such as reading a GeoPackage) with its
-own promise, then chain configuration selection, addition, and readiness. Chain required sibling
-waits in order rather than running them concurrently.
-Pass `true` as the fourth argument to `addLayerOnMapAndWait()` when empty or no-data legends are
-valid. Fixtures with GeoCore or metadata-dependent selection retain their specialized setup chains.
+Setup, callback, addition, loading, and readiness failures reject the returned promise. Capture the
+root in `onLayerPath` for cleanup in `callbackFinalize`, even if setup later fails. The second argument
+identifies the selected configuration and can differ from the loaded layer or cleanup root.
+For generated fixtures this callback runs before asynchronous setup or addition. For GeoCore it runs after the
+controller assigns an owned root but before the addition promise is awaited; if creation fails before
+an owned layer is returned, no path is reported. The selected path is rebased to the assigned
+root if the UUID is already in use.
 
 Fixture helpers own ID generation. Use the resolved layer's `getLayerPath()` for assertions and
-layer-specific operations. Retain the immediate `layerPath` for finalizer cleanup before awaiting
-`promiseLayer`, so a rejected add/load still leaves a cleanup scope. For metadata-derived children
-whose exact path is not known synchronously, or fixtures that add siblings, `layerPath` may be the
-GeoView root ID; root-scope cleanup removes its configured entries. GeoCore fixtures use their
-service UUID rather than a generated ID. For a test that returns query data or other observations,
+layer-specific operations; root-scope cleanup removes its configured entries. For a test that returns query data or other observations,
 return the fixture alongside those observations (for example, `{ gvLayer, data: queryResult }`).
 Keep VPN/projection skip guards in the test before calling the helper. Tests expecting addition or
 loading errors continue using the lower-level helpers inside `testError()`.
@@ -208,13 +200,14 @@ LayerTester.helperStepAssertStyleApplied(test, this.getMapId(), layerPath, iconI
 
 ### Shared Constants
 
-URLs, UUIDs, and expected icon lists are defined as `static readonly` on `GVAbstractTester`:
+Shared URLs, UUIDs, and expected icon lists are defined as `static readonly` on `TestConstants`
+in `src/tests/testers/constants.ts`.
 
 ```typescript
-GVAbstractTester.BAD_URL; // 'https://badurl/oops'
-GVAbstractTester.QUEBEC_LONLAT; // [-71.356, 46.780]
-GVAbstractTester.ONTARIO_CENTER_LONLAT; // [-87, 51]
-GVAbstractTester.HISTORICAL_FLOOD_URL_MAP_SERVER;
+TestConstants.BAD_URL; // 'https://badurl/oops'
+TestConstants.QUEBEC_LONLAT; // [-71.356, 46.780]
+TestConstants.ONTARIO_CENTER_LONLAT; // [-88.31, 51.97]
+TestConstants.HISTORICAL_FLOOD_URL_MAP_SERVER;
 // etc.
 ```
 

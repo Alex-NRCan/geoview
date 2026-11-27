@@ -47,7 +47,13 @@ Before writing a test, classify it into one of these groups:
 | **Time Slider** | `TimeSliderTester` (new) | `suite-time-slider` (new) | Guarded (`time-slider` plugin required) |
 | **Drawer**      | `DrawerTester` (new)     | `suite-drawer` (new)      | Guarded (`drawer` plugin required)      |
 
-> **Choosing the right group:** Pure function with no side effects → Group 1. Adds/removes/queries a layer → Group 2. Changes map state or tests map-scoped UI → Group 3. Tests a dedicated Details or Data Table panel suite → Group 4. Tests a plugin package → Group 5.
+### Group 6 — A11Y and UX (keyboard accessibility and cross-panel interactions)
+
+| Category              | Tester Class   | Suite Class     | Execution Pattern                     |
+| --------------------- | -------------- | --------------- | ------------------------------------- |
+| **Keyboard / Focus** | `A11yUxTester`, `A11yEntryTester` | `suite-a11y-ux` | Sequential on the dedicated suite map |
+
+> **Choosing the right group:** Pure function with no side effects → Group 1. Adds/removes/queries a layer → Group 2. Changes map state or tests map-scoped UI → Group 3. Tests a dedicated Details or Data Table panel suite → Group 4. Tests a plugin package → Group 5. Tests keyboard focus or cross-panel accessibility/UX → Group 6.
 
 ---
 
@@ -86,7 +92,7 @@ testFunctionNameScenario(): Promise<Test<ResultType>> {
 - No `async` callback unless the function is async
 - No `callbackFinalize` (no cleanup needed for pure functions)
 - Import functions directly from geoview-core: `import { fn } from 'geoview-core/core/utils/utilities'`
-- Constants for test data go as `static readonly` on the tester class (not on `GVAbstractTester` unless shared across testers)
+- Shared test-data constants go in `TestConstants` in `src/tests/testers/constants.ts`; tester-specific constants stay on their tester class.
 - All tests run in parallel via `Promise.all()`
 
 ### Example — Testing `range()`
@@ -112,6 +118,8 @@ testRange(): Promise<Test<number[]>> {
 
 **Group 1** — For testing that a layer config is correctly created and validated (without adding it to the map).
 
+`TestConstants.MY_LAYER_*` entries in these templates are placeholders for constants you define.
+
 ```typescript
 /**
  * Tests [LayerType] config validation.
@@ -120,7 +128,7 @@ testRange(): Promise<Test<number[]>> {
  */
 testMyLayerConfigValidation(): Promise<Test<TypeGeoviewLayerConfig>> {
   const gvLayerId = generateId();
-  const layerUrl = GVAbstractTester.MY_LAYER_URL;
+  const layerUrl = TestConstants.MY_LAYER_URL;
   const gvLayerName = 'My Layer Config Test';
 
   return this.test(
@@ -129,7 +137,7 @@ testMyLayerConfigValidation(): Promise<Test<TypeGeoviewLayerConfig>> {
       test.addStep('Creating the GeoView Layer Configuration...');
       const gvConfig = MyLayerClass.createGeoviewLayerConfig(
         gvLayerId, gvLayerName, layerUrl, false,
-        [{ id: GVAbstractTester.MY_LAYER_ID }]
+        [{ id: TestConstants.MY_LAYER_ID }]
       );
       return gvConfig;
     },
@@ -166,8 +174,8 @@ testMyLayerConfigValidation(): Promise<Test<TypeGeoviewLayerConfig>> {
  */
 testAddMyLayer(): Promise<Test<AbstractGVLayer>> {
   const gvLayerId = generateId();
-  const layerUrl = GVAbstractTester.MY_LAYER_URL;
-  const layerPath = `${gvLayerId}/${GVAbstractTester.MY_LAYER_ID}`;
+  const layerUrl = TestConstants.MY_LAYER_URL;
+  const layerPath = `${gvLayerId}/${TestConstants.MY_LAYER_ID}`;
   const gvLayerName = 'My Layer';
 
   return this.test(
@@ -176,7 +184,7 @@ testAddMyLayer(): Promise<Test<AbstractGVLayer>> {
       test.addStep('Creating the GeoView Layer Configuration...');
       const gvConfig = MyLayerClass.createGeoviewLayerConfig(
         gvLayerId, gvLayerName, layerUrl, false,
-        [{ id: GVAbstractTester.MY_LAYER_ID }]
+        [{ id: TestConstants.MY_LAYER_ID }]
       );
       await this.helperStepAddLayerOnMap(test, gvConfig);
       return this.helperStepCheckLayerAtLayerPath(test, layerPath);
@@ -184,7 +192,7 @@ testAddMyLayer(): Promise<Test<AbstractGVLayer>> {
     (test) => {
       LayerTester.helperStepAssertLayerExists(
         test, this.getMapId(), layerPath, undefined,
-        GVAbstractTester.MY_LAYER_ICON_LIST
+        TestConstants.MY_LAYER_ICON_LIST
       );
     },
     (test) => {
@@ -215,8 +223,8 @@ testAddMyLayer(): Promise<Test<AbstractGVLayer>> {
  */
 testAddMyLayerBadUrl(): Promise<Test<LayerServiceMetadataUnableToFetchError>> {
   const gvLayerId = generateId();
-  const layerUrl = GVAbstractTester.BAD_URL;
-  const layerPath = `${gvLayerId}/${GVAbstractTester.MY_LAYER_ID}`;
+  const layerUrl = TestConstants.BAD_URL;
+  const layerPath = `${gvLayerId}/${TestConstants.MY_LAYER_ID}`;
   const gvLayerName = 'My Layer';
 
   return this.testError(
@@ -226,7 +234,7 @@ testAddMyLayerBadUrl(): Promise<Test<LayerServiceMetadataUnableToFetchError>> {
       test.addStep('Creating the GeoView Layer Configuration...');
       const gvConfig = MyLayerClass.createGeoviewLayerConfig(
         gvLayerId, gvLayerName, layerUrl, false,
-        [{ id: GVAbstractTester.MY_LAYER_ID }]
+        [{ id: TestConstants.MY_LAYER_ID }]
       );
       await this.helperStepAddLayerOnMap(test, gvConfig);
     },
@@ -258,8 +266,8 @@ testAddMyLayerBadUrl(): Promise<Test<LayerServiceMetadataUnableToFetchError>> {
  */
 testMyLayerQuery(): Promise<Test<TypeFeatureInfoResult>> {
   const gvLayerId = generateId();
-  const layerUrl = GVAbstractTester.MY_LAYER_URL;
-  const layerPath = `${gvLayerId}/${GVAbstractTester.MY_LAYER_ID}`;
+  const layerUrl = TestConstants.MY_LAYER_URL;
+  const layerPath = `${gvLayerId}/${TestConstants.MY_LAYER_ID}`;
   const gvLayerName = 'My Layer Query';
 
   return this.test(
@@ -267,7 +275,7 @@ testMyLayerQuery(): Promise<Test<TypeFeatureInfoResult>> {
     async (test) => {
       test.addStep('Creating the GeoView Layer Configuration...');
       const gvConfig = MyLayerClass.createGeoviewLayerConfig(gvLayerId, gvLayerName, layerUrl, false, [
-        { id: GVAbstractTester.MY_LAYER_ID },
+        { id: TestConstants.MY_LAYER_ID },
       ]);
 
       await this.helperStepAddLayerOnMap(test, gvConfig);
@@ -277,7 +285,7 @@ testMyLayerQuery(): Promise<Test<TypeFeatureInfoResult>> {
       await this.getMapViewer().layer.allFeatureInfoLayerSet.waitForLayerToGetRegistered(layerPath);
 
       test.addStep('Setting zoom level...');
-      await this.getControllersRegistry().mapController.zoomMap(REQUIRED_ZOOM, GVAbstractTester.USE_ZOOM_ANIMATION);
+      await this.getControllersRegistry().mapController.zoomMap(REQUIRED_ZOOM, TestConstants.USE_ZOOM_ANIMATION);
 
       test.addStep('Triggering getAllFeatureInfo query...');
       return this.getControllersRegistry().layerSetController.triggerGetAllFeatureInfo(layerPath);
@@ -525,7 +533,7 @@ An instant fit (`duration: 0` or no animation) completes synchronously, so it ca
 
 ### Waiting for Attribute Changes
 
-`DomHelper.waitForDomElement` only re-checks when nodes are added or removed, so a selector that depends on an attribute changing on an existing element (e.g. `button[aria-disabled="true"]`) never resolves and, without a timeout, freezes the suite. Poll with `whenThisThen(() => root.querySelector(selector), GVAbstractTester.UI_STATE_TIMEOUT_MS, 50)` instead (it rejects once the timeout is exceeded), or use `waitForClass` for `class` changes.
+`DomHelper.waitForDomElement` only re-checks when nodes are added or removed, so a selector that depends on an attribute changing on an existing element (e.g. `button[aria-disabled="true"]`) never resolves and, without a timeout, freezes the suite. Poll with `whenThisThen(() => root.querySelector(selector), TestConstants.UI_STATE_TIMEOUT_MS, 50)` instead (it rejects once the timeout is exceeded), or use `waitForClass` for `class` changes.
 
 Vector queries are pixel-based, so their results depend on the current view: the result count varies with zoom (pixel hit tolerance), and a coordinate outside the view returns no result. Reset the view (e.g. `mapController.zoomToInitialExtent`) before a query that depends on it when earlier tests moved the map.
 
@@ -552,7 +560,7 @@ import { whenThisThen } from "geoview-core/core/utils/utilities";
 // prettier-ignore
 await whenThisThen(
   () => this.getMapViewer().layer.allFeatureInfoLayerSet.getRegisteredLayerPaths().includes(layerPath),
-  GVAbstractTester.LAYER_REGISTRATION_TIMEOUT_MS
+  10000
 );
 ```
 

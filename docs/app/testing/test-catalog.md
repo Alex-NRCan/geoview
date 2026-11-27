@@ -66,26 +66,29 @@ This catalog lists every test by group, suite, and tester. Each entry gives the 
   - [5.1 Geochart](#51-geochart)
   - [5.2 Swiper](#52-swiper)
   - [5.3 Time Slider](#53-time-slider)
+- [6. A11Y and UX](#6-a11y-and-ux)
+  - [6.1 Keyboard Navigation](#61-keyboard-navigation)
 - [Summary](#summary)
 
 ---
 
 ### Summary
 
-| Group             | Suite                   | Tester(s)                                                                                       | Execution                   |
-| ----------------- | ----------------------- | ----------------------------------------------------------------------------------------------- | --------------------------- |
-| 1. Core / Utility | `suite-core`            | `CoreTester`                                                                                    | Parallel                    |
-| 1. Core / Utility | `suite-config`          | `ConfigTester`                                                                                  | Parallel                    |
-| 1. Core / Utility | `suite-utilities`       | `UtilitiesCoreTester`, `UtilitiesDateTester`, `UtilitiesGeoTester`, `UtilitiesProjectionTester` | Parallel                    |
-| 2. Layers         | `suite-layer`           | `LayerTester`                                                                                   | Mixed parallel + sequential |
-| 2. Layers         | `suite-layer-functions` | `LayerTester`                                                                                   | Mixed parallel + sequential |
+| Group             | Suite                   | Tester(s)                                                                                       | Execution                     |
+| ----------------- | ----------------------- | ----------------------------------------------------------------------------------------------- | ----------------------------- |
+| 1. Core / Utility | `suite-core`            | `CoreTester`                                                                                    | Parallel                      |
+| 1. Core / Utility | `suite-config`          | `ConfigTester`                                                                                  | Parallel                      |
+| 1. Core / Utility | `suite-utilities`       | `UtilitiesCoreTester`, `UtilitiesDateTester`, `UtilitiesGeoTester`, `UtilitiesProjectionTester` | Parallel                      |
+| 2. Layers         | `suite-layer`           | `LayerTester`                                                                                   | Mixed parallel + sequential   |
+| 2. Layers         | `suite-layer-functions` | `LayerTester`                                                                                   | Mixed parallel + sequential   |
 | 3. Map            | `suite-map`             | `MapTester`                                                                                     | Complex mixed; UI checks last |
-| 3. Map            | `suite-map-config`      | `MapConfigTester`, `MapTester`                                                                  | Fully sequential            |
-| 4. Components     | `suite-details`         | `DetailsTester`                                                                                 | Guarded sequential          |
-| 4. Components     | `suite-data-table`      | `DataTableTester`                                                                               | Guarded sequential          |
-| 5. Packages       | `suite-geochart`        | `GeochartTester`                                                                                | Guarded sequential          |
-| 5. Packages       | `suite-swiper`          | `SwiperTester`                                                                                  | Guarded sequential          |
-| 5. Packages       | `suite-time-slider`     | `TimeSliderTester`                                                                              | Guarded sequential          |
+| 3. Map            | `suite-map-config`      | `MapConfigTester`, `MapTester`                                                                  | Fully sequential              |
+| 4. Components     | `suite-details`         | `DetailsTester`                                                                                 | Guarded sequential            |
+| 4. Components     | `suite-data-table`      | `DataTableTester`                                                                               | Guarded sequential            |
+| 5. Packages       | `suite-geochart`        | `GeochartTester`                                                                                | Guarded sequential            |
+| 5. Packages       | `suite-swiper`          | `SwiperTester`                                                                                  | Guarded sequential            |
+| 5. Packages       | `suite-time-slider`     | `TimeSliderTester`                                                                              | Guarded sequential            |
+| 6. A11Y and UX    | `suite-a11y-ux`         | `A11yUxTester`, `A11yEntryTester`                                                               | Sequential                    |
 
 ---
 
@@ -240,9 +243,9 @@ This catalog lists every test by group, suite, and tester. Each entry gives the 
 
 [↑ Back to top](#table-of-contents)
 
-| Method                              | Type | Description                |
-| ----------------------------------- | ---- | -------------------------- |
-| `testStandaloneGeocoreWithAirborne` | test | Test Geocore with Airborne |
+| Method                                       | Type | Description                                                                                                          |
+| -------------------------------------------- | ---- | -------------------------------------------------------------------------------------------------------------------- |
+| `testStandaloneGeocoreWithAirborne`          | test | Test Geocore with Airborne                                                                                           |
 | `testInitGeocoreEsriFeaturePreservesLayerId` | test | Test Add Layer GeoCore initialization produces the expected configuration with only the selected FeatureServer layer |
 
 #### 1.2.13 Settings Cascade
@@ -268,32 +271,32 @@ This catalog lists every test by group, suite, and tester. Each entry gives the 
 
 **File:** `tests/testers/utilities-core-tester.ts`
 
-| Method                            | Type | Description                                                    |
-| --------------------------------- | ---- | -------------------------------------------------------------- |
-| `testRange`                       | test | Test range() generates correct sequences...                    |
-| `testCamelCase`                   | test | Test camelCase() converts strings...                           |
-| `testDeepEqual`                   | test | Test deepEqual() compares values...                            |
-| `testDeepClone`                   | test | Test deepClone() creates independent copies...                 |
-| `testDeepMerge`                   | test | Test deepMerge() merges objects...                             |
-| `testShallowEquals`               | test | Test shallowObjectEqual() and shallowArrayEqual()...           |
-| `testIsNumeric`                   | test | Test isNumeric() validates numeric strings...                  |
-| `testIsObjectEmpty`               | test | Test isObjectEmpty() checks empty objects...                   |
-| `testGenerateIdAndIsValidUUID`    | test | Test generateId() and isValidUUID()...                         |
-| `testSetAlphaColor`               | test | Test setAlphaColor() modifies alpha channel...                 |
-| `testIsJsonString`                | test | Test isJsonString() validates JSON strings...                  |
-| `testJsonParsing`                 | test | Test removeCommentsFromJSON() and parseJSONConfig()...         |
-| `testEscapeRegExp`                | test | Test escapeRegExp() escapes regex characters...                |
-| `testIsImage`                     | test | Test isImage() detects image URLs...                           |
-| `testStringify`                   | test | Test stringify() handles null/undefined/values...              |
-| `testSafeStringify`               | test | Test safeStringify() handles circular references...            |
-| `testDeepMergeObjects`            | test | Test deepMergeObjects() merges multiple objects...             |
-| `testFindPropertyByRegexPath`     | test | Test findPropertyByRegexPath() finds nested properties...      |
-| `testFormatMeasurements`          | test | Test formatMeasurementValue(), formatLength(), formatArea()... |
-| `testNormalizeDatacubeAccessPath` | test | Test normalizeDatacubeAccessPath() transforms URLs...          |
+| Method                            | Type | Description                                                                                                  |
+| --------------------------------- | ---- | ------------------------------------------------------------------------------------------------------------ |
+| `testRange`                       | test | Test range() generates correct sequences...                                                                  |
+| `testCamelCase`                   | test | Test camelCase() converts strings...                                                                         |
+| `testDeepEqual`                   | test | Test deepEqual() compares values...                                                                          |
+| `testDeepClone`                   | test | Test deepClone() creates independent copies...                                                               |
+| `testDeepMerge`                   | test | Test deepMerge() merges objects...                                                                           |
+| `testShallowEquals`               | test | Test shallowObjectEqual() and shallowArrayEqual()...                                                         |
+| `testIsNumeric`                   | test | Test isNumeric() validates numeric strings...                                                                |
+| `testIsObjectEmpty`               | test | Test isObjectEmpty() checks empty objects...                                                                 |
+| `testGenerateIdAndIsValidUUID`    | test | Test generateId() and isValidUUID()...                                                                       |
+| `testSetAlphaColor`               | test | Test setAlphaColor() modifies alpha channel...                                                               |
+| `testIsJsonString`                | test | Test isJsonString() validates JSON strings...                                                                |
+| `testJsonParsing`                 | test | Test removeCommentsFromJSON() and parseJSONConfig()...                                                       |
+| `testEscapeRegExp`                | test | Test escapeRegExp() escapes regex characters...                                                              |
+| `testIsImage`                     | test | Test isImage() detects image URLs...                                                                         |
+| `testStringify`                   | test | Test stringify() handles null/undefined/values...                                                            |
+| `testSafeStringify`               | test | Test safeStringify() handles circular references...                                                          |
+| `testDeepMergeObjects`            | test | Test deepMergeObjects() merges multiple objects...                                                           |
+| `testFindPropertyByRegexPath`     | test | Test findPropertyByRegexPath() finds nested properties...                                                    |
+| `testFormatMeasurements`          | test | Test formatMeasurementValue(), formatLength(), formatArea()...                                               |
+| `testNormalizeDatacubeAccessPath` | test | Test normalizeDatacubeAccessPath() transforms URLs...                                                        |
 | `testEnsureHttpsOnSecurePage`     | test | Test metadata HTTP URLs upgrade only on HTTPS pages without changing paths, queries, or other URL schemes... |
-| `testSanitizeHtmlContent`         | test | Test sanitizeHtmlContent() strips dangerous HTML...            |
-| `testEnhanceLinksAccessibility`   | test | Test enhanceLinksAccessibility() adds screen reader text...    |
-| `testGetLocalizedMessage`         | test | Test getLocalizedMessage() returns translated strings...       |
+| `testSanitizeHtmlContent`         | test | Test sanitizeHtmlContent() strips dangerous HTML...                                                          |
+| `testEnhanceLinksAccessibility`   | test | Test enhanceLinksAccessibility() adds screen reader text...                                                  |
+| `testGetLocalizedMessage`         | test | Test getLocalizedMessage() returns translated strings...                                                     |
 
 #### 1.3.2 UtilitiesDateTester
 
@@ -370,16 +373,20 @@ This catalog lists every test by group, suite, and tester. Each entry gives the 
 
 > **Note:** This suite runs on two separate maps — one with EPSG: 3978 and one with EPSG: 3857 — executing the same tests under both projections.
 
+Successful layer-add tests also verify mounted entries in the Legend and Layers panels, including grouped fixtures.
+The shared store assertion additionally checks that the Layers panel's primary label matches the supplied expected layer name.
+These checks do not require activating either panel or changing layer visibility.
+
 #### 2.1.1 Esri Dynamic — Lifecycle
 
 [↑ Back to top](#table-of-contents)
 
-| Method                                         | Type      | Description                                                                                   |
-| ---------------------------------------------- | --------- | --------------------------------------------------------------------------------------------- |
-| `testAddEsriDynamicHistoFloodEvents`           | test      | Test Adding Esri Dynamic Histo Flood Events on map...                                         |
-| `testAddEsriDynamicCaseSensitiveExport` | test | Test GeoCore UUID `31f841b6-a544-47f9-93fb-b111a46fc654` exports with canonical bbox/size keys and returns the requested image dimensions |
-| `testAddEsriDynamicWithRasterLayersViaGeocore` | test      | Test Adding Esri Dynamic with Raster Layers via Geocore...                                    |
-| `testAddEsriDynamicBadUrl`                     | testError | Test Adding Esri Dynamic with bad url... _(expects `LayerServiceMetadataUnableToFetchError`)_ |
+| Method                                         | Type      | Description                                                                                                                               |
+| ---------------------------------------------- | --------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `testAddEsriDynamicHistoFloodEvents`           | test      | Test Adding Esri Dynamic Histo Flood Events on map...                                                                                     |
+| `testAddEsriDynamicCaseSensitiveExport`        | test      | Test GeoCore UUID `31f841b6-a544-47f9-93fb-b111a46fc654` exports with canonical bbox/size keys and returns the requested image dimensions |
+| `testAddEsriDynamicWithRasterLayersViaGeocore` | test      | Test Adding Esri Dynamic with Raster Layers via Geocore...                                                                                |
+| `testAddEsriDynamicBadUrl`                     | testError | Test Adding Esri Dynamic with bad url... _(expects `LayerServiceMetadataUnableToFetchError`)_                                             |
 
 #### 2.1.2 Esri Feature — Lifecycle
 
@@ -488,6 +495,14 @@ This catalog lists every test by group, suite, and tester. Each entry gives the 
 | ---------------------------- | ---- | ----------------------------- |
 | `testInitialSettingsCascade` | test | Test initial settings cascade |
 
+**GeoCore inline overrides:** `testAddGeocoreWithInlineLandCoverEntryOverride` adds UUID
+`c688b87f-e85f-4842-b0e1-a8f79ebf1133` with the `landcover-2010` entry and verifies its
+custom name, hidden visibility, and collapsed legend state.
+`testAddGeocoreWithInlineCesiGroupOverrides` verifies the CESI record's two named groups,
+their selected children, and the configured child and group visibility and collapsed state.
+`testAddGeocoreWithInlineIAACGroupOverride` verifies the IAAC Projects group and the
+visibility and collapsed states of children `0`, `1`, and `2`.
+
 #### 2.1.13 Domain Fields (sequential)
 
 [↑ Back to top](#table-of-contents)
@@ -559,6 +574,7 @@ This catalog lists every test by group, suite, and tester. Each entry gives the 
 | Method                                              | Type | Description                                                           |
 | --------------------------------------------------- | ---- | --------------------------------------------------------------------- |
 | `testZoomExtentWithOneFeature`                      | test | Test zoom to extent of a layer with only one point feature...         |
+| `testGetExtentOfMultipleLayers` | test | Check the union of GeoJSON, Esri Feature, Esri Dynamic GNWT Boundaries and Halifax WMS bounds with layer paths and root IDs... |
 | `testZoomExtentWithoutFeatures`                     | test | Test zoom to extent of a layer without features...                    |
 | `testZoomExtentWithoutFeaturesWithConfiguredExtent` | test | Test zoom to extent falls back to the configured extent when empty... |
 
@@ -595,8 +611,8 @@ This catalog lists every test by group, suite, and tester. Each entry gives the 
 
 [↑ Back to top](#table-of-contents)
 
-| Method                            | Type | Description                                                                                             |
-| --------------------------------- | ---- | ------------------------------------------------------------------------------------------------------- |
+| Method                           | Type | Description                                                                                           |
+| -------------------------------- | ---- | ----------------------------------------------------------------------------------------------------- |
 | `testSetOrToggleLayerVisibility` | test | Test explicit visibility values and no-argument toggles through `LayerApi.setOrToggleLayerVisibility` |
 
 #### 2.2.6 Layer Naming (sequential)
@@ -958,3 +974,47 @@ its expected error. Finalizers restore the host width, map target, and usable vi
 | `testResetValues`                          | test | Test Time Slider reset restores registered default values...                                     |
 | `testConstrainValues`                      | test | Test Time Slider prevents dual-handle overlap for discrete and continuous ranges...              |
 | `testWMSLayerLandcoverGroupDimensionFlags` | test | Test WMS Landcover group dimension flags are set in the store on the group and its sub-layers... |
+
+---
+
+## 6. A11Y and UX
+
+[↑ Back to top](#table-of-contents)
+
+### 6.1 Keyboard Navigation
+
+**Suite:** `suite-a11y-ux` · **File:** `tests/suites/suite-a11y-ux.ts` · **Testers:** `A11yUxTester` (`tests/testers/a11y-ux-tester.ts`), `A11yEntryTester` (`tests/testers/a11y-entry-tester.ts`)
+**Execution:** Sequential on the dedicated map · **Guard:** Details must be available in the app bar and the map14 companion viewer must be ready
+
+The two-viewer entry cases use `A11yEntryTester` (`tests/testers/a11y-entry-tester.ts`) and share the same suite.
+Launch Group 6 outside browser fullscreen, with both viewers visible and the document focused. The first case uses
+the launch button's user activation to enter real navBar fullscreen; it skips without activation, but fails if the browser rejects the request.
+The existing fullscreen overlay cases use modal dialogs, not the Fullscreen API. The cases dispatch input events automatically.
+All Group 6 tests are reported as skipped in the hidden Run All view or when the document is not focused. Native traversal and wrapping
+are checked separately in the [manual WCAG plan](../../programming/release-testing/21-wcag-accessibility.md#tab-order).
+
+| Method                                               | Type | Description                                                                                                                                         |
+| ---------------------------------------------------- | ---- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `testFullscreenPopoverFocusReturn`                   | test | Enter navBar fullscreen; check Resize Close and pointer-commit focus return, the committed value, and fullscreen-exit focus                           |
+| `testSettingsDoesNotScrollPage`                      | test | Open Settings on a scrollable page with the map clipped and verify the page position does not change                                                |
+| `testSettingsPointerClickAway`                       | test | Dispatch a Layers press with the Settings switch focused; verify Settings closes without opener focus before mouseup, then click opens Layers        |
+| `testLayersSubPanelYieldsToSettings`                 | test | Select a layer; verify Settings retains mousedown focus before mouseup, then opens and keeps focus on its keyboard-navigation switch                   |
+| `testKeyboardQueryMapFocusReturn`                    | test | Test Ctrl+M closes query-opened Details, returns focus to the map, and allows Enter to query again                                                  |
+| `testKeyboardShortcutClosesPanelsAndPreservesFooter` | test | Test Ctrl+M closes app-bar panels and map popovers while preserving the open footer panel                                                           |
+| `testNavbarPanelFocusOwnership`                      | test | Verify Basemap and Rotation preserve content across focus ownership changes, use distinct owners and callbacks, and return focus on Escape         |
+| `testCrosshairDetailsEscapeReturnsToMap`             | test | Test Escape closes the feature sub-panel and focuses its layer item, then closes Details and returns to the map                                     |
+| `testDetailsEscapeOwnershipCancellation`             | test | Test two-level Escape after mouse cancellation, mouse-open Details, and Close preserve existing focus behavior                                      |
+| `testDetailsEscapeFocusLeaveCancellation`            | test | Test focus can leave query-opened Details' feature sub-panel, stays on Layers, and cancels its Escape focus return                                  |
+| `testKeyboardShortcutIgnoredForExportModal`          | test | Test Ctrl+M is ignored while Export is open and no map keyboard events are forwarded                                                                |
+| `testKeyboardShortcutIgnoredForShareModal`           | test | Test Ctrl+M leaves Share open and focused without notifying the map                                                                                 |
+| `testKeyboardShortcutIgnoredForOverlay`              | test | Test modal keyboard notification suppression, Ctrl+M from landing and escaped focus, and Tab/entry and Ctrl+Q behavior in both fullscreen variants  |
+| `testModalShortcutViewerIsolation`                   | test | Test a modal in the companion viewer does not block Ctrl+M in the focused viewer                                                                    |
+| `testDetailsSubPanelReopensAfterDismissal`           | test | Test reopening Details preserves its feature sub-panel and selected layer/feature after app-bar and Ctrl+M dismissal                                |
+| `testSettingsEntryGuard`                             | test | Verify the per-viewer Settings switch, initial Tab guard, and repeatable boundary prompt                                                            |
+| `testForwardEntryEnable`                             | test | Verify the top-link Tab handler, Enable, and activation of the first viewer’s map skip link                                                         |
+| `testStaticEntryEnable`                              | test | Verify Enable focuses the static companion viewer's shell without activating its crosshair, then restores its interaction mode                      |
+| `testForwardAndReverseEntrySkip`                     | test | Verify Skip lands on the opposite outer link in each direction, reverse Enable lands on the map skip link, and each scrolls fully into the viewport |
+| `testSkipKeepsFocusUnderStationaryPointer`           | test | Verify a still pointer leaves Skip focus on the bottom outer link, and hover focus (moved, repeated, or without keyboard focus) lets arrows pan     |
+| `testFooterPanelReopensWithFocus`                    | test | Keyboard and pointer variants: Exit leaves the footer open and returns to its tab; collapse releases ownership; reopening focuses Exit              |
+| `testTwoMapKeyboardShortcuts`                        | test | Verify crosshair blur and Ctrl+M/Ctrl+Q affect only the appropriate viewer                                                                          |
+| `testUnansweredPromptStaysOpenOnMouseMove`           | test | Verify mouse movement on the dialog overlay does not dismiss the unanswered prompt                                                                  |
